@@ -31,3 +31,9 @@ Issues or observations spotted during implementation that are **out of scope** f
 
 - **Shared cookie type:** `lib/supabase/types.ts` defines `CookieToSet` used by `lib/supabase/server.ts` and `middleware.ts` for the Supabase SSR cookie adapter `setAll` callback, removing duplicated inline types.
 - **Layout props:** `app/admin/layout.tsx` props type aligned with root layout (`Readonly<{ children: React.ReactNode }>`).
+
+---
+
+## Employee Auth — Stage 4 (Hardening)
+
+- **Middleware resilience:** Middleware wraps `supabase.auth.getUser()` in try/catch; on error (e.g. Supabase down), user is treated as unauthenticated and `/admin` requests are redirected to `/admin/login` (fail closed). See `docs/hardening-notes.md` for full sweep.
