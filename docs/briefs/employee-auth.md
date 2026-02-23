@@ -1,6 +1,6 @@
 # Feature Brief — Employee Auth
 
-Status: Stage 1 — Implementation complete (pending Critic)
+Status: Stage 2 — Tests complete (pending Critic)
 Date: 2025-02-23
 Author: Orchestrator Agent
 
