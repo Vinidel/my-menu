@@ -20,6 +20,11 @@ type AdminOrdersDashboardProps = {
   initialLoadError?: string | null;
 };
 
+type FeedbackState = {
+  type: "success" | "error";
+  message: string;
+};
+
 export function AdminOrdersDashboard({
   initialOrders,
   initialLoadError = null,
@@ -28,10 +33,9 @@ export function AdminOrdersDashboard({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
     initialOrders[0]?.id ?? null
   );
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(initialLoadError ? { type: "error", message: initialLoadError } : null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(
+    initialLoadError ? { type: "error", message: initialLoadError } : null
+  );
   const [isPending, startTransition] = useTransition();
 
   const counts = countOrdersByStatus(orders);
@@ -74,10 +78,7 @@ export function AdminOrdersDashboard({
             : order
         )
       );
-      setFeedback({
-        type: "success",
-        message: `Pedido atualizado para ${result.nextStatusLabel}.`,
-      });
+      setFeedback(successFeedback(`Pedido atualizado para ${result.nextStatusLabel}.`));
     });
   }
 
@@ -99,14 +100,14 @@ export function AdminOrdersDashboard({
       );
     }
 
-    setFeedback({ type: "error", message: result.message });
+    setFeedback(errorFeedback(result.message));
   }
 
   if (orders.length === 0 && initialLoadError) {
     return (
       <div className="flex flex-1 flex-col gap-6 p-6 md:p-8">
         <SummaryCards counts={counts} />
-        <FeedbackBanner type="error" message={initialLoadError} />
+        <FeedbackBanner {...errorFeedback(initialLoadError)} />
         <section className="rounded-lg border border-border bg-background p-8 text-center">
           <h1 className="text-2xl font-semibold text-foreground">
             Falha ao carregar pedidos
@@ -296,6 +297,14 @@ export function AdminOrdersDashboard({
       </div>
     </div>
   );
+}
+
+function successFeedback(message: string): FeedbackState {
+  return { type: "success", message };
+}
+
+function errorFeedback(message: string): FeedbackState {
+  return { type: "error", message };
 }
 
 function SummaryCards({ counts }: { counts: Record<OrderStatus, number> }) {
