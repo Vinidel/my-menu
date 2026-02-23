@@ -1,6 +1,6 @@
 # Feature Brief — Employee Auth
 
-Status: Stage 0 — Framing
+Status: Stage 1 — Implementation complete (pending Critic)
 Date: 2025-02-23
 Author: Orchestrator Agent
 
@@ -24,7 +24,7 @@ The `/admin` area is currently open to anyone. Only the burger place owner and s
 - Unauthenticated users who try to access `/admin` (or any route under `/admin`) are **redirected to a login page**.
 - Authenticated employees can access `/admin` and can **log out**; after logout, accessing `/admin` again requires logging in.
 - All auth-related UI (login form, buttons, error messages) is in **Portuguese (pt-BR)**.
-- Supabase client is configured via **environment variables** (e.g. `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`); the app runs only when these are set (or shows a clear setup message in development).
+- Supabase client is configured via **environment variables** (e.g. `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`); the app runs only when these are set (or shows a clear setup message in development).
 
 Success = an employee can log in, reach `/admin`, log out, and be redirected to login when not authenticated. No customer accounts or sign-up flow in this feature.
 
@@ -41,7 +41,7 @@ Success = an employee can log in, reach `/admin`, log out, and be redirected to 
 ## What We Capture / Change
 
 - **Supabase Auth:** Use Supabase as the identity provider. User accounts (email/password) live in Supabase; no separate users table in the app. Session is managed by Supabase client (e.g. cookie-based with `@supabase/ssr` or equivalent for Next.js).
-- **Environment:** At least `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. No secrets in the brief beyond what Supabase needs for client-side auth.
+- **Environment:** At least `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. No secrets in the brief beyond what Supabase needs for client-side auth.
 - **Routes:** New login page (route TBD below). `/admin` and all routes under `/admin/`* require authentication; unauthenticated users are redirected to the login page.
 - **No new database tables** for this feature; Supabase Auth stores users.
 
@@ -90,7 +90,7 @@ Success = an employee can log in, reach `/admin`, log out, and be redirected to 
 
 - **Direct URL to /admin.** User types `/admin` in the address bar while logged out → redirect to login. Same for any deep link under `/admin`.
 - **Login page as entry point.** User bookmarks or shares the login page URL; it should always show the login form when not authenticated and redirect to `/admin` when authenticated.
-- **Env vars missing.** In development, if Supabase URL or anon key is missing, the app should not throw an uncaught error; show a setup message or disable the login form with a clear message in Portuguese. Production deployment is expected to set env vars (e.g. on Vercel).
+- **Env vars missing.** In development, if Supabase URL or publishable key is missing, the app should not throw an uncaught error; show a setup message or disable the login form with a clear message in Portuguese. Production deployment is expected to set env vars (e.g. on Vercel).
 
 ---
 
@@ -102,7 +102,7 @@ Success = an employee can log in, reach `/admin`, log out, and be redirected to 
 4. **Logout.** Provide a logout action that calls Supabase `signOut`, then redirects to `/admin/login` (or `/`). Can be a button in the admin layout or on the admin page. Clear any local/cookie session state via the Supabase client.
 5. **Redirect after login.** After successful sign-in, redirect to `/admin`. Optionally store the “intended” URL (e.g. before redirect to login) and redirect back there after login; not required for this brief if always redirecting to `/admin` is acceptable.
 6. **Error messages.** Map Supabase auth errors to user-facing Portuguese messages. Do not expose stack traces or internal error codes to the user.
-7. **Env and docs.** Use `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Add `.env.example` with placeholder keys and document in README that these are required for auth (or mention in implementation notes). Do not commit real keys.
+7. **Env and docs.** Use `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Add `.env.example` with placeholder keys and document in README that these are required for auth (or mention in implementation notes). Do not commit real keys.
 
 ---
 
