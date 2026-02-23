@@ -42,16 +42,25 @@ Success = an authenticated employee can open the dashboard, see order counts, in
 ## What We Capture / Change
 
 - **Read orders** from Supabase for authenticated employees.
-- **Display fields** required for list and details (minimum expected): order id/reference, creation date/time, customer contact info, items, current status. Exact field names depend on existing schema.
+- **Display fields** required for list and details.
+  - **List (minimum):** order id/reference, creation date/time, customer name, current status.
+  - **Details (minimum):** order id/reference, creation date/time, customer name, customer phone, customer email, ordered items (item name + quantity), current status.
+  - Optional fields (e.g. notes) should render when present, but are not required for this feature.
 - **Update order status** by progressing to the next allowed status.
+- **Canonical persisted status values (locked for this feature):**
+  - `aguardando_confirmacao`
+  - `em_preparo`
+  - `entregue`
+- **UI labels in pt-BR (locked mapping):**
+  - `aguardando_confirmacao` -> `Esperando confirmação`
+  - `em_preparo` -> `Em preparo`
+  - `entregue` -> `Entregue`
 - **Dashboard summary counts** computed for these statuses only:
   - `Esperando confirmação`
   - `Em preparo`
   - `Entregue`
 - **No new customer data captured** in this feature.
 - **No menu JSON changes** in this feature.
-
-If the current order schema/status values differ from the status labels above, Stage 1 must align the UI labels to pt-BR and document the mapping.
 
 ---
 
@@ -61,10 +70,10 @@ If the current order schema/status values differ from the status labels above, S
 - [ ] Dashboard shows a summary section at the top with total counts for `Esperando confirmação`, `Em preparo`, and `Entregue`.
 - [ ] Dashboard lists orders in ascending creation order (oldest first, newest last).
 - [ ] Each listed order can be selected/clicked to view order details.
-- [ ] Order details view shows enough information for fulfillment (customer info + ordered items + current status, at minimum).
+- [ ] Order details view shows at minimum: order id/reference, creation date/time, customer name, customer phone, customer email, ordered items (name + quantity), and current status.
 - [ ] Employee can progress an order to the next status from the details view (or equivalent order action UI).
 - [ ] Progressing an order updates persisted data in Supabase and the dashboard reflects the new status/counts.
-- [ ] Invalid or disallowed status progression is prevented in the UI and handled safely in the update path.
+- [ ] Invalid or disallowed status progression is prevented in the UI and handled safely in the update path using the locked canonical statuses.
 - [ ] Empty-state UI is shown in Portuguese when there are no orders.
 - [ ] Errors loading orders or updating status are shown with clear Portuguese messages without leaking internal details.
 
@@ -105,22 +114,23 @@ If the current order schema/status values differ from the status labels above, S
 - **No orders yet:** Dashboard shows zero counts and an empty-state message in Portuguese.
 - **Mixed/legacy status values in DB:** If historical rows contain unexpected status values, they should not break the dashboard; unknown statuses can still render in details and be excluded from the three summary totals (or mapped explicitly if defined).
 - **Missing optional order fields:** If some order rows are missing non-critical fields (e.g. notes), the details view still renders gracefully.
-- **Concurrent update by another employee:** If two employees open the same order and one updates status first, the second employee's action should fail safely or refresh against current persisted status rather than silently overwriting unexpectedly.
+- **Concurrent update by another employee:** If two employees open the same order and one updates status first, the second employee's progression attempt must be rejected by the update path (no blind overwrite), and the UI must refresh/reload the order to show the current persisted status with a Portuguese message.
 - **Large item list in one order:** Details view remains readable and usable when an order contains many items.
 
 ---
 
 ## Approach (High-Level Rationale)
 
-1. **Protected admin page.** Build the dashboard inside the existing authenticated `/admin` area (auth is already done). Reuse the current auth guard/layout rather than introducing a new auth mechanism.
+1. **Protected admin page.** Build the dashboard on the existing authenticated route `/admin` (auth is already done). Reuse the current auth guard/layout rather than introducing a new auth mechanism.
 2. **Orders query + default ordering.** Read orders from Supabase sorted by creation timestamp ascending (`oldest -> newest`). The exact timestamp column name depends on the existing schema (e.g. `created_at`).
 3. **Summary counts.** Compute and display top-level counts for the three operational statuses (`Esperando confirmação`, `Em preparo`, `Entregue`). Counts may be calculated from fetched rows in the page layer for this initial feature; optimization can come later if needed.
 4. **Master/detail UI.** Render a list of orders plus a details panel/page/modal for the selected order. Exact presentation is an implementation choice, but selection must be clear and support status progression.
-5. **Status progression rule (locked for this feature).** Support only forward progression:
-   - `Esperando confirmação` -> `Em preparo`
-   - `Em preparo` -> `Entregue`
-   - `Entregue` -> no further progression
-6. **Safe updates + feedback.** On status progression, update Supabase, then refresh local UI state/list/counts. Show Portuguese success/error feedback. Prevent duplicate submissions while an update is in progress.
+5. **Status progression rule (locked for this feature).** Persist and validate only canonical statuses:
+   - `aguardando_confirmacao` -> `em_preparo`
+   - `em_preparo` -> `entregue`
+   - `entregue` -> no further progression
+   UI must display the mapped pt-BR labels (`Esperando confirmação`, `Em preparo`, `Entregue`).
+6. **Safe updates + feedback.** On status progression, update Supabase, then refresh local UI state/list/counts. Show Portuguese success/error feedback. Prevent duplicate submissions while an update is in progress. For stale/concurrent updates, reject the action and reload the current order state from persistence.
 7. **Portuguese UI.** All labels, buttons, status names, empty states, and errors shown to employees must be in pt-BR.
 
 ---
@@ -128,10 +138,13 @@ If the current order schema/status values differ from the status labels above, S
 ## Decisions (Locked)
 
 - **Feature scope:** This feature adds an authenticated employee dashboard for viewing and progressing orders; no order creation or editing beyond status progression.
+- **Dashboard route:** The orders dashboard for this feature is the existing protected `/admin` page.
 - **Dashboard ordering:** Orders are displayed **oldest to newest** by creation timestamp.
 - **Top summary metrics:** The dashboard header shows totals for exactly three statuses: `Esperando confirmação`, `Em preparo`, `Entregue`.
-- **Status progression flow:** Employees can only move orders forward in this sequence: `Esperando confirmação` -> `Em preparo` -> `Entregue`.
+- **Persisted status contract:** Orders use canonical persisted statuses `aguardando_confirmacao`, `em_preparo`, `entregue`; the UI displays mapped pt-BR labels.
+- **Status progression flow:** Employees can only move orders forward in this sequence: `aguardando_confirmacao` -> `em_preparo` -> `entregue` (displayed as `Esperando confirmação` -> `Em preparo` -> `Entregue`).
 - **No reverse/jump transitions:** Employees cannot move an order backward or skip directly to `Entregue` in this feature.
+- **Concurrent updates:** If an order changed since it was opened, the employee's stale progression attempt is rejected and the UI refreshes the order from persisted state before another attempt.
 - **Auth dependency:** Dashboard remains under the existing protected `/admin` experience and uses the already-implemented employee authentication.
 - **Language:** Employee dashboard UI and user-facing messages are in Portuguese (pt-BR).
 
