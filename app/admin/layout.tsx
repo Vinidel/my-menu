@@ -3,9 +3,9 @@ import { AdminLogoutButton } from "@/components/admin-logout-button";
 
 export default function AdminLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">

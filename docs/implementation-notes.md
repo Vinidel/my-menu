@@ -24,3 +24,10 @@ Issues or observations spotted during implementation that are **out of scope** f
 
 - **Middleware tests** run with `@vitest-environment node` so `NextRequest` and `Headers` work; middleware is tested with mocked `@supabase/ssr` `createServerClient`.
 - **Login page tests** use the last matching form/inputs (`getAllByPlaceholderText(...)[length - 1]`) to target the correct instance when React Strict Mode double-mounts; invalid credentials and redirect tests assert on mocked `signInWithPassword` and `useRouter` behaviour.
+
+---
+
+## Employee Auth — Stage 3 (Refactor)
+
+- **Shared cookie type:** `lib/supabase/types.ts` defines `CookieToSet` used by `lib/supabase/server.ts` and `middleware.ts` for the Supabase SSR cookie adapter `setAll` callback, removing duplicated inline types.
+- **Layout props:** `app/admin/layout.tsx` props type aligned with root layout (`Readonly<{ children: React.ReactNode }>`).
