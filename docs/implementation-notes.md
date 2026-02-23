@@ -37,3 +37,11 @@ Issues or observations spotted during implementation that are **out of scope** f
 ## Employee Auth — Stage 4 (Hardening)
 
 - **Middleware resilience:** Middleware wraps `supabase.auth.getUser()` in try/catch; on error (e.g. Supabase down), user is treated as unauthenticated and `/admin` requests are redirected to `/admin/login` (fail closed). See `docs/hardening-notes.md` for full sweep.
+
+---
+
+## Employee Orders Dashboard (Stage 1)
+
+- **Orders schema assumptions (mostly addressed):** Supabase migrations now exist for `public.orders` and DB-level status transition enforcement. The dashboard query uses explicit columns and `created_at` ordering. The main remaining gap is the typed Supabase `.update()` workaround in `app/admin/actions.ts` (see `docs/hardening-notes.md`).
+- **Items shape assumptions:** Order items are treated as an array (or JSON stringified array) of objects with a name/title and quantity. If existing rows store items in a different shape, the details panel may show “Itens não disponíveis neste registro.” until the schema mapping is finalized.
+- **Concurrency handling dependency:** Stale status progression rejection assumes the `orders` table has `id` and `status` columns and supports a conditional update (`eq(\"id\") + eq(\"status\")`) via RLS for authenticated employees.

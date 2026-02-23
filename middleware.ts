@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import type { Database } from "@/lib/supabase/database.types";
 import type { CookieToSet } from "@/lib/supabase/types";
 
 export async function middleware(request: NextRequest) {
@@ -12,7 +13,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const supabase = createServerClient(url, publishableKey, {
+  const supabase = createServerClient<Database, "public">(url, publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
