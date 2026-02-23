@@ -3,7 +3,7 @@
 
 Date: 2026-02-23
 Reviewed by: Critic Agent
-Scope: Stage 0 brief review — `docs/briefs/employee-orders-dashboard.md`
+Scope: Stage 2 test coverage review (second pass) — `components/admin-orders-dashboard.test.tsx`, `app/admin/page.test.tsx`
 Verdict: APPROVE
 
 ## Findings
@@ -12,17 +12,16 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding a brief note in Stage 1 implementation notes if the existing DB schema uses different field names than the brief’s minimum display fields, to make test/data fixture setup easier in Stage 2.
-- If the team expects high order volume later, add a future brief for pagination/filtering so the current non-goals are explicitly tracked.
+- Consider adding focused unit tests for `lib/orders.ts` parsing/normalization (`esperando_confirmacao` alias mapping, unknown status labels, item parsing) so parser regressions are caught independently of dashboard UI tests.
+- If CI later enforces clean console output, add a `console.error` spy in `app/admin/page.test.tsx` for the load-failure case instead of emitting expected logs during the test.
 
 ### Risks / Assumptions
-- The brief assumes the existing orders schema supports the locked canonical statuses (`aguardando_confirmacao`, `em_preparo`, `entregue`) or can be aligned without expanding scope.
-- The brief assumes there is a reliable creation timestamp column available for oldest-to-newest ordering (e.g. `created_at`).
-- The stale update rejection requirement may need a conditional update strategy in Supabase (or equivalent) to avoid blind overwrites; this is implementable but should be treated as part of the core behavior, not a later hardening task.
+- Unauthorized `/admin` access redirection is not re-tested in this feature’s new tests; coverage depends on existing middleware tests and the previously delivered auth feature.
+- The dashboard component tests mock `progressOrderStatus`, so they verify UI reaction contracts rather than Supabase persistence details. That is appropriate for Stage 2 component testing, but server-action integration behavior still relies on implementation-level confidence until broader integration tests are added.
 
 ## Acceptance Criteria
-- [x] Brief locks exact status persistence/display contract (including mapping if DB values differ from UI labels)
-- [x] Brief defines the minimum required order-detail fields explicitly
-- [x] Brief specifies one deterministic concurrent-update outcome
-- [x] (Optional) Dashboard route is explicitly locked
+- [x] Add test for successful progression `em_preparo` -> `entregue`
+- [x] Add test for stale/concurrent update rejection UI behavior (`code: "stale"`)
+- [x] Add test for unknown/unsupported status disallowed progression behavior
+- [x] (Optional) Tighten summary count assertions to the summary section
 ---

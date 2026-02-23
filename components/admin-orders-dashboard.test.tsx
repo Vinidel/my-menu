@@ -1,0 +1,348 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { AdminOrdersDashboard } from "./admin-orders-dashboard";
+import type { AdminOrder } from "@/lib/orders";
+
+vi.mock("@/app/admin/actions", () => ({
+  progressOrderStatus: vi.fn(),
+}));
+
+import { progressOrderStatus } from "@/app/admin/actions";
+
+function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
+  return {
+    id: "1",
+    reference: "PED-0001",
+    createdAtIso: "2026-02-23T10:00:00.000Z",
+    createdAtLabel: "23/02/2026, 07:00",
+    customerName: "Cliente Teste",
+    customerEmail: "cliente@example.com",
+    customerPhone: "+55 11 99999-9999",
+    items: [{ name: "X-Burger", quantity: 1 }],
+    status: "aguardando_confirmacao",
+    statusLabel: "Esperando confirmação",
+    rawStatus: "aguardando_confirmacao",
+    notes: null,
+    ...overrides,
+  };
+}
+
+describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
+  beforeEach(() => {
+    vi.mocked(progressOrderStatus).mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("shows summary counts and renders orders in provided oldest->newest order (brief: dashboard summary/list)", () => {
+    const orders = [
+      makeOrder({
+        id: "1",
+        reference: "PED-0001",
+        customerName: "Ana",
+        status: "aguardando_confirmacao",
+        statusLabel: "Esperando confirmação",
+      }),
+      makeOrder({
+        id: "2",
+        reference: "PED-0002",
+        customerName: "Bruno",
+        status: "em_preparo",
+        statusLabel: "Em preparo",
+        createdAtIso: "2026-02-23T10:10:00.000Z",
+        createdAtLabel: "23/02/2026, 07:10",
+      }),
+      makeOrder({
+        id: "3",
+        reference: "PED-0003",
+        customerName: "Carla",
+        status: "entregue",
+        statusLabel: "Entregue",
+        createdAtIso: "2026-02-23T10:20:00.000Z",
+        createdAtLabel: "23/02/2026, 07:20",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+
+    const summary = screen.getByRole("region", {
+      name: "Resumo de pedidos por status",
+    });
+    expect(within(summary).getByText("Esperando confirmação")).toBeInTheDocument();
+    expect(within(summary).getByText("Em preparo")).toBeInTheDocument();
+    expect(within(summary).getByText("Entregue")).toBeInTheDocument();
+
+    const oneCounts = screen.getAllByText("1");
+    expect(oneCounts.length).toBeGreaterThanOrEqual(3);
+
+    const listButtons = screen.getAllByRole("button").filter((button) =>
+      button.textContent?.includes("PED-000")
+    );
+    expect(listButtons.map((button) => button.textContent)).toEqual([
+      expect.stringContaining("PED-0001"),
+      expect.stringContaining("PED-0002"),
+      expect.stringContaining("PED-0003"),
+    ]);
+  });
+
+  it("shows details for clicked order (brief: open order and see details)", () => {
+    const orders = [
+      makeOrder({
+        id: "1",
+        reference: "PED-0001",
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "1111",
+        items: [{ name: "X-Burger", quantity: 2 }],
+      }),
+      makeOrder({
+        id: "2",
+        reference: "PED-0002",
+        customerName: "Bruno",
+        customerEmail: "bruno@example.com",
+        customerPhone: "2222",
+        items: [{ name: "Batata frita", quantity: 1 }],
+        createdAtIso: "2026-02-23T10:10:00.000Z",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+    const orderButtons = screen
+      .getAllByRole("button")
+      .filter((button) => button.textContent?.includes("PED-0002"));
+    fireEvent.click(orderButtons[0]);
+
+    const detailHeading = screen.getByRole("heading", { level: 2, name: "PED-0002" });
+    expect(detailHeading).toBeInTheDocument();
+    const detailsPanel = detailHeading.closest("section");
+    expect(detailsPanel).toBeTruthy();
+    const details = within(detailsPanel!);
+    expect(details.getByText("Bruno")).toBeInTheDocument();
+    expect(details.getByText("2222")).toBeInTheDocument();
+    expect(details.getByText("bruno@example.com")).toBeInTheDocument();
+    expect(details.getByText("Batata frita")).toBeInTheDocument();
+    expect(details.getByText("1x")).toBeInTheDocument();
+  });
+
+  it("progresses status and updates summary counts (brief: progress waiting->preparing)", async () => {
+    vi.mocked(progressOrderStatus).mockResolvedValue({
+      ok: true,
+      nextStatus: "em_preparo",
+      nextStatusLabel: "Em preparo",
+    });
+
+    const orders = [
+      makeOrder({
+        id: "1",
+        reference: "PED-0001",
+        status: "aguardando_confirmacao",
+        statusLabel: "Esperando confirmação",
+      }),
+      makeOrder({
+        id: "2",
+        reference: "PED-0002",
+        status: "em_preparo",
+        statusLabel: "Em preparo",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Avançar status" }).at(-1)!);
+
+    await waitFor(() => {
+      expect(progressOrderStatus).toHaveBeenCalledWith({
+        orderId: "1",
+        currentStatus: "aguardando_confirmacao",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Pedido atualizado para Em preparo.")).toBeInTheDocument();
+    });
+
+    const summary = screen.getByRole("region", {
+      name: "Resumo de pedidos por status",
+    });
+    expect(within(summary).getAllByText("0").length).toBeGreaterThanOrEqual(2);
+    expect(within(summary).getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("Próximo status: Entregue")).toBeInTheDocument();
+  });
+
+  it("progresses status from preparing to delivered and updates summary counts (brief: progress preparing->delivered)", async () => {
+    vi.mocked(progressOrderStatus).mockResolvedValue({
+      ok: true,
+      nextStatus: "entregue",
+      nextStatusLabel: "Entregue",
+    });
+
+    const orders = [
+      makeOrder({
+        id: "1",
+        reference: "PED-0001",
+        status: "em_preparo",
+        statusLabel: "Em preparo",
+      }),
+      makeOrder({
+        id: "2",
+        reference: "PED-0002",
+        status: "entregue",
+        statusLabel: "Entregue",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Avançar status" }).at(-1)!);
+
+    await waitFor(() => {
+      expect(progressOrderStatus).toHaveBeenCalledWith({
+        orderId: "1",
+        currentStatus: "em_preparo",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Pedido atualizado para Entregue.")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Este pedido não pode avançar mais.")).toBeInTheDocument();
+
+    const summary = screen.getByRole("region", {
+      name: "Resumo de pedidos por status",
+    });
+    const cards = within(summary).getAllByText(/^(0|2)$/).map((el) => el.textContent);
+    expect(cards).toContain("0");
+    expect(cards).toContain("2");
+  });
+
+  it("shows error and preserves status on update failure (brief: status update fails)", async () => {
+    vi.mocked(progressOrderStatus).mockResolvedValue({
+      ok: false,
+      code: "unknown",
+      message: "Não foi possível atualizar o status do pedido.",
+    });
+
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            status: "em_preparo",
+            statusLabel: "Em preparo",
+          }),
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Avançar status" }).at(-1)!);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Não foi possível atualizar o status do pedido.")
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("Em preparo").length).toBeGreaterThan(0);
+    expect(screen.getByText("Próximo status: Entregue")).toBeInTheDocument();
+  });
+
+  it("shows stale update message and refreshes selected order status label (brief: concurrent update rejection)", async () => {
+    vi.mocked(progressOrderStatus).mockResolvedValue({
+      ok: false,
+      code: "stale",
+      message:
+        "Este pedido foi atualizado por outra pessoa. Recarregamos o status atual.",
+      currentStatus: "entregue",
+      currentStatusLabel: "Entregue",
+    });
+
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            status: "em_preparo",
+            statusLabel: "Em preparo",
+          }),
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Avançar status" }).at(-1)!);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Este pedido foi atualizado por outra pessoa. Recarregamos o status atual."
+        )
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("Entregue").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Sem próxima etapa" })).toBeDisabled();
+  });
+
+  it("disables progression for delivered orders (brief: disallowed progression)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "3",
+            status: "entregue",
+            statusLabel: "Entregue",
+          }),
+        ]}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Sem próxima etapa" });
+    expect(button).toBeDisabled();
+    expect(screen.getByText("Este pedido não pode avançar mais.")).toBeInTheDocument();
+  });
+
+  it("prevents progression for unknown/unsupported status shape (brief: legacy/unknown status)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "legacy-1",
+            reference: "PED-LEGADO",
+            status: null,
+            statusLabel: "cancelado_legacy",
+            rawStatus: "cancelado_legacy",
+          }),
+        ]}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Sem próxima etapa" });
+    expect(button).toBeDisabled();
+    expect(screen.getByText("Este pedido não pode avançar mais.")).toBeInTheDocument();
+    expect(screen.getAllByText("cancelado_legacy").length).toBeGreaterThan(0);
+  });
+
+  it("shows empty state in Portuguese (brief: no orders yet)", () => {
+    render(<AdminOrdersDashboard initialOrders={[]} />);
+
+    expect(screen.getByText("Nenhum pedido no momento")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Quando novos pedidos chegarem, eles aparecerão aqui/)
+    ).toBeInTheDocument();
+  });
+
+  it("shows load error state in Portuguese (brief: orders load fails)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[]}
+        initialLoadError="Não foi possível carregar os pedidos agora. Tente novamente em instantes."
+      />
+    );
+
+    expect(screen.getByText("Falha ao carregar pedidos")).toBeInTheDocument();
+    expect(
+      screen.getByText("Não foi possível carregar os pedidos agora. Tente novamente em instantes.")
+    ).toBeInTheDocument();
+  });
+});
