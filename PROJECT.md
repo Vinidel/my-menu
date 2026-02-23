@@ -4,7 +4,7 @@
 > Every agent reads this before starting any stage.
 > Keep it updated as the project evolves.
 
-Last updated: 2025-02-23
+Last updated: 2026-02-23
 
 ---
 
@@ -33,8 +33,8 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ## Current Status
 
-- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout).
-- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md` for the auth feature. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
+- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout), Employee Orders Dashboard (`/admin` summary/list/details/status progression), Supabase `orders` schema + seed and DB-enforced status transitions.
+- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md` and `docs/employee-orders-dashboard.md`. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
 - Workflow: 6-stage delivery with agents (see `workflow/WORKFLOW.md`).
 
 ---
@@ -87,7 +87,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 ├── workflow/
 │   └── WORKFLOW.md      ← 6-stage workflow and PR lifecycle
 ├── templates/           ← feature-brief, PROJECT, pull-request templates
-├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md (feature docs)
+├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md, employee-orders-dashboard.md (feature docs)
 ├── PROJECT.md           ← This file: project context and patterns
 ├── app/                 ← Next.js App Router (routes, layouts, pages)
 ├── components/          ← React components; components/ui/ for shadcn

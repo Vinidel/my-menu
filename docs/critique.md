@@ -3,7 +3,7 @@
 
 Date: 2026-02-23
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review (second pass) — `components/admin-orders-dashboard.test.tsx`, `app/admin/page.test.tsx`
+Scope: Stage 5 documentation review — `docs/employee-orders-dashboard.md`, `PROJECT.md`, `docs/implementation-notes.md`, brief status update
 Verdict: APPROVE
 
 ## Findings
@@ -12,16 +12,17 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding focused unit tests for `lib/orders.ts` parsing/normalization (`esperando_confirmacao` alias mapping, unknown status labels, item parsing) so parser regressions are caught independently of dashboard UI tests.
-- If CI later enforces clean console output, add a `console.error` spy in `app/admin/page.test.tsx` for the load-failure case instead of emitting expected logs during the test.
+- Add a short PR-ready summary/rollback snippet (copy/paste format) to `docs/employee-orders-dashboard.md` if the team frequently opens PRs from terminal-only sessions without GitHub templates visible.
+- Consider documenting the exact renamed hardening migration filename (if different from `20260223_000002_enforce_order_status_transitions.sql`) once the final canonical filename in the repo is settled, so future engineers do not have to infer which file was actually applied.
 
 ### Risks / Assumptions
-- Unauthorized `/admin` access redirection is not re-tested in this feature’s new tests; coverage depends on existing middleware tests and the previously delivered auth feature.
-- The dashboard component tests mock `progressOrderStatus`, so they verify UI reaction contracts rather than Supabase persistence details. That is appropriate for Stage 2 component testing, but server-action integration behavior still relies on implementation-level confidence until broader integration tests are added.
+- `PROJECT.md` now states the orders schema + DB-enforced status transitions are delivered (`PROJECT.md:36`); this assumes the second migration was successfully applied after the filename/version conflict was resolved.
+- `docs/employee-orders-dashboard.md` correctly documents the Supabase migration version collision risk and workaround, but future migrations can still fail the same way if contributors return to short date-only prefixes.
 
 ## Acceptance Criteria
-- [x] Add test for successful progression `em_preparo` -> `entregue`
-- [x] Add test for stale/concurrent update rejection UI behavior (`code: "stale"`)
-- [x] Add test for unknown/unsupported status disallowed progression behavior
-- [x] (Optional) Tighten summary count assertions to the summary section
+- [x] Key decisions from the brief and implementation are documented
+- [x] Deferred items and known gaps are captured
+- [x] Operational notes added (migrations, seed, RLS, rollback guidance)
+- [x] Brief status updated to Stage 5 documentation complete (pending Critic)
+- [x] Project-level docs/status references updated for the delivered feature
 ---

@@ -1,6 +1,6 @@
 # Feature Brief — Employee Orders Dashboard
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation complete (pending Critic)
 Date: 2026-02-23
 Author: Orchestrator Agent
 

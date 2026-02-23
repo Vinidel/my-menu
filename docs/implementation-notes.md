@@ -42,6 +42,6 @@ Issues or observations spotted during implementation that are **out of scope** f
 
 ## Employee Orders Dashboard (Stage 1)
 
-- **Orders schema assumptions (partially addressed):** An initial Supabase migration for `public.orders` now exists in `supabase/migrations/20260223_000001_create_orders_table.sql` with canonical statuses (`aguardando_confirmacao`, `em_preparo`, `entregue`). The dashboard implementation still reads with `select("*")` and supports common field aliases to stay resilient while generated DB types are not wired into the app yet.
+- **Orders schema assumptions (mostly addressed):** Supabase migrations now exist for `public.orders` and DB-level status transition enforcement. The dashboard query uses explicit columns and `created_at` ordering. The main remaining gap is the typed Supabase `.update()` workaround in `app/admin/actions.ts` (see `docs/hardening-notes.md`).
 - **Items shape assumptions:** Order items are treated as an array (or JSON stringified array) of objects with a name/title and quantity. If existing rows store items in a different shape, the details panel may show “Itens não disponíveis neste registro.” until the schema mapping is finalized.
 - **Concurrency handling dependency:** Stale status progression rejection assumes the `orders` table has `id` and `status` columns and supports a conditional update (`eq(\"id\") + eq(\"status\")`) via RLS for authenticated employees.
