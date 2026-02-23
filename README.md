@@ -34,7 +34,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Route `/` is the customer menu; `/admin` is the employee area.
+Open [http://localhost:3000](http://localhost:3000). Route `/` is the customer menu; `/admin` is the employee area (login at `/admin/login`). To use the employee area, set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` (see `.env.example`).
 
 ```bash
 # Production build

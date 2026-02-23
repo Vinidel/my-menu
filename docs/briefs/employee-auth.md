@@ -1,6 +1,6 @@
 # Feature Brief — Employee Auth
 
-Status: Stage 4 — Hardening complete (pending Critic)
+Status: Stage 5 — Documentation complete (pending Critic)
 Date: 2025-02-23
 Author: Orchestrator Agent
 

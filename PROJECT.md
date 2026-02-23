@@ -33,7 +33,9 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ## Current Status
 
-New project; greenfield. Delivered using the workflow and agents defined in this repo (rules, templates, `workflow/WORKFLOW.md`).
+- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout).
+- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md` for the auth feature. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
+- Workflow: 6-stage delivery with agents (see `workflow/WORKFLOW.md`).
 
 ---
 
@@ -85,7 +87,7 @@ New project; greenfield. Delivered using the workflow and agents defined in this
 ├── workflow/
 │   └── WORKFLOW.md      ← 6-stage workflow and PR lifecycle
 ├── templates/           ← feature-brief, PROJECT, pull-request templates
-├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md
+├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md (feature docs)
 ├── PROJECT.md           ← This file: project context and patterns
 ├── app/                 ← Next.js App Router (routes, layouts, pages)
 ├── components/          ← React components; components/ui/ for shadcn
