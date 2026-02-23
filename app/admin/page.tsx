@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function AdminPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <h1 className="text-3xl font-bold text-foreground">
         Área do funcionário
       </h1>
@@ -15,6 +15,6 @@ export default function AdminPage() {
       >
         Voltar ao cardápio
       </Link>
-    </main>
+    </div>
   );
 }

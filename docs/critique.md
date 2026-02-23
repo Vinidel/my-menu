@@ -3,47 +3,42 @@
 
 Date: 2025-02-23
 Reviewed by: Critic Agent
-Scope: Feature brief **App Skeleton** (Stage 0) + Stage 1 implementation (app shell, routing, Tailwind, shadcn, Vitest)
+Scope: **Employee Auth** — feature brief + Stage 1 implementation (login, protected routes, logout, env), including post-implementation fix (Sair button only when authenticated) and switch to publishable key
 Verdict: **APPROVE**
 
 ## Findings
 
 ### Required Changes
 
-None. The implementation satisfies the brief.
+None. The implementation satisfies the brief and aligns with PROJECT.md (Next.js, Tailwind, shadcn, Supabase, Portuguese).
 
-- **Brief (Stage 0):** Problem, goal, who, success criteria, non-goals, happy/unhappy paths, edge cases, approach, and locked decisions are all present and clear. No scope creep in the brief itself.
-- **Implementation (Stage 1):** All success criteria from the brief are met:
-  - Next.js runs and builds; root layout wraps routes and applies Tailwind via `globals.css`.
-  - Customer route `/` and employee route `/admin` exist with Portuguese placeholder copy.
-  - Tailwind is configured and used on both pages.
-  - shadcn/ui is set up (`components.json`, `lib/utils.ts`, `components/ui/button.tsx`); Button is used on the home page.
-  - All visible text is in Portuguese (pt-BR).
-  - Vitest is configured; `lib/utils.test.ts` has two passing tests; test script runs.
-  - Structure matches PROJECT.md: `app/`, `components/`, `lib/`; no Supabase, no business logic.
-- **Unhappy paths:** Unknown route yields Next.js default 404; build succeeds (per prior run). No custom 404 required by the brief.
-- **Out of scope respected:** No Supabase, no auth, no menu, no forms. Unrelated issues (npm audit, deprecations, Vitest/Next exclusion) are logged in `docs/implementation-notes.md`.
+- **Brief:** Goals, success criteria, happy/unhappy paths, and decisions are reflected in the code. Publishable key is used as agreed (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
+- **Supabase client:** Browser and server clients in `lib/supabase/`; both return `null` when env vars are missing; no hardcoded credentials.
+- **Login page (`/admin/login`):** Email + password form, labels and messages in Portuguese; client-side validation for empty fields; invalid credentials show "E-mail ou senha incorretos."; setup message when client is null; redirect to `/admin` on success.
+- **Protected routes:** Middleware redirects unauthenticated users from `/admin` and `/admin/*` (except `/admin/login`) to `/admin/login`; redirects authenticated users from `/admin/login` to `/admin`. Session refreshed via `getUser()`.
+- **Logout:** "Sair" is only rendered when the user is authenticated (`AdminLogoutButton` uses `getUser()` and `onAuthStateChange`); after logout, redirect to `/admin/login`. No "Sair" on the login page.
+- **Env:** `.env.example` documents `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Login page shows a clear Portuguese message when vars are missing.
 
 ### Suggested Improvements
 
-- **Stage 2 (Tester):** Add at least one test that asserts the home page (or a key component) renders without crashing, to align with the brief’s “developer runs the app” happy path. The current `cn()` tests are sufficient for “at least one trivial test”; a shallow page or layout test would strengthen the pipeline.
-- **Brief formatting:** The brief’s Success Criteria and Stage 0 Exit Gate could use explicit checkboxes (`- [ ]` / `- [x]`) so progress is easy to tick off; optional, not blocking.
+- **Middleware when env is missing:** If Supabase URL or publishable key is unset, middleware currently does not redirect; a user could open `/admin` directly and see the admin layout (with no Sair button and no data from Supabase). Optional hardening: when env is missing and path is under `/admin` (except `/admin/login`), redirect to `/admin/login` so the setup message is shown there. Not required by the brief.
+- **Session-expired message:** Brief allows optionally showing a message when session is expired; current behaviour is redirect to login with no message. Fine as-is; can be added later if desired.
 
 ### Risks / Assumptions
 
-- **Dependencies:** npm audit and deprecated packages are documented in implementation-notes; a future Hardener pass could address them. Not blocking for skeleton.
-- **Vitest config exclusion:** Relying on `tsconfig.json` excluding `vitest.config.ts` is a valid workaround for Next/Vite type conflicts; if Vitest or Next configs change, this may need revisiting.
-- **No ESLint in CI:** Lint is available via `npm run lint` but not enforced in this repo yet; acceptable for skeleton; can be added when CI is introduced.
+- **Env in production:** Security of `/admin` when env vars are set relies on middleware and Supabase session; production is expected to set env (e.g. on Vercel). If env is missing in production, `/admin` may remain reachable until middleware or layout enforces redirect.
+- **Publishable key:** Use of the publishable key (instead of anon key) is consistent across client, server, and middleware; ensure Supabase project is configured for the key type in use.
 
 ## Acceptance Criteria
 
-Before advancing to Stage 2 (Tester):
+Before advancing to Stage 2 (Tester) or later stages:
 
-- [x] Brief is complete and coherent; implementation matches success criteria.
-- [x] No Supabase or business logic in app or lib.
-- [x] Build and tests pass; Portuguese used for all user-facing text.
-- [x] Unrelated issues logged in implementation-notes; no scope creep.
+- [x] Brief success criteria met: login, protection, logout, Portuguese UI, validation, env handling.
+- [x] "Sair" only visible when the user is authenticated (no button on login page).
+- [x] Publishable key used everywhere; `.env.example` and login setup message updated.
+- [x] No scope creep: no sign-up, no customer auth, no password reset, no OAuth.
+- [x] Build passes; no hardcoded secrets.
 
-**Next step:** Proceed to Stage 2 (Tester) to add tests from the brief’s acceptance scenarios, or open the Draft PR with label `stage-1-impl` and then run the Tester.
+**Next step:** Proceed to Stage 2 (Tester) to add tests from the brief’s acceptance scenarios, or open/update the Draft PR with label `stage-1-impl` as needed.
 
 ---
