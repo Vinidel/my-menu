@@ -25,6 +25,10 @@ type CheckoutTab = "cardapio" | "pedido";
 
 const REQUIRED_ITEMS_MESSAGE = "Selecione pelo menos um item para enviar seu pedido.";
 const REQUIRED_FIELDS_MESSAGE = "Preencha nome, e-mail e telefone para continuar.";
+const SETUP_UNAVAILABLE_MESSAGE =
+  "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
+const SETUP_BANNER_MESSAGE =
+  "Pedidos indisponíveis no momento. Configure o Supabase para habilitar o envio.";
 
 export function CustomerOrderPage({
   menuItems,
@@ -95,6 +99,13 @@ export function CustomerOrderPage({
     setFieldErrors({});
   }
 
+  function clearFieldError(field: keyof FieldErrors) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      return { ...current, [field]: undefined };
+    });
+  }
+
   function validateRequiredFields(): FieldErrors {
     const nextErrors: FieldErrors = {};
 
@@ -129,11 +140,7 @@ export function CustomerOrderPage({
     }
 
     if (!isSupabaseConfigured) {
-      setFeedback(
-        errorFeedback(
-          "Pedidos indisponíveis no momento. Verifique a configuração do Supabase."
-        )
-      );
+      setFeedback(errorFeedback(SETUP_UNAVAILABLE_MESSAGE));
       return;
     }
 
@@ -177,7 +184,7 @@ export function CustomerOrderPage({
         </div>
         {!isSupabaseConfigured ? (
           <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Pedidos indisponíveis no momento. Configure o Supabase para habilitar o envio.
+            {SETUP_BANNER_MESSAGE}
           </p>
         ) : null}
       </header>
@@ -238,7 +245,7 @@ export function CustomerOrderPage({
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setSelectedCategory(category)}
-                    className={categoryTabTriggerClass(isActive)}
+                    className={tabTriggerClass(isActive)}
                   >
                     {category}
                   </button>
@@ -302,21 +309,15 @@ export function CustomerOrderPage({
             onSubmit={handleSubmit}
             onCustomerNameChange={(value) => {
               setCustomerName(value);
-              if (fieldErrors.customerName) {
-                setFieldErrors((current) => ({ ...current, customerName: undefined }));
-              }
+              clearFieldError("customerName");
             }}
             onCustomerEmailChange={(value) => {
               setCustomerEmail(value);
-              if (fieldErrors.customerEmail) {
-                setFieldErrors((current) => ({ ...current, customerEmail: undefined }));
-              }
+              clearFieldError("customerEmail");
             }}
             onCustomerPhoneChange={(value) => {
               setCustomerPhone(value);
-              if (fieldErrors.customerPhone) {
-                setFieldErrors((current) => ({ ...current, customerPhone: undefined }));
-              }
+              clearFieldError("customerPhone");
             }}
             onCustomerNotesChange={setCustomerNotes}
             onBackToMenu={() => setActiveTab("cardapio")}
@@ -345,10 +346,6 @@ function tabTriggerClass(isActive: boolean): string {
       ? "border-primary bg-primary text-primary-foreground"
       : "border-border bg-background text-foreground hover:bg-accent",
   ].join(" ");
-}
-
-function categoryTabTriggerClass(isActive: boolean): string {
-  return tabTriggerClass(isActive);
 }
 
 type SelectedEntry = {

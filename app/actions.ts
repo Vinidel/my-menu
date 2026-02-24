@@ -47,7 +47,7 @@ export async function submitCustomerOrder(
 ): Promise<SubmitCustomerOrderResult> {
   const supabase = await createClient();
   if (!supabase) {
-    return { ok: false, code: "setup", message: SETUP_ERROR_MESSAGE };
+    return submitErrorResult("setup", SETUP_ERROR_MESSAGE);
   }
 
   return submitCustomerOrderWithClient(input, supabase);
@@ -63,24 +63,24 @@ export async function submitCustomerOrderWithClient(
   const notes = sanitizeOptionalText(input.notes);
 
   if (!customerName || !customerEmail || !customerPhone) {
-    return { ok: false, code: "validation", message: VALIDATION_REQUIRED_MESSAGE };
+    return submitErrorResult("validation", VALIDATION_REQUIRED_MESSAGE);
   }
 
   if (!isBasicEmail(customerEmail)) {
-    return { ok: false, code: "validation", message: VALIDATION_EMAIL_MESSAGE };
+    return submitErrorResult("validation", VALIDATION_EMAIL_MESSAGE);
   }
 
   const normalizedEmail = normalizeEmail(customerEmail);
   const normalizedPhone = normalizePhone(customerPhone);
 
   if (!normalizedPhone) {
-    return { ok: false, code: "validation", message: VALIDATION_PHONE_MESSAGE };
+    return submitErrorResult("validation", VALIDATION_PHONE_MESSAGE);
   }
 
   const menuMap = getMenuItemMap();
   const orderItems = normalizeSelectedItems(input.items, menuMap);
   if (!orderItems || orderItems.length === 0) {
-    return { ok: false, code: "validation", message: VALIDATION_ITEMS_MESSAGE };
+    return submitErrorResult("validation", VALIDATION_ITEMS_MESSAGE);
   }
 
   try {
@@ -94,7 +94,7 @@ export async function submitCustomerOrderWithClient(
 
     if (!customerId) {
       console.error("[customer/orders] failed to resolve customer id");
-      return { ok: false, code: "unknown", message: SUBMIT_ERROR_MESSAGE };
+      return submitUnknownError();
     }
 
     const orderPayload: OrderInsert = {
@@ -118,7 +118,7 @@ export async function submitCustomerOrderWithClient(
         message: orderError?.message ?? "missing order reference",
         code: orderError?.code,
       });
-      return { ok: false, code: "unknown", message: SUBMIT_ERROR_MESSAGE };
+      return submitUnknownError();
     }
 
     revalidatePath("/admin");
@@ -128,7 +128,7 @@ export async function submitCustomerOrderWithClient(
     console.error("[customer/orders] unexpected error during order submission", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return { ok: false, code: "unknown", message: SUBMIT_ERROR_MESSAGE };
+    return submitUnknownError();
   }
 }
 
@@ -294,4 +294,21 @@ function asCustomersInsertChain(value: unknown): CustomersInsertChain {
 
 function asOrdersInsertChain(value: unknown): OrdersInsertChain {
   return value as OrdersInsertChain;
+}
+
+function submitUnknownError(): Extract<
+  SubmitCustomerOrderResult,
+  { ok: false }
+> {
+  return submitErrorResult("unknown", SUBMIT_ERROR_MESSAGE);
+}
+
+function submitErrorResult(
+  code: "setup" | "validation" | "unknown",
+  message: string
+): Extract<
+  SubmitCustomerOrderResult,
+  { ok: false }
+> {
+  return { ok: false, code, message };
 }
