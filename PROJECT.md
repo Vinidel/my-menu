@@ -33,8 +33,8 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ## Current Status
 
-- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout), Employee Orders Dashboard (`/admin` summary/list/details/status progression), Supabase `orders` schema + seed and DB-enforced status transitions, Customer Order Submission (`/` menu/cart/checkout, `public.customers`, `/api/orders`, service-role submission path).
-- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md`, `docs/employee-orders-dashboard.md`, and `docs/customer-order-submission.md`. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
+- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout), Employee Orders Dashboard (`/admin` summary/list/details/status progression), Supabase `orders` schema + seed and DB-enforced status transitions, Customer Order Submission (`/` menu/cart/checkout, `public.customers`, `/api/orders`, service-role submission path), API Orders Anti-Abuse (`POST /api/orders` rate limiting, `429` + `Retry-After`, hashed source keys, degrade-open fallback).
+- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md`, `docs/employee-orders-dashboard.md`, `docs/customer-order-submission.md`, and `docs/api-orders-anti-abuse.md`. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
 - Workflow: 6-stage delivery with agents (see `workflow/WORKFLOW.md`).
 
 ---
@@ -71,7 +71,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ## Architecture Overview
 
-- **Customer flow:** Public menu page (data from JSON) → tabbed cardápio/pedido UX → cart/selection → checkout form (name, email, phone required; optional notes) → `POST /api/orders` (server-only service-role write path) → order submission. Orders stored in Supabase.
+- **Customer flow:** Public menu page (data from JSON) → tabbed cardápio/pedido UX → cart/selection → checkout form (name, email, phone required; optional notes) → `POST /api/orders` (server-only service-role write path + anti-abuse rate limiting) → order submission. Orders stored in Supabase.
 - **Employee flow:** Login (Supabase Auth, email + password) → orders list → update order status. Only authenticated users can access the owner/employee area.
 - **Menu:** Sourced from a JSON config file (path and schema to be defined); no menu management UI in initial scope.
 - **Hosting:** App deployed on Vercel; Supabase used for all persistent data and auth.
@@ -87,7 +87,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 ├── workflow/
 │   └── WORKFLOW.md      ← 6-stage workflow and PR lifecycle
 ├── templates/           ← feature-brief, PROJECT, pull-request templates
-├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md, employee-orders-dashboard.md, customer-order-submission.md (feature docs)
+├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md, employee-orders-dashboard.md, customer-order-submission.md, api-orders-anti-abuse.md (feature docs)
 ├── PROJECT.md           ← This file: project context and patterns
 ├── app/                 ← Next.js App Router (routes, layouts, pages)
 ├── components/          ← React components; components/ui/ for shadcn

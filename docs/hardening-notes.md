@@ -122,3 +122,44 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | Improved  | Request size guard added |
 | Observability | Gap       | Logs only; metrics/rate telemetry deferred |
 | Resilience    | Improved  | Content-type/JSON checks + no-store + setup readiness |
+
+---
+
+## API Orders Anti-Abuse — Stage 4
+
+### Security
+
+- **Rate limiting active on public endpoint:** `POST /api/orders` is now throttled at `5` requests per source per `5` minutes before JSON parsing and before any Supabase work. Throttled requests return `429` with a Portuguese message and `Retry-After`. **Implemented in Stage 1; validated in Stage 2.**
+- **Source privacy in limiter keys:** Stage 4 changes the limiter bucket key from raw IP (`ip:...`) to a SHA-256 hash (`ip_hash:...`) so the in-memory limiter store no longer retains plaintext client IP addresses. Logs already used hashed values. **Improved in Stage 4.**
+- **Source parsing bounds:** Stage 4 adds a maximum source token length (256 chars) when parsing IP headers. Oversized/malformed values now fall back to the shared `unknown` bucket instead of becoming large attacker-controlled limiter keys. **Improved in Stage 4.**
+- **Header trust boundary:** IP source extraction still relies on proxy headers (`x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, `forwarded`). This is acceptable only when deployed behind a trusted proxy/platform (e.g. Vercel/Cloudflare). If deployed elsewhere, header trust rules may need to be tightened or replaced with platform-native request IP APIs. **Documented; deployment-dependent.**
+
+### Dependencies
+
+- **No new external dependencies:** The limiter remains in-process (`Map`), avoiding third-party rate-limit services or Redis clients in this feature. This keeps complexity low but also limits global consistency. **No change.**
+- **Node runtime hashing:** The route uses `node:crypto` for hashing source keys/log values. This is stable in the current Next.js Node runtime target but would need review if the route is moved to an Edge runtime. **Documented.**
+
+### Performance
+
+- **Short-circuit before heavy work:** Throttling still runs before request parsing and DB access, reducing wasted work under burst abuse. **No change.**
+- **Store growth control:** The in-memory store prunes old buckets when size exceeds `500`, which is acceptable as a lightweight guardrail for current scale. It is not a strict memory cap and could still drift under distributed/serverless traffic patterns. **Acceptable for now; deferred for stronger limiter backend.**
+
+### Observability
+
+- **Throttle logging:** Throttled events log route, hashed source key (or `unknown`), and retry time. No request bodies or customer PII are logged. **Acceptable for current scope.**
+- **No abuse telemetry/alerts:** There is still no metrics pipeline for throttle counts, limiter failures, or per-source trends. Production abuse monitoring will rely on raw logs until a future observability pass. **Deferred.**
+
+### Resilience
+
+- **Limiter failure mode:** The endpoint intentionally degrades open if the limiter helper throws, and logs the failure. This avoids blocking legitimate orders during internal limiter issues but weakens abuse protection during outages. **Explicitly accepted by brief; no change.**
+- **In-memory consistency limits:** The limiter is per-process and not shared across instances/regions. Bursts can bypass the effective threshold in serverless multi-instance deployments. This remains the main known limitation and should be addressed by a store-backed limiter (Redis/Upstash/etc.) in a future feature if abuse becomes a problem. **Deferred by design.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Hashed limiter keys + source token length bounds |
+| Dependencies  | OK/Deferred | No new deps; edge-runtime compatibility noted |
+| Performance   | OK        | Early throttle and lightweight pruning retained |
+| Observability | Gap       | Logs only; no abuse metrics/alerts |
+| Resilience    | Deferred  | Degrade-open + in-memory multi-instance inconsistency accepted |
