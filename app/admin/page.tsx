@@ -46,5 +46,5 @@ export default async function AdminPage() {
 
   const orders = parseAdminOrders(Array.isArray(data) ? data : []);
 
-  return <AdminOrdersDashboard initialOrders={orders} />;
+  return <AdminOrdersDashboard initialOrders={orders} enablePolling />;
 }

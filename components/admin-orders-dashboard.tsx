@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   countOrdersByStatus,
@@ -18,6 +19,7 @@ import {
 type AdminOrdersDashboardProps = {
   initialOrders: AdminOrder[];
   initialLoadError?: string | null;
+  enablePolling?: boolean;
 };
 
 type FeedbackState = {
@@ -27,31 +29,119 @@ type FeedbackState = {
 
 const ORDER_LIST_SORT_DESCRIPTION =
   "Ordenados por status e depois do mais antigo para o mais recente";
+const POLLING_QUERY_KEY = ["admin", "orders", "dashboard"] as const;
+const POLLING_INTERVAL_MS = 10_000;
 const MOBILE_VIEWPORT_MEDIA_QUERY = "(max-width: 767px)";
+const POLLING_REFRESH_ERROR_MESSAGE =
+  "Não foi possível atualizar os pedidos automaticamente. Exibindo os últimos dados carregados.";
 const ORDER_LIST_BUTTON_BASE_CLASS =
   "w-full px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 export function AdminOrdersDashboard({
   initialOrders,
   initialLoadError = null,
+  enablePolling = false,
+}: AdminOrdersDashboardProps) {
+  return (
+    <AdminOrdersDashboardPolling
+      initialOrders={initialOrders}
+      initialLoadError={initialLoadError}
+      enablePolling={enablePolling}
+    />
+  );
+}
+
+function AdminOrdersDashboardPolling({
+  initialOrders,
+  initialLoadError,
+  enablePolling = false,
+}: AdminOrdersDashboardProps) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      })
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AdminOrdersDashboardContent
+        initialOrders={initialOrders}
+        initialLoadError={initialLoadError}
+        enablePolling={enablePolling}
+      />
+    </QueryClientProvider>
+  );
+}
+
+function AdminOrdersDashboardContent({
+  initialOrders,
+  initialLoadError = null,
+  enablePolling = false,
 }: AdminOrdersDashboardProps) {
   const [orders, setOrders] = useState(initialOrders);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
     initialOrders[0]?.id ?? null
   );
   const [mobileExpandedOrderId, setMobileExpandedOrderId] = useState<string | null>(null);
+  const [pendingProgressOrderId, setPendingProgressOrderId] = useState<string | null>(null);
+  const [pollingRefreshErrorMessage, setPollingRefreshErrorMessage] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState | null>(
     initialLoadError ? { type: "error", message: initialLoadError } : null
   );
   const [isPending, startTransition] = useTransition();
   const isMobileViewport = useIsMobileViewport();
+  const isPageVisible = useDocumentVisible();
+  const pollingQuery = useQuery({
+    queryKey: POLLING_QUERY_KEY,
+    queryFn: createPollingOrdersQueryFn(setPollingRefreshErrorMessage),
+    initialData: initialOrders,
+    enabled: enablePolling,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: getPollingInterval(enablePolling, isPageVisible),
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+  const wasPageVisibleRef = useRef(isPageVisible);
 
   const sortedOrders = useMemo(() => sortOrdersForDashboard(orders), [orders]);
+  const showPollingErrorBanner =
+    enablePolling &&
+    orders.length > 0 &&
+    !pollingQuery.isFetching &&
+    Boolean(pollingRefreshErrorMessage);
 
   const counts = countOrdersByStatus(orders);
   const selectedOrder = findOrderById(sortedOrders, selectedOrderId) ?? sortedOrders[0] ?? null;
 
   const nextStatus = selectedOrder ? getNextOrderStatus(selectedOrder.status) : null;
+
+  useEffect(() => {
+    if (!enablePolling) return;
+
+    const nextOrders = pollingQuery.data;
+    if (!Array.isArray(nextOrders)) return;
+
+    setOrders((currentOrders) =>
+      mergePolledOrdersIntoLocalState(currentOrders, nextOrders, pendingProgressOrderId)
+    );
+  }, [enablePolling, pendingProgressOrderId, pollingQuery.data]);
+
+  useEffect(() => {
+    if (!enablePolling) return;
+
+    const wasVisible = wasPageVisibleRef.current;
+    wasPageVisibleRef.current = isPageVisible;
+
+    if (!wasVisible && isPageVisible) {
+      void pollingQuery.refetch();
+    }
+  }, [enablePolling, isPageVisible, pollingQuery]);
 
   useEffect(() => {
     if (!selectedOrder) {
@@ -82,22 +172,27 @@ export function AdminOrdersDashboard({
     const currentStatus = targetOrder.status;
 
     startTransition(async () => {
-      const result = await progressOrderStatus({
-        orderId: currentOrderId,
-        currentStatus,
-      });
+      setPendingProgressOrderId(currentOrderId);
+      try {
+        const result = await progressOrderStatus({
+          orderId: currentOrderId,
+          currentStatus,
+        });
 
-      if (!result.ok) {
-        handleFailedProgress(result, currentOrderId);
-        return;
+        if (!result.ok) {
+          handleFailedProgress(result, currentOrderId);
+          return;
+        }
+
+        setOrders((previousOrders) =>
+          previousOrders.map((order) =>
+            updateOrderStatusLocally(order, currentOrderId, result.nextStatus, result.nextStatusLabel)
+          )
+        );
+        setFeedback(successFeedback(`Pedido atualizado para ${result.nextStatusLabel}.`));
+      } finally {
+        setPendingProgressOrderId(null);
       }
-
-      setOrders((previousOrders) =>
-        previousOrders.map((order) =>
-          updateOrderStatusLocally(order, currentOrderId, result.nextStatus, result.nextStatusLabel)
-        )
-      );
-      setFeedback(successFeedback(`Pedido atualizado para ${result.nextStatusLabel}.`));
     });
   }
 
@@ -162,6 +257,9 @@ export function AdminOrdersDashboard({
     <div className="flex flex-1 flex-col gap-6 p-6 md:p-8">
       <SummaryCards counts={counts} />
       {feedback && <FeedbackBanner {...feedback} />}
+      {showPollingErrorBanner ? (
+        <FeedbackBanner type="error" message={pollingRefreshErrorMessage!} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
         <section className="rounded-lg border border-border bg-background">
@@ -478,6 +576,31 @@ function updateOrderStatusLocally(
   };
 }
 
+function mergePolledOrdersIntoLocalState(
+  currentOrders: AdminOrder[],
+  polledOrders: AdminOrder[],
+  pendingProgressOrderId: string | null
+) {
+  if (!pendingProgressOrderId) {
+    return polledOrders;
+  }
+
+  const currentPendingOrder = findOrderById(currentOrders, pendingProgressOrderId);
+  if (!currentPendingOrder) {
+    return polledOrders;
+  }
+
+  const nextOrders = polledOrders.map((order) =>
+    order.id === pendingProgressOrderId ? currentPendingOrder : order
+  );
+
+  if (!hasOrderWithId(polledOrders, pendingProgressOrderId)) {
+    return [...nextOrders, currentPendingOrder];
+  }
+
+  return nextOrders;
+}
+
 function sortOrdersForDashboard(orders: AdminOrder[]) {
   return [...orders].sort((a, b) => {
     const statusDelta = getStatusSortRank(a.status) - getStatusSortRank(b.status);
@@ -526,6 +649,61 @@ function useIsMobileViewport() {
   }, []);
 
   return isMobile;
+}
+
+function useDocumentVisible() {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const update = () => setIsVisible(document.visibilityState !== "hidden");
+    update();
+
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+
+  return isVisible;
+}
+
+async function fetchAdminOrdersForDashboard(): Promise<AdminOrder[]> {
+  const response = await fetch("/api/admin/orders", {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const data = (await response.json().catch(() => null)) as
+    | { ok?: boolean; orders?: AdminOrder[]; message?: string }
+    | null;
+
+  if (!response.ok || !data?.ok || !Array.isArray(data.orders)) {
+    throw new Error(data?.message ?? POLLING_REFRESH_ERROR_MESSAGE);
+  }
+
+  return data.orders;
+}
+
+function createPollingOrdersQueryFn(
+  setPollingRefreshErrorMessage: (value: string | null) => void
+) {
+  return async function pollingOrdersQueryFn() {
+    try {
+      const orders = await fetchAdminOrdersForDashboard();
+      setPollingRefreshErrorMessage(null);
+      return orders;
+    } catch (error) {
+      setPollingRefreshErrorMessage(POLLING_REFRESH_ERROR_MESSAGE);
+      throw error;
+    }
+  };
+}
+
+function getPollingInterval(enablePolling: boolean, isPageVisible: boolean) {
+  return enablePolling && isPageVisible ? POLLING_INTERVAL_MS : false;
 }
 
 function mobileOrderPanelId(orderId: string) {

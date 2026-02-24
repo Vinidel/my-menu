@@ -237,7 +237,7 @@ export function CustomerOrderPage({
       }
 
       resetFormAndCart();
-      setFeedback(successFeedback(`Pedido ${result.orderReference} enviado com sucesso!`));
+      setFeedback(successFeedback(`Pedido ${result.orderReference} enviado com sucesso! Entraremos em contato em breve para confirmar seu pedido.`));
       setActiveTab("pedido");
     });
   }

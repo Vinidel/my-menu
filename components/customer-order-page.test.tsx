@@ -123,7 +123,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Pedido PED-ABCD1234 enviado com sucesso!")).toBeInTheDocument();
+      expect(screen.getByText("Pedido PED-ABCD1234 enviado com sucesso! Entraremos em contato em breve para confirmar seu pedido.")).toBeInTheDocument();
     });
     expect(screen.getByLabelText("Nome")).toHaveValue("");
     expect(screen.getByLabelText("E-mail")).toHaveValue("");
