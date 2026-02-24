@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — Customer Order Submission (`docs/customer-order-submission.md`, `PROJECT.md`, `docs/briefs/customer-order-submission.md`)
+Scope: Stage 0 brief review — `docs/briefs/api-orders-anti-abuse.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,17 +12,20 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding a short “Migration Apply Order” snippet (CLI + SQL Editor options) in `docs/customer-order-submission.md` to reduce operator mistakes when setting up new environments.
-- If you expect handoffs to non-technical operators, add a brief “Required Vercel env vars” checklist with exact environment names and where they are used (`/` setup gating vs `/api/orders` server-only path).
+- Consider adding an explicit Stage 1 documentation requirement for **IP/source extraction precedence** (e.g. trusted runtime metadata vs `x-forwarded-for` parsing fallback) so deployment-specific behavior is easy to audit later.
+- Consider adding a note that the chosen limiter implementation must expose enough metadata for the locked `Retry-After` behavior (or document when/why it cannot).
+- Consider documenting an initial tuning review cadence (e.g. after first week of production traffic) to revisit the locked `5 requests / 5 minutes` threshold if false positives appear.
 
 ### Risks / Assumptions
-- The docs correctly describe the final security posture, but it depends on the lock-down migration (`supabase/migrations/20260224110000_lock_down_public_order_submission_tables.sql`) actually being applied.
-- `PROJECT.md` now reflects the current architecture and delivered scope; future changes to the customer flow (e.g. anti-abuse controls, price snapshots) should update both `PROJECT.md` and `docs/customer-order-submission.md` together.
+- The brief correctly frames rate limiting as a first-layer mitigation and explicitly defers CAPTCHA/WAF/bot-detection; if spam persists, follow-up features will still be necessary.
+- The locked **degrade-open** decision is reasonable for current small scale, but it means anti-abuse protection may silently weaken during limiter backend outages unless logging/monitoring is actually observed.
+- The `unknown` fallback bucket is safe and deterministic, but can create shared throttling if source IP extraction fails frequently in production; this should be watched during Stage 4 hardening/ops.
 
-## Acceptance Criteria (Stage 5 spot-check)
-- [x] Dedicated feature documentation exists for customer order submission
-- [x] Documentation describes delivered UX (`/`, tabs, cart, form, observações) and API behavior (`/api/orders`)
-- [x] Documentation lists relevant code paths, migrations, tests, and env requirements
-- [x] Project-level status/docs references updated in `PROJECT.md`
-- [x] Brief status updated to Stage 5 documentation complete (pending Critic)
+## Acceptance Criteria
+- [x] Problem and threat model are clearly defined for `/api/orders`
+- [x] Goal and success criteria are concrete and testable
+- [x] Non-goals are explicit (CAPTCHA/WAF/global protections deferred)
+- [x] Happy/unhappy paths and edge cases are documented
+- [x] Key decisions are locked (route scope, threshold, 429 UX, degrade-open)
+- [x] Stage 1 implementation choice is intentionally constrained (storage strategy only)
 ---
