@@ -14,6 +14,11 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 describe("POST /api/orders", () => {
   beforeEach(() => {
+    (
+      globalThis as typeof globalThis & {
+        __my_menu_rate_limit_store__?: Map<string, unknown>;
+      }
+    ).__my_menu_rate_limit_store__ = new Map();
     vi.mocked(submitCustomerOrderWithClient).mockReset();
     vi.mocked(createServiceRoleClient).mockReset();
   });

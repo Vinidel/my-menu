@@ -52,3 +52,12 @@ Issues or observations spotted during implementation that are **out of scope** f
 
 - **Server-only write path:** Customer submission now goes through `POST /api/orders`, which uses `SUPABASE_SERVICE_ROLE_KEY` server-side. A follow-up hardening migration locks down the temporary public `customers`/`orders` write/read grants created during the initial implementation.
 - **No pricing persisted on orders:** The order payload intentionally stores only `{ name, quantity }` items for `/admin` compatibility. If the business needs historical pricing totals, add price snapshots in a future brief (e.g. `price_cents`, `line_total_cents`, `order_total_cents`).
+
+---
+
+## API Orders Anti-Abuse (Stage 1)
+
+- **Limiter strategy chosen:** Implemented **Option A (in-memory fixed-window limiter)** for `POST /api/orders` to ship quickly with no new external dependency. This is intentionally weaker in serverless/multi-instance scenarios because limits are per-process, not globally consistent.
+- **Threshold (locked by brief):** `5` requests per source / `5` minutes, enforced before request body parsing and before order DB writes.
+- **Source extraction tradeoff:** Uses best-effort header parsing (`x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, `forwarded`) with fallback bucket `unknown`. Header trust and extraction accuracy depend on deployment/runtime proxy behavior.
+- **Degrade behavior (locked):** If the limiter throws unexpectedly, the route degrades open (continues processing) and logs a server-side error.
