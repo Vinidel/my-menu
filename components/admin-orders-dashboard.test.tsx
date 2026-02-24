@@ -87,6 +87,56 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     ]);
   });
 
+  it("renders orders by status priority first and oldest first within each status (brief: status-first sorting)", () => {
+    const orders = [
+      makeOrder({
+        id: "delivered-old",
+        reference: "PED-0003",
+        status: "entregue",
+        statusLabel: "Entregue",
+        createdAtIso: "2026-02-23T10:00:00.000Z",
+        createdAtLabel: "23/02/2026, 07:00",
+      }),
+      makeOrder({
+        id: "prep-newer",
+        reference: "PED-0002",
+        status: "em_preparo",
+        statusLabel: "Em preparo",
+        createdAtIso: "2026-02-23T10:15:00.000Z",
+        createdAtLabel: "23/02/2026, 07:15",
+      }),
+      makeOrder({
+        id: "waiting-newer",
+        reference: "PED-0004",
+        status: "aguardando_confirmacao",
+        statusLabel: "Esperando confirmação",
+        createdAtIso: "2026-02-23T10:20:00.000Z",
+        createdAtLabel: "23/02/2026, 07:20",
+      }),
+      makeOrder({
+        id: "waiting-older",
+        reference: "PED-0001",
+        status: "aguardando_confirmacao",
+        statusLabel: "Esperando confirmação",
+        createdAtIso: "2026-02-23T09:50:00.000Z",
+        createdAtLabel: "23/02/2026, 06:50",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+
+    const listButtons = screen.getAllByRole("button").filter((button) =>
+      button.textContent?.includes("PED-000")
+    );
+
+    expect(listButtons.map((button) => button.textContent)).toEqual([
+      expect.stringContaining("PED-0001"),
+      expect.stringContaining("PED-0004"),
+      expect.stringContaining("PED-0002"),
+      expect.stringContaining("PED-0003"),
+    ]);
+  });
+
   it("shows details for clicked order (brief: open order and see details)", () => {
     const orders = [
       makeOrder({
@@ -124,6 +174,39 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(details.getByText("bruno@example.com")).toBeInTheDocument();
     expect(details.getByText("Batata frita")).toBeInTheDocument();
     expect(details.getByText("1x")).toBeInTheDocument();
+  });
+
+  it("uses single-expand accordion behavior on mobile viewport (brief: mobile accordion)", async () => {
+    const restore = mockMobileViewport(true);
+    const orders = [
+      makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" }),
+      makeOrder({
+        id: "2",
+        reference: "PED-0002",
+        customerName: "Bruno",
+        createdAtIso: "2026-02-23T10:10:00.000Z",
+        createdAtLabel: "23/02/2026, 07:10",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+
+    const firstTrigger = screen.getByRole("button", { name: /PED-0001/i });
+    const secondTrigger = screen.getByRole("button", { name: /PED-0002/i });
+
+    expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(firstTrigger);
+    expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getAllByText("Próximo status: Em preparo").length).toBeGreaterThan(0);
+
+    fireEvent.click(secondTrigger);
+    expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(secondTrigger).toHaveAttribute("aria-expanded", "true");
+
+    restore();
   });
 
   it("progresses status and updates summary counts (brief: progress waiting->preparing)", async () => {
@@ -346,3 +429,40 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     ).toBeInTheDocument();
   });
 });
+
+function mockMobileViewport(matches: boolean) {
+  const original = window.matchMedia;
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: (listener: (event: MediaQueryListEvent) => void) => {
+        listeners.add(listener);
+      },
+      removeListener: (listener: (event: MediaQueryListEvent) => void) => {
+        listeners.delete(listener);
+      },
+      addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+        listeners.add(listener);
+      },
+      removeEventListener: (
+        _type: string,
+        listener: (event: MediaQueryListEvent) => void
+      ) => {
+        listeners.delete(listener);
+      },
+      dispatchEvent: () => true,
+    })),
+  });
+
+  return () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: original,
+    });
+  };
+}
