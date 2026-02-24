@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Display Total Order Amount in Admin Order Details (`docs/briefs/admin-order-total-amount-display.md`)
+Scope: Stage 0 brief review — Modo de Pagamento no Pedido (Customer + Admin) (`docs/briefs/order-payment-method-selection.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,19 +12,20 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add one mobile accordion-specific total-display assertion if you want direct coverage of desktop/mobile parity for this feature (the shared details component plus existing mobile details tests already lower this risk).
-- Consider a parser/UI test for `priceCents = 0` to lock the newly approved zero-price behavior end-to-end.
+- If you want tighter UX testability in Stage 2, lock whether the “payment method required” validation appears inline under the radio group vs a global form message (current brief only requires a clear pt-BR validation message).
+- Consider documenting a migration rollback note in Stage 5 docs because this feature introduces a new `CHECK` constraint and legacy-null compatibility assumptions.
 
 ### Risks / Assumptions
-- Stage 2 now covers both logic-level and UI-level behavior: parser totals/fallbacks, submit-side fail-closed pricing validation, and `/admin` details rendering for priced + unavailable totals.
-- The dashboard UI tests currently inject `totalAmountLabel` in fixtures for rendering assertions; parser tests separately validate `pt-BR` formatting and fallback logic. This split is acceptable and keeps UI tests less brittle.
-- Historical malformed `orders.items` shapes remain a parser-hardening concern, but the fallback coverage (`Indisponível`) is in place and aligns with the brief.
+- The brief now correctly locks both the client payload contract (`paymentMethod` canonical values) and the DB integrity strategy (nullable column + `CHECK` constraint), which removes the main Stage 1 ambiguity.
+- Legacy compatibility is handled cleanly with `NULL` allowed and `/admin` fallback `Não informado`.
+- Unknown/manual DB values can still exist if constraints are bypassed or added later with dirty data; `/admin` fallback behavior is explicitly locked and should be covered in tests.
 
-## Acceptance Criteria (Stage 2 spot-check)
-- [x] `/admin` order details UI renders `Total do pedido` for priced orders
-- [x] `/admin` order details UI renders fallback `Indisponível` safely for legacy/unpriced orders
-- [x] Admin total calculation logic is tested (base + extras, pt-BR formatting)
-- [x] New customer-submitted order snapshots are tested (`unitPriceCents`, extras `priceCents`, `lineTotalCents`)
-- [x] Server-side fail-closed behavior is tested for missing base/extra `priceCents`
-- [x] Legacy/partial pricing fallback behavior is covered
+## Acceptance Criteria (Stage 0 spot-check)
+- [x] Problem is clearly defined (customer payment intent missing in `/` and `/admin`)
+- [x] Goals are concrete and testable (required selection, persistence, admin details display)
+- [x] Non-goals are explicitly listed
+- [x] Happy and unhappy paths are documented
+- [x] Edge cases are surfaced (legacy rows, unknown stored values, polling stability)
+- [x] Key decisions are locked (payload contract, canonical values, DB constraint, admin mapping/fallback)
+- [x] Approach is outlined at a high level (no code)
 ---
