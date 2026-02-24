@@ -1,6 +1,6 @@
 # Feature Brief — Anti-Abuse Protection for `/api/orders`
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-02-24
 Author: Orchestrator Agent
 
@@ -154,4 +154,4 @@ The chosen option must still honor the locked threshold/UX and the degrade-open 
 - [x] Edge cases are surfaced
 - [x] Key decisions are locked
 - [x] Approach is outlined at a high level (no code)
-- [ ] Critic has approved this brief
+- [x] Critic has approved this brief
