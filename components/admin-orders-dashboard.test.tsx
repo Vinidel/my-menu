@@ -244,6 +244,15 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
       fireEvent.click(firstTrigger);
       expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
       expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(firstTrigger).toHaveAttribute(
+        "aria-controls",
+        expect.stringContaining("admin-order-mobile-panel-")
+      );
+      const firstPanelId = firstTrigger.getAttribute("aria-controls");
+      expect(firstPanelId).toBeTruthy();
+      const firstPanel = document.getElementById(firstPanelId!);
+      expect(firstPanel).toHaveAttribute("role", "region");
+      expect(firstPanel).toHaveAttribute("aria-labelledby", firstTrigger.id);
       expect(screen.getAllByText("Próximo status: Em preparo").length).toBeGreaterThan(0);
 
       fireEvent.click(secondTrigger);

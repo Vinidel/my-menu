@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) (`components/admin-orders-dashboard.test.tsx`)
+Scope: Stage 4 hardening review — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) (`components/admin-orders-dashboard.tsx`, `components/admin-orders-dashboard.test.tsx`, `docs/hardening-notes.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,19 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a focused assertion that desktop interaction still uses the same status-first ordering (currently implied by the default sorting tests, but not labeled as viewport parity).
-- Consider a targeted mobile stale-update test if you want stronger regression protection for the “existing stale handling still works from mobile expanded view” unhappy path.
-- Add an explicit assertion for the updated list helper copy (`Ordenados por status...`) only if you want to lock the new wording.
+- Consider collapsing or unmounting the hidden desktop details panel on mobile in a future optimization pass if order detail content grows (currently documented as acceptable duplication).
+- Add an explicit keyboard navigation test for mobile accordion triggers (Enter/Space behavior) if you want stronger a11y regression protection beyond semantic attributes.
+- If you later extract the accordion into a shared component, keep the `aria-controls`/`aria-labelledby` linkage contract and add component-level tests.
 
 ### Risks / Assumptions
-- Functional behavior is well covered (sorting, unknown fallback, mobile single-expand, mobile details content, mobile progression/reordering, regressions); remaining risk is mostly around viewport-specific regressions not covered by visual/integration testing.
-- Viewport-specific tests rely on `matchMedia` mocking; this is acceptable for the brief and current implementation.
+- Responsive behavior still depends on client `matchMedia`, so there can be a brief initial render mismatch before hydration/effect on mobile. This is documented and acceptable for the current stage.
+- Hardening focused on accessibility semantics and resilience documentation; no visual/integration testing was added for viewport layout regressions.
 
-## Acceptance Criteria (Stage 2 spot-check)
-- [x] Tests cover status-first ordering and oldest-first tie-breaker
-- [x] Tests cover unknown-status fallback ordering
-- [x] Tests cover mobile accordion expand/collapse and single-expand behavior
-- [x] Tests cover mobile progression action and list reordering after status change
-- [x] Existing status progression/stale/disallowed/empty/error behaviors remain covered
-- [x] Tests verify expanded mobile accordion shows the minimum required order details content
+## Acceptance Criteria (Stage 4 spot-check)
+- [x] Hardening changes preserve locked feature behavior (status-first sorting + mobile accordion + progression)
+- [x] Mobile accordion accessibility semantics improved (`aria-controls` + labeled region)
+- [x] Desktop no longer exposes misleading accordion state attributes when accordion mode is inactive
+- [x] Hardening notes document residual responsive/render/perf tradeoffs
+- [x] Tests/build pass after hardening changes
 ---

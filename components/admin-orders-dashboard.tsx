@@ -175,17 +175,21 @@ export function AdminOrdersDashboard({
               const isSelected = selectedOrder?.id === order.id;
               const isExpandedMobile = isMobileViewport && mobileExpandedOrderId === order.id;
               const orderNextStatus = getNextOrderStatus(order.status);
+              const mobilePanelId = mobileOrderPanelId(order.id);
+              const triggerId = mobileOrderTriggerId(order.id);
 
               return (
                 <li key={order.id} className="border-b border-border last:border-b-0">
                   <button
                     type="button"
                     onClick={() => handleSelectOrder(order.id)}
-                    aria-expanded={isExpandedMobile}
+                    aria-expanded={isMobileViewport ? isExpandedMobile : undefined}
+                    aria-controls={isMobileViewport ? mobilePanelId : undefined}
                     className={[
                       ORDER_LIST_BUTTON_BASE_CLASS,
                       isSelected ? "bg-accent" : "",
                     ].join(" ")}
+                    id={isMobileViewport ? triggerId : undefined}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -210,7 +214,12 @@ export function AdminOrdersDashboard({
                   </button>
 
                   {isExpandedMobile ? (
-                    <div className="border-t border-border bg-muted/20 p-4">
+                    <div
+                      id={mobilePanelId}
+                      role="region"
+                      aria-labelledby={triggerId}
+                      className="border-t border-border bg-muted/20 p-4"
+                    >
                       <OrderDetailsContent
                         order={order}
                         nextStatus={orderNextStatus}
@@ -509,4 +518,12 @@ function useIsMobileViewport() {
   }, []);
 
   return isMobile;
+}
+
+function mobileOrderPanelId(orderId: string) {
+  return `admin-order-mobile-panel-${orderId}`;
+}
+
+function mobileOrderTriggerId(orderId: string) {
+  return `admin-order-mobile-trigger-${orderId}`;
 }
