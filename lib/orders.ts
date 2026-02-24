@@ -1,4 +1,9 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
+import {
+  getPaymentMethodLabel,
+  normalizePaymentMethod,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
 
 export const ORDER_STATUS_LABELS = {
   aguardando_confirmacao: "Esperando confirmação",
@@ -39,7 +44,7 @@ export type AdminOrder = {
   statusLabel: string;
   rawStatus: string | null;
   notes: string | null;
-  paymentMethod: "dinheiro" | "pix" | "cartao" | null;
+  paymentMethod: PaymentMethod | null;
   paymentMethodLabel: string;
   totalAmountCents?: number | null;
   totalAmountLabel?: string;
@@ -179,25 +184,17 @@ export function parseAdminOrder(
 }
 
 function getPaymentMethodLabelFromUnknown(value: unknown): {
-  paymentMethod: "dinheiro" | "pix" | "cartao" | null;
+  paymentMethod: PaymentMethod | null;
   paymentMethodLabel: string;
 } {
-  if (typeof value !== "string") {
+  const paymentMethod = normalizePaymentMethod(value);
+  if (!paymentMethod) {
     return { paymentMethod: null, paymentMethodLabel: ORDER_PAYMENT_METHOD_FALLBACK_LABEL };
   }
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "dinheiro") {
-    return { paymentMethod: "dinheiro", paymentMethodLabel: "Dinheiro" };
-  }
-  if (normalized === "pix") {
-    return { paymentMethod: "pix", paymentMethodLabel: "Pix" };
-  }
-  if (normalized === "cartao") {
-    return { paymentMethod: "cartao", paymentMethodLabel: "Cartão" };
-  }
-
-  return { paymentMethod: null, paymentMethodLabel: ORDER_PAYMENT_METHOD_FALLBACK_LABEL };
+  return {
+    paymentMethod,
+    paymentMethodLabel: getPaymentMethodLabel(paymentMethod) ?? ORDER_PAYMENT_METHOD_FALLBACK_LABEL,
+  };
 }
 
 function parseOrderItemsWithTotal(

@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getMenuItemMap } from "@/lib/menu";
+import {
+  normalizePaymentMethod,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -30,7 +34,7 @@ export type SubmitCustomerOrderInput = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  paymentMethod: "dinheiro" | "pix" | "cartao";
+  paymentMethod: PaymentMethod;
   notes?: string;
   items: Array<{
     menuItemId: string;
@@ -405,17 +409,6 @@ function normalizeEmail(value: string): string {
 
 function normalizePhone(value: string): string {
   return value.trim().replace(/\D+/g, "");
-}
-
-function normalizePaymentMethod(
-  value: SubmitCustomerOrderInput["paymentMethod"] | string | undefined
-): "dinheiro" | "pix" | "cartao" | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "dinheiro" || normalized === "pix" || normalized === "cartao") {
-    return normalized;
-  }
-  return null;
 }
 
 function isBasicEmail(value: string): boolean {

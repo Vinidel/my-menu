@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import type { MenuExtra, MenuItem } from "@/lib/menu";
+import {
+  PAYMENT_METHOD_OPTIONS,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -23,8 +27,6 @@ type FieldErrors = {
 };
 
 type CheckoutTab = "cardapio" | "pedido";
-type PaymentMethod = "dinheiro" | "pix" | "cartao";
-
 type SelectedOrderLine = {
   lineId: string;
   menuItemId: string;
@@ -849,12 +851,6 @@ function normalizeExtraIds(extraIds: string[]): string[] {
     a.localeCompare(b, "pt-BR")
   );
 }
-
-const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
-  { value: "dinheiro", label: "Dinheiro" },
-  { value: "pix", label: "Pix" },
-  { value: "cartao", label: "Cartão" },
-];
 
 function lineMergeKey(menuItemId: string, extraIds: string[]) {
   return `${menuItemId}::${normalizeExtraIds(extraIds).join("|")}`;

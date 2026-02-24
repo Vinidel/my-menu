@@ -12,13 +12,13 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a parser-level unit test in `lib/orders.test.ts` for unknown `payment_method` string mapping (e.g. `credito`) if you want to isolate parser fallback behavior from UI fixture wiring.
-- Consider one `/api/orders` route test asserting the payment method field is passed through to `submitCustomerOrderWithClient(...)` in the route body contract (Stage 2 already covers this at UI + shared action layers).
+- Add a small `lib/orders.test.ts` unit test for unknown `payment_method` string mapping (e.g. `credito`) if you want parser-level fallback coverage independent of UI fixture wiring.
+- Consider one `/api/orders` route-level assertion that the JSON body includes/pass-throughs `paymentMethod`, although Stage 2 already covers this at UI and shared-submit layers.
 
 ### Risks / Assumptions
-- Stage 2 now covers the customer radio UI, required validation, canonical payload contract, server tampered-value rejection, and `/admin` details display/fallback behavior.
-- Mobile accordion parity is explicitly tested for payment method display, which aligns with the brief’s desktop/mobile details parity requirement.
-- Unknown stored-value fallback is covered at the dashboard UI level; parser-specific fallback behavior remains an implicit dependency unless separately unit-tested later.
+- Stage 2 now covers the full user-visible contract: customer radio selection, missing-selection validation, canonical payload values, server-side tampered-value rejection, and `/admin` details display/fallback.
+- Mobile `/admin` accordion parity is explicitly asserted for payment method display, aligning with the brief’s desktop/mobile details parity requirement.
+- Unknown stored-value fallback is validated at the dashboard UI layer; parser-level behavior remains an implicit dependency unless tested separately.
 
 ## Acceptance Criteria (Stage 2 spot-check)
 - [x] Customer checkout renders required payment method radio options (`Dinheiro`, `Pix`, `Cartão`)
@@ -26,6 +26,6 @@ Verdict: APPROVE
 - [x] Customer payload uses canonical `paymentMethod` values (not labels)
 - [x] Server rejects invalid/tampered payment method values
 - [x] `/admin` details render payment method label for valid stored values
-- [x] `/admin` fallback `Não informado` is covered for missing/unknown cases
+- [x] `/admin` fallback `Não informado` is covered for missing and unknown cases
 - [x] Mobile `/admin` accordion details show payment method (parity with desktop details)
 ---
