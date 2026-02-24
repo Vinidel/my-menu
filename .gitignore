@@ -40,3 +40,5 @@ yarn-error.log*
 # Misc
 *.local
 supabase/.temp
+
+todos.md
