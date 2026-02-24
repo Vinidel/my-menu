@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 4 hardening review — Customer Order Submission (`/api/orders`, `app/actions.ts`, `app/page.tsx`, `docs/hardening-notes.md`)
+Scope: Stage 5 documentation review — Customer Order Submission (`docs/customer-order-submission.md`, `PROJECT.md`, `docs/briefs/customer-order-submission.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,19 +12,17 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- `app/api/orders/route.ts:38` uses `rawBody.length` as a request-size proxy, which is character-count based (not exact bytes for multibyte UTF-8). This is acceptable as a lightweight guardrail, but if you want stricter enforcement later, measure bytes via `Buffer.byteLength(rawBody, "utf8")`.
-- Add route tests for `413` (oversized body) and `Cache-Control: no-store` headers if you want tighter regression coverage for the new hardening behavior.
-- Consider adding a minimal rate-limit / bot mitigation plan to the next hardening pass for `/api/orders` (public endpoint + service-role writes).
+- Consider adding a short “Migration Apply Order” snippet (CLI + SQL Editor options) in `docs/customer-order-submission.md` to reduce operator mistakes when setting up new environments.
+- If you expect handoffs to non-technical operators, add a brief “Required Vercel env vars” checklist with exact environment names and where they are used (`/` setup gating vs `/api/orders` server-only path).
 
 ### Risks / Assumptions
-- The hardening migration that locks down public table access (`supabase/migrations/20260224110000_lock_down_public_order_submission_tables.sql`) must be applied in Supabase for the intended security posture to be active.
-- `SUPABASE_SERVICE_ROLE_KEY` is now part of the submission availability check (`app/page.tsx`) and backend write path; operational secrecy and environment configuration remain critical.
-- The endpoint is still publicly reachable and can be spammed without rate limiting/CAPTCHA; this is documented as deferred in `docs/hardening-notes.md`.
+- The docs correctly describe the final security posture, but it depends on the lock-down migration (`supabase/migrations/20260224110000_lock_down_public_order_submission_tables.sql`) actually being applied.
+- `PROJECT.md` now reflects the current architecture and delivered scope; future changes to the customer flow (e.g. anti-abuse controls, price snapshots) should update both `PROJECT.md` and `docs/customer-order-submission.md` together.
 
-## Acceptance Criteria (Stage 4 spot-check)
-- [x] Security hardening implemented without weakening data protection (service-role path + public table lock-down migration retained)
-- [x] Resilience improved (content-type validation, malformed JSON handling, no-store headers, setup readiness gating)
-- [x] Input abuse guardrails improved (payload size cap + field/item bounds)
-- [x] Hardening decisions/deferrals documented in `docs/hardening-notes.md`
-- [x] Tests/build passing after hardening changes
+## Acceptance Criteria (Stage 5 spot-check)
+- [x] Dedicated feature documentation exists for customer order submission
+- [x] Documentation describes delivered UX (`/`, tabs, cart, form, observações) and API behavior (`/api/orders`)
+- [x] Documentation lists relevant code paths, migrations, tests, and env requirements
+- [x] Project-level status/docs references updated in `PROJECT.md`
+- [x] Brief status updated to Stage 5 documentation complete (pending Critic)
 ---
