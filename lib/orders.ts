@@ -17,6 +17,10 @@ export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
 export type AdminOrderItem = {
   name: string;
   quantity: number;
+  extras?: Array<{
+    id?: string;
+    name: string;
+  }>;
 };
 
 export type AdminOrder = {
@@ -166,13 +170,44 @@ function parseOrderItems(value: Json | unknown): AdminOrderItem[] {
       if (!name) return null;
 
       const quantity = numberFrom(row.quantity) ?? numberFrom(row.qty) ?? numberFrom(row.qtd) ?? 1;
+      const extras = parseOrderItemExtras(row.extras);
 
       return {
         name,
         quantity: Number.isFinite(quantity) && quantity > 0 ? Math.trunc(quantity) : 1,
+        ...(extras.length > 0 ? { extras } : {}),
       };
     })
     .filter((item): item is AdminOrderItem => item !== null);
+}
+
+function parseOrderItemExtras(
+  value: unknown
+): Array<{
+  id?: string;
+  name: string;
+}> {
+  const parsed = parseUnknownItemsValue(value);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .map((extra) => {
+      if (!extra || typeof extra !== "object") return null;
+      const row = extra as RowLike;
+      const name =
+        stringFrom(row.name) ??
+        stringFrom(row.nome) ??
+        stringFrom(row.label) ??
+        stringFrom(row.title);
+      if (!name) return null;
+
+      const id = stringFrom(row.id) ?? undefined;
+      return {
+        ...(id ? { id } : {}),
+        name,
+      };
+    })
+    .filter((extra): extra is { id?: string; name: string } => extra !== null);
 }
 
 function parseUnknownItemsValue(value: unknown): unknown {

@@ -4,14 +4,22 @@
     "name": "X-Burger",
     "category": "Hambúrgueres",
     "description": "Pão, hambúrguer bovino, queijo, alface e tomate.",
-    "priceCents": 2890
+    "priceCents": 2890,
+    "extras": [
+      { "id": "queijo-extra", "name": "Queijo extra", "priceCents": 300 },
+      { "id": "bacon-extra", "name": "Bacon extra", "priceCents": 500 }
+    ]
   },
   {
     "id": "x-salada",
     "name": "X-Salada",
     "category": "Hambúrgueres",
     "description": "Pão, hambúrguer bovino, queijo, alface, tomate e maionese da casa.",
-    "priceCents": 3190
+    "priceCents": 3190,
+    "extras": [
+      { "id": "ovo", "name": "Ovo", "priceCents": 250 },
+      { "id": "cheddar", "name": "Cheddar", "priceCents": 400 }
+    ]
   },
   {
     "id": "batata-frita",

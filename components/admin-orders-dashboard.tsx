@@ -346,10 +346,18 @@ function OrderDetailsContent({
               {order.items.map((item, index) => (
                 <li
                   key={`${order.id}-${item.name}-${index}`}
-                  className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                  className="rounded-md border border-border px-3 py-2 text-sm"
                 >
-                  <span className="text-foreground">{item.name}</span>
-                  <span className="text-muted-foreground">{item.quantity}x</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-foreground">{item.name}</span>
+                    <span className="text-muted-foreground">{item.quantity}x</span>
+                  </div>
+                  {item.extras && item.extras.length > 0 ? (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <span className="font-medium">Extras:</span>{" "}
+                      {item.extras.map((extra) => extra.name).join(", ")}
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

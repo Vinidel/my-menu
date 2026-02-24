@@ -21,6 +21,7 @@ const MAX_CUSTOMER_EMAIL_LENGTH = 254;
 const MAX_CUSTOMER_PHONE_LENGTH = 32;
 const MAX_NOTES_LENGTH = 1000;
 const MAX_ORDER_LINE_ITEMS = 50;
+const MAX_EXTRAS_PER_ITEM = 20;
 
 export type SubmitCustomerOrderInput = {
   customerName: string;
@@ -30,6 +31,7 @@ export type SubmitCustomerOrderInput = {
   items: Array<{
     menuItemId: string;
     quantity: number;
+    extraIds?: string[];
   }>;
 };
 
@@ -249,12 +251,24 @@ async function findOrCreateCustomer(
 
 function normalizeSelectedItems(
   items: SubmitCustomerOrderInput["items"],
-  menuMap: Map<string, { name: string }>
-): Array<{ name: string; quantity: number }> | null {
+  menuMap: ReturnType<typeof getMenuItemMap>
+): Array<{
+  name: string;
+  quantity: number;
+  menuItemId: string;
+  extras?: Array<{ id: string; name: string }>;
+}> | null {
   if (!Array.isArray(items)) return null;
   if (items.length === 0 || items.length > MAX_ORDER_LINE_ITEMS) return null;
 
-  const aggregated = new Map<string, number>();
+  const aggregated = new Map<
+    string,
+    {
+      menuItemId: string;
+      quantity: number;
+      extras: Array<{ id: string; name: string }>;
+    }
+  >();
 
   for (const item of items) {
     if (!item || typeof item !== "object") return null;
@@ -262,15 +276,64 @@ function normalizeSelectedItems(
     const quantity = toPositiveInt(item.quantity);
 
     if (!menuItemId || !quantity) return null;
-    if (!menuMap.has(menuItemId)) return null;
+    const menuItem = menuMap.get(menuItemId);
+    if (!menuItem) return null;
 
-    aggregated.set(menuItemId, (aggregated.get(menuItemId) ?? 0) + quantity);
+    const normalizedExtraIds = normalizeExtraIds(item.extraIds);
+    if (!normalizedExtraIds) return null;
+    if (normalizedExtraIds.length > MAX_EXTRAS_PER_ITEM) return null;
+
+    const extrasById = new Map((menuItem.extras ?? []).map((extra) => [extra.id, extra]));
+    const extras = normalizedExtraIds.map((extraId) => {
+      const extra = extrasById.get(extraId);
+      if (!extra) return null;
+      return { id: extra.id, name: extra.name };
+    });
+    if (extras.some((extra) => extra === null)) return null;
+
+    const comparisonKey = buildOrderItemAggregationKey(menuItemId, normalizedExtraIds);
+    const existing = aggregated.get(comparisonKey);
+
+    if (existing) {
+      existing.quantity += quantity;
+      continue;
+    }
+
+    aggregated.set(comparisonKey, {
+      menuItemId,
+      quantity,
+      extras: extras as Array<{ id: string; name: string }>,
+    });
   }
 
-  return Array.from(aggregated.entries()).map(([menuItemId, quantity]) => ({
-    name: menuMap.get(menuItemId)?.name ?? "Item",
-    quantity,
-  }));
+  return Array.from(aggregated.values()).map((entry) => {
+    const menuItem = menuMap.get(entry.menuItemId);
+
+    return {
+      name: menuItem?.name ?? "Item",
+      quantity: entry.quantity,
+      menuItemId: entry.menuItemId,
+      ...(entry.extras.length > 0 ? { extras: entry.extras } : {}),
+    };
+  });
+}
+
+function normalizeExtraIds(value: unknown): string[] | null {
+  if (typeof value === "undefined") return [];
+  if (!Array.isArray(value)) return null;
+
+  const unique = new Set<string>();
+  for (const raw of value) {
+    const extraId = sanitizeText(typeof raw === "string" ? raw : "");
+    if (!extraId) return null;
+    unique.add(extraId);
+  }
+
+  return Array.from(unique).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function buildOrderItemAggregationKey(menuItemId: string, extraIds: string[]) {
+  return `${menuItemId}::${extraIds.join("|")}`;
 }
 
 function sanitizeText(value: string): string {
