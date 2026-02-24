@@ -1,6 +1,6 @@
 # Feature Brief — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting)
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-02-24
 Author: Orchestrator Agent
 
@@ -157,4 +157,4 @@ Success = on mobile, an employee can expand an order directly in the list to see
 - [x] Edge cases are surfaced
 - [x] Key decisions are locked
 - [x] Approach is outlined at a high level (no code)
-- [ ] Critic has approved this brief
+- [x] Critic has approved this brief

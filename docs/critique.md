@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 4 hardening review — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) (`components/admin-orders-dashboard.tsx`, `components/admin-orders-dashboard.test.tsx`, `docs/hardening-notes.md`)
+Scope: Stage 5 documentation review — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) (`docs/admin-orders-dashboard-ux-mobile-and-status-sorting.md`, `PROJECT.md`, `docs/briefs/admin-orders-dashboard-ux-mobile-and-status-sorting.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider collapsing or unmounting the hidden desktop details panel on mobile in a future optimization pass if order detail content grows (currently documented as acceptable duplication).
-- Add an explicit keyboard navigation test for mobile accordion triggers (Enter/Space behavior) if you want stronger a11y regression protection beyond semantic attributes.
-- If you later extract the accordion into a shared component, keep the `aria-controls`/`aria-labelledby` linkage contract and add component-level tests.
+- Add a small cross-link from `docs/employee-orders-dashboard.md` to this UX follow-up doc for engineers starting from the original dashboard feature.
+- If a future feature introduces polling/realtime, update this doc’s “Known Gaps” and “For the Next Engineer” sections together so accordion reordering caveats remain accurate.
+- Consider adding one screenshot/gif reference in docs later if the team wants faster visual onboarding for the mobile accordion interaction.
 
 ### Risks / Assumptions
-- Responsive behavior still depends on client `matchMedia`, so there can be a brief initial render mismatch before hydration/effect on mobile. This is documented and acceptable for the current stage.
-- Hardening focused on accessibility semantics and resilience documentation; no visual/integration testing was added for viewport layout regressions.
+- Documentation correctly describes the responsive breakpoint rule and mobile accordion semantics, but actual visual behavior still depends on manual QA because no visual regression artifacts are included.
+- `PROJECT.md` now reflects the UX enhancement as a separate delivered feature; this assumes the team wants feature-level tracking granularity for UX improvements (reasonable and consistent with the workflow).
 
-## Acceptance Criteria (Stage 4 spot-check)
-- [x] Hardening changes preserve locked feature behavior (status-first sorting + mobile accordion + progression)
-- [x] Mobile accordion accessibility semantics improved (`aria-controls` + labeled region)
-- [x] Desktop no longer exposes misleading accordion state attributes when accordion mode is inactive
-- [x] Hardening notes document residual responsive/render/perf tradeoffs
-- [x] Tests/build pass after hardening changes
+## Acceptance Criteria (Stage 5 spot-check)
+- [x] Dedicated feature documentation exists for the admin dashboard UX enhancement
+- [x] Docs describe delivered behavior (status-first sorting, mobile accordion, single-expand, viewport threshold)
+- [x] Known tradeoffs/deferred work are documented (no realtime, no visual regression tests, duplicate hidden desktop details on mobile)
+- [x] `PROJECT.md` reflects the feature in current status/docs and employee flow summary
+- [x] Brief status updated to Stage 5 documentation complete and prior Critic approval recorded
 ---
