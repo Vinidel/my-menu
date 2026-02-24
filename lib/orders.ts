@@ -17,9 +17,12 @@ export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
 export type AdminOrderItem = {
   name: string;
   quantity: number;
+  unitPriceCents?: number;
+  lineTotalCents?: number;
   extras?: Array<{
     id?: string;
     name: string;
+    priceCents?: number;
   }>;
 };
 
@@ -36,6 +39,8 @@ export type AdminOrder = {
   statusLabel: string;
   rawStatus: string | null;
   notes: string | null;
+  totalAmountCents?: number | null;
+  totalAmountLabel?: string;
 };
 
 type RowLike = Record<string, unknown>;
@@ -132,7 +137,7 @@ export function parseAdminOrder(
     stringFrom(record.customerPhone) ??
     "Não informado";
 
-  const items = parseOrderItems(record.items as Json);
+  const { items, totalAmountCents } = parseOrderItemsWithTotal(record.items as Json);
 
   const notes =
     stringFrom(record.notes) ??
@@ -154,14 +159,21 @@ export function parseAdminOrder(
     statusLabel,
     rawStatus,
     notes,
+    totalAmountCents,
+    totalAmountLabel: formatOrderTotalLabel(totalAmountCents),
   };
 }
 
-function parseOrderItems(value: Json | unknown): AdminOrderItem[] {
+function parseOrderItemsWithTotal(
+  value: Json | unknown
+): { items: AdminOrderItem[]; totalAmountCents: number | null } {
   const parsed = parseUnknownItemsValue(value);
-  if (!Array.isArray(parsed)) return [];
+  if (!Array.isArray(parsed)) return { items: [], totalAmountCents: null };
 
-  return parsed
+  let canComputeTotal = true;
+  let orderTotalCents = 0;
+
+  const items = parsed
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const row = item as RowLike;
@@ -174,14 +186,37 @@ function parseOrderItems(value: Json | unknown): AdminOrderItem[] {
 
       const quantity = numberFrom(row.quantity) ?? numberFrom(row.qty) ?? numberFrom(row.qtd) ?? 1;
       const extras = parseOrderItemExtras(row.extras);
+      const normalizedQuantity =
+        Number.isFinite(quantity) && quantity > 0 ? Math.trunc(quantity) : 1;
+      const unitPriceCents = numberFrom(row.unitPriceCents ?? row.unit_price_cents);
+      const lineTotalCents = numberFrom(row.lineTotalCents ?? row.line_total_cents);
+      const itemPricing = computeItemTotalCents({
+        quantity: normalizedQuantity,
+        unitPriceCents,
+        lineTotalCents,
+        extras,
+      });
+
+      if (itemPricing === null) {
+        canComputeTotal = false;
+      } else if (canComputeTotal) {
+        orderTotalCents += itemPricing;
+      }
 
       return {
         name,
-        quantity: Number.isFinite(quantity) && quantity > 0 ? Math.trunc(quantity) : 1,
+        quantity: normalizedQuantity,
+        ...(typeof unitPriceCents === "number" ? { unitPriceCents: Math.trunc(unitPriceCents) } : {}),
+        ...(typeof lineTotalCents === "number" ? { lineTotalCents: Math.trunc(lineTotalCents) } : {}),
         ...(extras.length > 0 ? { extras } : {}),
       };
     })
     .filter((item): item is AdminOrderItem => item !== null);
+
+  return {
+    items,
+    totalAmountCents: canComputeTotal && items.length > 0 ? orderTotalCents : null,
+  };
 }
 
 function parseOrderItemExtras(
@@ -189,6 +224,7 @@ function parseOrderItemExtras(
 ): Array<{
   id?: string;
   name: string;
+  priceCents?: number;
 }> {
   const parsed = parseUnknownItemsValue(value);
   if (!Array.isArray(parsed)) return [];
@@ -206,12 +242,52 @@ function parseOrderItemExtras(
       if (!name) return null;
 
       const id = stringFromMax(row.id, MAX_PARSED_EXTRA_ID_LENGTH) ?? undefined;
+      const priceCents = numberFrom(row.priceCents ?? row.price_cents);
       return {
         ...(id ? { id } : {}),
         name,
+        ...(typeof priceCents === "number" ? { priceCents: Math.trunc(priceCents) } : {}),
       };
     })
-    .filter((extra): extra is { id?: string; name: string } => extra !== null);
+    .filter(
+      (extra): extra is { id?: string; name: string; priceCents?: number } => extra !== null
+    );
+}
+
+function computeItemTotalCents(input: {
+  quantity: number;
+  unitPriceCents: number | null;
+  lineTotalCents: number | null;
+  extras: Array<{ priceCents?: number }>;
+}): number | null {
+  if (typeof input.lineTotalCents === "number" && Number.isFinite(input.lineTotalCents)) {
+    return Math.trunc(input.lineTotalCents);
+  }
+
+  if (typeof input.unitPriceCents !== "number" || !Number.isFinite(input.unitPriceCents)) {
+    return null;
+  }
+
+  let extrasSum = 0;
+  for (const extra of input.extras) {
+    if (typeof extra.priceCents !== "number" || !Number.isFinite(extra.priceCents)) {
+      return null;
+    }
+    extrasSum += Math.trunc(extra.priceCents);
+  }
+
+  return (Math.trunc(input.unitPriceCents) + extrasSum) * input.quantity;
+}
+
+function formatOrderTotalLabel(totalAmountCents: number | null) {
+  if (typeof totalAmountCents !== "number" || !Number.isFinite(totalAmountCents)) {
+    return "Indisponível";
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(totalAmountCents / 100);
 }
 
 function parseUnknownItemsValue(value: unknown): unknown {

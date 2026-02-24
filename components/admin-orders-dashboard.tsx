@@ -432,6 +432,7 @@ function OrderDetailsContent({
             <DetailRow label="Nome" value={order.customerName} />
             <DetailRow label="Telefone" value={order.customerPhone} />
             <DetailRow label="E-mail" value={order.customerEmail} />
+            <DetailRow label="Total do pedido" value={order.totalAmountLabel ?? "Indisponível"} />
           </dl>
         </section>
 

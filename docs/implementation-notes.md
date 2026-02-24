@@ -51,7 +51,8 @@ Issues or observations spotted during implementation that are **out of scope** f
 ## Customer Order Submission (Stage 1)
 
 - **Server-only write path:** Customer submission now goes through `POST /api/orders`, which uses `SUPABASE_SERVICE_ROLE_KEY` server-side. A follow-up hardening migration locks down the temporary public `customers`/`orders` write/read grants created during the initial implementation.
-- **No pricing persisted on orders:** The order payload intentionally stores only `{ name, quantity }` items for `/admin` compatibility. If the business needs historical pricing totals, add price snapshots in a future brief (e.g. `price_cents`, `line_total_cents`, `order_total_cents`).
+- **Pricing snapshots now persisted (backward-compatible):** Customer order inserts now store item-level pricing snapshots in `orders.items` (`unitPriceCents`, optional extras `priceCents`, and `lineTotalCents`) to support reliable admin totals while preserving legacy row compatibility.
+- **Fail-closed pricing rule (from total-display brief):** If a selected base item or selected extra is missing valid `priceCents` in `data/menu.json`, submission is rejected with a pt-BR validation/setup error and no order is created.
 
 ---
 
@@ -71,4 +72,3 @@ Issues or observations spotted during implementation that are **out of scope** f
 - **Locked polling behavior implemented:** `10s` polling cadence while visible, pause when tab is hidden, and one immediate refetch on visibility restore.
 - **Mutation conflict handling (locked):** While a status progression request is in flight for an order, polled data merges preserve that order’s local pending UI state and only update other orders.
 - **Background refresh UX:** Polling failures keep the last known data visible and show a non-destructive pt-BR error banner in the dashboard.
-

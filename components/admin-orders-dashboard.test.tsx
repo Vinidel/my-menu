@@ -247,6 +247,57 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(screen.getByText(/Bacon extra, Queijo extra/)).toBeInTheDocument();
   });
 
+  it("renders 'Total do pedido' in admin order details when pricing snapshots are available (brief: total display)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            items: [
+              {
+                name: "X-Burger",
+                quantity: 2,
+                unitPriceCents: 2500,
+                extras: [{ id: "bacon", name: "Bacon", priceCents: 400 }],
+              },
+              {
+                name: "Refrigerante",
+                quantity: 1,
+                unitPriceCents: 700,
+                lineTotalCents: 700,
+              },
+            ],
+            totalAmountCents: 6500,
+            totalAmountLabel: "R$ 65,00",
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Total do pedido")).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s*65,00/)).toBeInTheDocument();
+  });
+
+  it("renders 'Indisponível' total fallback in admin order details for legacy pricing data (brief: total fallback)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            items: [{ name: "X-Burger", quantity: 1 }],
+            totalAmountCents: null,
+            totalAmountLabel: "Indisponível",
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Total do pedido")).toBeInTheDocument();
+    expect(screen.getByText("Indisponível")).toBeInTheDocument();
+  });
+
   it("uses single-expand accordion behavior on mobile viewport (brief: mobile accordion)", async () => {
     const restore = mockMobileViewport(true);
     try {
