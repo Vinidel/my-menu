@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 1 implementation review (second pass) — Customer Order Submission (`/`, `/api/orders`, customer/order migrations)
+Scope: Stage 2 test coverage review (third pass) — Customer Order Submission (`components/customer-order-page.test.tsx`, `app/api/orders/route.test.ts`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- `app/page.tsx:6` still checks only public Supabase env vars to show submission as available. Since `/api/orders` depends on `SUPABASE_SERVICE_ROLE_KEY`, consider surfacing a server-computed `isOrderSubmissionConfigured` flag that includes the service-role key to avoid a submit-time `503` surprise.
-- `components/customer-order-page.tsx` uses two tab systems (`Cardápio/Seu pedido` and category tabs). Consider adding `aria-controls` and panel ids for stronger accessibility/testability in Stage 2/4.
+- Add a UI test for `isSupabaseConfigured={false}` (setup/unavailable banner + disabled submission) to better cover the brief’s resilience scenario.
+- Add a route test for downstream `{ code: "setup" } -> 503` mapping from `submitCustomerOrderWithClient(...)` (you already test invalid JSON and missing service-role client `503`).
 
 ### Risks / Assumptions
-- The new hardening migration correctly removes public `customers` reads and direct public `orders` inserts, but it must be applied in Supabase to take effect (`supabase/migrations/20260224110000_lock_down_public_order_submission_tables.sql`).
-- `/api/orders` now relies on `SUPABASE_SERVICE_ROLE_KEY`; operational environments must keep this secret server-only and never expose it via `NEXT_PUBLIC_*`.
-- Rate limiting / bot protection is still deferred and remains a hardening concern for a public order endpoint.
+- Stage 2 coverage now exercises the customer page’s critical UX paths (tabs, required fields, zero-item rejection, quantity removal, success reset, failure preservation) plus `/api/orders` HTTP status mapping.
+- Category-tab filtering remains untested, but it is a UI refinement rather than a brief-critical behavior.
 
-## Acceptance Criteria (Stage 1 spot-check)
-- [x] Public `/` menu flow implemented with selection, quantities, and customer form
-- [x] Inserts `public.orders` with `status = aguardando_confirmacao`, `customer_id`, and snapshots
-- [x] Optional `Observações` maps to `orders.notes`
-- [x] `/api/orders` returns proper HTTP status codes (`201/400/500/503`)
-- [x] Public table grants/policies aligned with service-role architecture (via hardening migration)
+## Acceptance Criteria (Stage 2 spot-check)
+- [x] Tests added for `/api/orders` HTTP status mapping (201/400/500 and setup/invalid JSON cases)
+- [x] Tests added for customer page success and error submit flows
+- [x] Tests added for inline required-field validation messages
+- [x] Tests cover zero-item submit rejection with Portuguese validation message
+- [x] Tests cover quantity decrement-to-zero removal behavior
+- [x] Tests verify form/cart preservation on submit failure
 ---

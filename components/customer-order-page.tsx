@@ -60,7 +60,7 @@ export function CustomerOrderPage({
     0
   );
 
-  const canSubmit = isSupabaseConfigured && !isPending && totalItems > 0;
+  const canSubmit = isSupabaseConfigured && !isPending;
 
   function addItem(itemId: string) {
     setFeedback(null);
