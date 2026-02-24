@@ -4,6 +4,8 @@ export const PAYMENT_METHOD_LABELS = {
   cartao: "Cartão",
 } as const;
 
+const MAX_PAYMENT_METHOD_INPUT_LENGTH = 32;
+
 export type PaymentMethod = keyof typeof PAYMENT_METHOD_LABELS;
 
 export const PAYMENT_METHOD_VALUES = Object.keys(
@@ -17,7 +19,11 @@ export const PAYMENT_METHOD_OPTIONS = PAYMENT_METHOD_VALUES.map((value) => ({
 
 export function normalizePaymentMethod(value: unknown): PaymentMethod | null {
   if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_PAYMENT_METHOD_INPUT_LENGTH) {
+    return null;
+  }
+  const normalized = trimmed.toLowerCase();
   return PAYMENT_METHOD_VALUES.includes(normalized as PaymentMethod)
     ? (normalized as PaymentMethod)
     : null;

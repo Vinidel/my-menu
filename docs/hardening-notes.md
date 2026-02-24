@@ -316,3 +316,39 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | Improved  | Added numeric bounds to parser/total calculation |
 | Observability | Gap       | No malformed-pricing telemetry |
 | Resilience    | Improved  | Safe fallback for negative/oversized pricing snapshots and aggregate totals |
+
+---
+
+## Order Payment Method Selection (Customer + Admin) — Stage 4
+
+### Security
+
+- **Server validation authority preserved:** Even though the customer UI uses a constrained radio group, `/api/orders` (via shared submit logic) still validates `paymentMethod` against the locked canonical values (`dinheiro`, `pix`, `cartao`) before persisting. Tampered values are rejected with a Portuguese validation error. **No Stage 4 change required.**
+- **DB integrity backstop remains in place:** `public.orders.payment_method` is protected by a DB `CHECK` constraint allowing only canonical non-null values while still permitting `NULL` for legacy rows. This provides a second line of defense beyond app validation. **Implemented in Stage 1; no change.**
+
+### Dependencies
+
+- **Shared source of truth:** Stage 3 centralized canonical values and labels in `lib/payment-methods.ts`, which reduces drift risk between customer radio options, server validation, and admin display labels without adding any dependency. **No change.**
+
+### Performance
+
+- **Minimal runtime cost:** Payment method handling is limited to simple string normalization and label lookup in submit/admin flows. No meaningful performance impact observed or expected. **No change.**
+
+### Observability
+
+- **No payment-method telemetry:** There are no metrics/logs for payment method distribution or invalid payment-method attempt counts beyond generic submit failure logs. This is acceptable for current scope and can be added later if reporting/abuse visibility requires it. **Deferred.**
+
+### Resilience
+
+- **Oversized malformed string hardening:** Stage 4 adds a maximum length guard (32 chars) in shared payment method normalization before trimming/lowercasing. Unexpectedly large strings (e.g., malformed payloads or manual DB edits) now fail safely to `null` instead of being processed as arbitrary-length inputs. **Improved in Stage 4.**
+- **Deterministic admin fallback preserved:** `/admin` continues to render `Forma de pagamento: Não informado` for legacy `NULL` rows and unknown values, so malformed historical data does not break details rendering. **No change; covered by tests.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | App validation + DB `CHECK` already enforce canonical values |
+| Dependencies  | OK        | Shared helper prevents label/key drift |
+| Performance   | OK        | No meaningful impact |
+| Observability | Gap       | No payment-method telemetry |
+| Resilience    | Improved  | Length-capped normalization fails safely on oversized values |
