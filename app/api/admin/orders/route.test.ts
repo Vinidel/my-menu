@@ -24,7 +24,8 @@ describe("GET /api/admin/orders", () => {
     const response = await GET();
 
     expect(response.status).toBe(503);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Vary")).toBe("Cookie");
     await expect(response.json()).resolves.toMatchObject({
       ok: false,
       message: "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.",
@@ -44,7 +45,8 @@ describe("GET /api/admin/orders", () => {
     const response = await GET();
 
     expect(response.status).toBe(401);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Vary")).toBe("Cookie");
     await expect(response.json()).resolves.toEqual({
       ok: false,
       message: "Acesso não autorizado.",
@@ -76,7 +78,8 @@ describe("GET /api/admin/orders", () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Vary")).toBe("Cookie");
     expect(fromSpy).toHaveBeenCalledWith("orders");
     expect(selectSpy).toHaveBeenCalledWith(
       "id, reference, customer_name, customer_email, customer_phone, items, status, notes, created_at"
@@ -110,7 +113,8 @@ describe("GET /api/admin/orders", () => {
     const response = await GET();
 
     expect(response.status).toBe(500);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Vary")).toBe("Cookie");
     await expect(response.json()).resolves.toEqual({
       ok: false,
       message: "Não foi possível carregar os pedidos agora. Tente novamente em instantes.",

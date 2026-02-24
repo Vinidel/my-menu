@@ -102,6 +102,7 @@ function AdminOrdersDashboardContent({
     initialData: initialOrders,
     enabled: enablePolling,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     refetchInterval: getPollingInterval(enablePolling, isPageVisible),
     refetchIntervalInBackground: false,
     retry: false,

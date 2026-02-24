@@ -7,7 +7,10 @@ const SETUP_ERROR_MESSAGE =
 const AUTH_ERROR_MESSAGE = "Acesso não autorizado.";
 const LOAD_ERROR_MESSAGE =
   "Não foi possível carregar os pedidos agora. Tente novamente em instantes.";
-const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie",
+} as const;
 
 export async function GET() {
   const supabase = await createClient();

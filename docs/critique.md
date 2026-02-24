@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Admin Orders Dashboard Polling (TanStack Query) (`docs/briefs/admin-orders-dashboard-polling-tanstack-query.md`)
+Scope: Stage 4 hardening review — Admin Orders Dashboard Polling (TanStack Query) (`docs/briefs/admin-orders-dashboard-polling-tanstack-query.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -20,11 +20,11 @@ Verdict: APPROVE
 - Stage 1 correctly chose the brief-preferred **Option A** (`GET /api/admin/orders`) and returns parsed dashboard payloads, which reduces client parsing duplication and aligns with the locked implementation bias.
 - The Stage 2 suite now covers both non-destructive background failures and polling-specific feedback, but TanStack Query timing behavior can still make polling tests brittle across library upgrades; keep assertions focused on the brief contract.
 
-## Acceptance Criteria (Stage 2 spot-check)
-- [x] `GET /api/admin/orders` route is covered for success/auth/setup/query-failure paths
-- [x] Hidden-tab pause + visible restore immediate refetch behavior is covered
-- [x] Polling vs in-flight status mutation conflict behavior is covered
-- [x] Non-destructive background polling failure behavior (keep last good data visible) is covered
-- [x] pt-BR background polling failure feedback message/banner is explicitly asserted
-- [x] Mobile accordion remains usable with polling enabled is explicitly asserted
+## Acceptance Criteria (Stage 4 spot-check)
+- [x] Hardening changes stay within polling feature scope (`GET /api/admin/orders` + client polling behavior)
+- [x] Authenticated polling route responses now use stronger cache/privacy headers (`private, no-store` + `Vary: Cookie`)
+- [x] Polling determinism is improved without changing the brief-locked cadence/visibility contract (`refetchOnReconnect: false`)
+- [x] Hardening notes document the security/resilience tradeoffs and residual risks
+- [x] Hardening changes are covered by updated tests (route header assertions) and broader polling tests still pass
+- [x] Full test suite and build pass after hardening changes
 ---

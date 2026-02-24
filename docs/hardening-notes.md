@@ -205,6 +205,46 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 
 ---
 
+## Admin Orders Dashboard Polling (TanStack Query) — Stage 4
+
+### Security
+
+- **Authenticated polling read path:** Polling uses `GET /api/admin/orders`, which performs a server-side auth check (`supabase.auth.getUser()`) before querying `orders`. This preserves the brief’s no-public-read requirement and avoids exposing employee order data through a public endpoint. **Implemented in Stage 1; no change.**
+- **Response cache/privacy headers:** Stage 4 strengthens route responses with `Cache-Control: private, no-store` plus `Vary: Cookie` on all success/error responses. This reduces the risk of intermediary/shared-cache misuse for authenticated polling responses and makes the user-specific nature of the route explicit. **Improved in Stage 4.**
+
+### Dependencies
+
+- **TanStack Query defaults constrained for determinism:** Polling already disabled focus refetch to honor the brief’s visibility-restore contract. Stage 4 also disables reconnect refetch (`refetchOnReconnect: false`) to avoid surprise extra requests outside the locked polling cadence in unstable network environments. **Improved in Stage 4.**
+- **No new backend dependencies:** Polling remains route + browser fetch + TanStack Query only; no websocket/realtime service or cache layer added. **No change.**
+
+### Performance
+
+- **Polling load profile:** `10s` polling per open admin tab remains acceptable for the current small-scale scope, but multiple tabs still multiply requests linearly. This feature intentionally accepts that tradeoff. **Documented; deferred for future optimization (shared/store-backed state or realtime).**
+- **Hidden-tab pause:** Polling stops when the tab is hidden and resumes with one immediate refetch on visibility restore, reducing unnecessary background requests. **Implemented and tested.**
+
+### Observability
+
+- **Route error logging:** `GET /api/admin/orders` logs query failures and unexpected errors server-side without customer PII. There is still no metric/telemetry for polling failure rates or refetch counts. **Acceptable for current scope; deferred.**
+- **Client polling visibility:** UI shows a pt-BR non-destructive polling failure banner when background refreshes fail, but no structured client telemetry exists. **Improved UX, observability still limited.**
+
+### Resilience
+
+- **Background polling failures:** Dashboard keeps last successful data visible and shows a non-destructive pt-BR feedback banner rather than blanking the UI. **Improved and covered by tests.**
+- **In-flight mutation conflict handling:** Polling merges preserve the local pending UI state for the order currently being progressed, preventing the poll response from clobbering that in-flight mutation state. **Implemented and covered by tests.**
+- **Visibility restore behavior:** Polling triggers one immediate refetch on visibility restore, then resumes the `10s` cadence. Stage 4 keeps this deterministic by avoiding extra focus/reconnect-triggered refetches. **Improved.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Added `private, no-store` + `Vary: Cookie` on polling route responses |
+| Dependencies  | Improved  | Disabled reconnect refetch for deterministic polling behavior |
+| Performance   | OK/Deferred | Hidden-tab pause is good; multi-tab polling load still accepted |
+| Observability | Gap       | Logs and UI feedback only; no polling metrics |
+| Resilience    | Improved  | Background failure banner + mutation conflict preservation + deterministic restore behavior |
+
+---
+
 ## Order Item Extras / Customization — Stage 4
 
 ### Security
