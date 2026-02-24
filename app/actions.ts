@@ -191,13 +191,11 @@ async function findOrCreateCustomer(
   supabase: OrdersTablesClient,
   input: FindOrCreateCustomerInput
 ): Promise<string | null> {
-  const customersSelect = asCustomersSelectChain(supabase.from("customers"));
-
-  const { data: existingCustomer, error: selectError } = await customersSelect
-    .select("id")
-    .eq("email_normalized", input.email_normalized)
-    .eq("phone_normalized", input.phone_normalized)
-    .maybeSingle();
+  const { data: existingCustomer, error: selectError } = await findCustomerByNormalizedContact(
+    supabase,
+    input.email_normalized,
+    input.phone_normalized
+  );
 
   if (selectError) {
     console.error("[customer/orders] failed to query customers for dedupe", {
@@ -223,12 +221,11 @@ async function findOrCreateCustomer(
 
   if (insertError?.code === "23505") {
     // Another request inserted the same normalized customer between select and insert.
-    const retrySelect = asCustomersSelectChain(supabase.from("customers"));
-    const { data: retriedCustomer, error: retryError } = await retrySelect
-      .select("id")
-      .eq("email_normalized", input.email_normalized)
-      .eq("phone_normalized", input.phone_normalized)
-      .maybeSingle();
+    const { data: retriedCustomer, error: retryError } = await findCustomerByNormalizedContact(
+      supabase,
+      input.email_normalized,
+      input.phone_normalized
+    );
 
     if (!retryError && retriedCustomer?.id) {
       return retriedCustomer.id;
@@ -247,6 +244,20 @@ async function findOrCreateCustomer(
     code: insertError?.code,
   });
   return null;
+}
+
+function findCustomerByNormalizedContact(
+  supabase: OrdersTablesClient,
+  emailNormalized: string,
+  phoneNormalized: string
+) {
+  const customersSelect = asCustomersSelectChain(supabase.from("customers"));
+
+  return customersSelect
+    .select("id")
+    .eq("email_normalized", emailNormalized)
+    .eq("phone_normalized", phoneNormalized)
+    .maybeSingle();
 }
 
 function normalizeSelectedItems(

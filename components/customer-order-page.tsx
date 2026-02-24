@@ -797,6 +797,10 @@ function lineMergeKey(menuItemId: string, extraIds: string[]) {
   return `${menuItemId}::${normalizeExtraIds(extraIds).join("|")}`;
 }
 
+function lineMatchesMergeKey(line: SelectedOrderLine, key: string): boolean {
+  return lineMergeKey(line.menuItemId, line.extraIds) === key;
+}
+
 function addOrMergeOrderLine(
   current: SelectedOrderLine[],
   menuItemId: string,
@@ -805,7 +809,7 @@ function addOrMergeOrderLine(
 ) {
   const normalizedExtraIds = normalizeExtraIds(extraIds);
   const key = lineMergeKey(menuItemId, normalizedExtraIds);
-  const existing = current.find((line) => lineMergeKey(line.menuItemId, line.extraIds) === key);
+  const existing = current.find((line) => lineMatchesMergeKey(line, key));
 
   if (existing) {
     return current.map((line) =>
@@ -835,7 +839,7 @@ function updateOrderLineExtras(
   const normalizedExtraIds = normalizeExtraIds(nextExtraIds);
   const targetKey = lineMergeKey(target.menuItemId, normalizedExtraIds);
   const mergeTarget = current.find(
-    (line) => line.lineId !== lineId && lineMergeKey(line.menuItemId, line.extraIds) === targetKey
+    (line) => line.lineId !== lineId && lineMatchesMergeKey(line, targetKey)
   );
 
   if (mergeTarget) {
