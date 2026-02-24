@@ -167,4 +167,103 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByText("X-Burger")).toBeInTheDocument();
     expect(screen.getByText("1 itens")).toBeInTheDocument();
   });
+
+  it("submits customized item extras in the /api/orders payload (brief: extras payload shape)", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        orderReference: "PED-EXTRAS1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const menuWithExtras: MenuItem[] = [
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        category: "Hambúrgueres",
+        priceCents: 2500,
+        extras: [
+          { id: "bacon-extra", name: "Bacon extra", priceCents: 500 },
+          { id: "queijo-extra", name: "Queijo extra", priceCents: 300 },
+        ],
+      },
+    ];
+
+    render(<CustomerOrderPage menuItems={menuWithExtras} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+    fireEvent.click(screen.getByLabelText(/Bacon extra/));
+    fireEvent.click(screen.getByLabelText(/Queijo extra/));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
+    fireEvent.change(screen.getByLabelText("E-mail"), {
+      target: { value: "ana@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Telefone"), {
+      target: { value: "11999999999" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(requestInit.body)) as {
+      items: Array<{ menuItemId: string; quantity: number; extraIds?: string[] }>;
+    };
+
+    expect(payload.items).toEqual([
+      {
+        menuItemId: "x-burger",
+        quantity: 1,
+        extraIds: ["bacon-extra", "queijo-extra"],
+      },
+    ]);
+  });
+
+  it("edits extras for an existing line in the order summary (brief: edit/remove extras)", () => {
+    const menuWithExtras: MenuItem[] = [
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        category: "Hambúrgueres",
+        priceCents: 2500,
+        extras: [
+          { id: "bacon-extra", name: "Bacon extra" },
+          { id: "queijo-extra", name: "Queijo extra" },
+        ],
+      },
+    ];
+
+    render(<CustomerOrderPage menuItems={menuWithExtras} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+    fireEvent.click(screen.getByLabelText(/Bacon extra/));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+    fireEvent.click(screen.getByLabelText(/Queijo extra/));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "2 itens" }));
+
+    expect(screen.getAllByText("X-Burger")).toHaveLength(2);
+
+    const editButtons = screen.getAllByRole("button", { name: "Editar extras" });
+    fireEvent.click(editButtons[1]);
+    fireEvent.click(screen.getByLabelText(/Bacon extra/));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar extras" }));
+
+    expect(screen.getAllByRole("button", { name: "Editar extras" })).toHaveLength(2);
+    expect(screen.getByText("2 itens")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "Extras: Bacon extra")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "Extras: Bacon extra, Queijo extra")
+    ).toBeInTheDocument();
+  });
 });
