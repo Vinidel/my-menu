@@ -14,6 +14,7 @@ const MAX_REQUEST_BODY_BYTES = 32 * 1024;
 const ORDER_SUBMIT_RATE_LIMIT_MAX_REQUESTS = 5;
 const ORDER_SUBMIT_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const ORDER_SUBMIT_RATE_LIMIT_KEY_PREFIX = "api_orders:";
+const SOURCE_TOKEN_MAX_LENGTH = 256;
 const UNKNOWN_SOURCE_KEY = "unknown";
 const UNKNOWN_SOURCE_LOG_KEY = "unknown";
 const RATE_LIMIT_MESSAGE =
@@ -162,7 +163,7 @@ function getRequestSource(request: Request): { bucketKey: string; logKey: string
   }
 
   return {
-    bucketKey: `ip:${normalizedIp}`,
+    bucketKey: `ip_hash:${hashForRateLimit(normalizedIp)}`,
     logKey: `ip_hash:${hashForLogs(normalizedIp)}`,
   };
 }
@@ -193,6 +194,7 @@ function forwardedForToken(value: string | null): string | null {
 function normalizeIp(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
+  if (trimmed.length > SOURCE_TOKEN_MAX_LENGTH) return null;
 
   if (trimmed.startsWith("[")) {
     const closingIndex = trimmed.indexOf("]");
@@ -208,6 +210,10 @@ function normalizeIp(value: string): string | null {
   }
 
   return trimmed;
+}
+
+function hashForRateLimit(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function hashForLogs(value: string): string {

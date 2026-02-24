@@ -220,6 +220,36 @@ describe("POST /api/orders", () => {
     expect(throttled.status).toBe(429);
   });
 
+  it("falls back to the 'unknown' bucket for oversized source header values (hardening: source parsing bounds)", async () => {
+    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
+      ok: true,
+      orderReference: "PED-1234ABCD",
+    });
+
+    await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ana",
+          customerEmail: "ana@example.com",
+          customerPhone: "11999999999",
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-real-ip": "1".repeat(300),
+        },
+      })
+    );
+
+    expect(consumeFixedWindowRateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: expect.stringContaining("api_orders:unknown"),
+      })
+    );
+  });
+
   it("degrades open when limiter throws and continues processing the request (brief: limiter unavailable)", async () => {
     vi.mocked(consumeFixedWindowRateLimit).mockImplementationOnce(() => {
       throw new Error("limiter down");

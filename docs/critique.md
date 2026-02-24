@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — API Orders Anti-Abuse (`app/api/orders/route.test.ts`)
+Scope: Stage 4 hardening review — API Orders Anti-Abuse (`app/api/orders/route.ts`, `app/api/orders/route.test.ts`, `docs/hardening-notes.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,19 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a focused test asserting the exact `Retry-After` value shape/range (currently you assert presence only), if you want stronger regression protection around limiter timing math.
-- Add a source-extraction parsing test matrix (e.g. `x-forwarded-for` comma list, IPv4 with port, `forwarded` header IPv6 form) in a future unit test for the route helper or extracted helper module.
-- Consider asserting throttle-path logging uses hashed IP output (not raw IP) to lock the no-PII logging expectation.
+- Add a focused test that asserts the limiter key uses the hashed `ip_hash:` prefix (not raw `ip:`) for a normal IP path, to lock the privacy hardening against regressions.
+- Add a source-extraction parsing test matrix (e.g. `x-forwarded-for` comma list, IPv4 with port, `forwarded` header IPv6 form) in a future helper-level test if source parsing grows.
+- Consider adding a small metric counter/log sampling strategy for throttle events and limiter degrade-open events when ops needs production abuse visibility.
 
 ### Risks / Assumptions
-- Stage 2 currently tests route-level anti-abuse behavior, not the limiter helper in isolation. This is acceptable for the brief, but a dedicated unit test for `lib/anti-abuse/rate-limit.ts` would make future refactors safer.
-- In-memory limiter state is reset in tests, but production behavior remains per-process/per-instance (already documented and acceptable for this stage).
+- In-memory limiter remains per-process/per-instance and can be bypassed across multiple instances/regions. This is documented and accepted for the current stage but is the main residual anti-abuse risk.
+- IP/header trust still depends on deployment behind a trusted proxy/CDN. The code documents this and degrades safely to `unknown` for malformed/oversized source tokens.
 
-## Acceptance Criteria (Stage 2 spot-check)
-- [x] Tests cover `429` throttling after threshold
-- [x] Tests cover `Retry-After` header on throttled responses
-- [x] Tests verify throttled requests do not reach order creation logic
-- [x] Tests cover fallback `unknown` source bucket behavior
-- [x] Tests cover degrade-open behavior when limiter fails
-- [x] Existing `/api/orders` status mapping tests still pass
+## Acceptance Criteria (Stage 4 spot-check)
+- [x] Hardening changes preserve the locked anti-abuse behavior (`5 req / 5 min`, `429`, `Retry-After`, degrade-open)
+- [x] Source identifiers are no longer stored as raw IPs in limiter keys (hashed bucket key)
+- [x] Oversized source header values are bounded and fall back safely (`unknown` bucket)
+- [x] Stage 4 hardening notes document residual risks (header trust, in-memory consistency, observability gaps)
+- [x] Tests/build pass after hardening changes
 ---
