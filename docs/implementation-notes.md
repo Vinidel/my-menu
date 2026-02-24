@@ -61,3 +61,14 @@ Issues or observations spotted during implementation that are **out of scope** f
 - **Threshold (locked by brief):** `5` requests per source / `5` minutes, enforced before request body parsing and before order DB writes.
 - **Source extraction tradeoff:** Uses best-effort header parsing (`x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, `forwarded`) with fallback bucket `unknown`. Header trust and extraction accuracy depend on deployment/runtime proxy behavior.
 - **Degrade behavior (locked):** If the limiter throws unexpectedly, the route degrades open (continues processing) and logs a server-side error.
+
+---
+
+## Admin Orders Dashboard Polling (TanStack Query) (Stage 1)
+
+- **Implementation path chosen:** Implemented **Option A** from the brief with a protected `GET /api/admin/orders` route for polling. The route checks authenticated user context server-side (`supabase.auth.getUser()`), returns parsed dashboard orders, and avoids introducing public read access to `orders`.
+- **TanStack Query integration scope:** Polling is wired inside `AdminOrdersDashboard` with an internal `QueryClientProvider`. Polling is enabled only when the page passes `enablePolling`, so existing direct component tests can continue rendering the dashboard without network polling by default.
+- **Locked polling behavior implemented:** `10s` polling cadence while visible, pause when tab is hidden, and one immediate refetch on visibility restore.
+- **Mutation conflict handling (locked):** While a status progression request is in flight for an order, polled data merges preserve that order’s local pending UI state and only update other orders.
+- **Background refresh UX:** Polling failures keep the last known data visible and show a non-destructive pt-BR error banner in the dashboard.
+
