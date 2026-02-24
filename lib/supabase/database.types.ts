@@ -9,10 +9,44 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      customers: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          phone: string;
+          email_normalized: string;
+          phone_normalized: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          email: string;
+          phone: string;
+          email_normalized: string;
+          phone_normalized: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          email?: string;
+          phone?: string;
+          email_normalized?: string;
+          phone_normalized?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: string;
           reference: string;
+          customer_id: string | null;
           customer_name: string;
           customer_email: string;
           customer_phone: string;
@@ -25,6 +59,7 @@ export type Database = {
         Insert: {
           id?: string;
           reference?: string;
+          customer_id?: string | null;
           customer_name: string;
           customer_email: string;
           customer_phone: string;
@@ -37,6 +72,7 @@ export type Database = {
         Update: {
           id?: string;
           reference?: string;
+          customer_id?: string | null;
           customer_name?: string;
           customer_email?: string;
           customer_phone?: string;
@@ -46,7 +82,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {};

@@ -1,9 +1,9 @@
 ---
 # Critique
 
-Date: 2026-02-23
+Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — `docs/employee-orders-dashboard.md`, `PROJECT.md`, `docs/implementation-notes.md`, brief status update
+Scope: Stage 5 documentation review — Customer Order Submission (`docs/customer-order-submission.md`, `PROJECT.md`, `docs/briefs/customer-order-submission.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,17 +12,17 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a short PR-ready summary/rollback snippet (copy/paste format) to `docs/employee-orders-dashboard.md` if the team frequently opens PRs from terminal-only sessions without GitHub templates visible.
-- Consider documenting the exact renamed hardening migration filename (if different from `20260223_000002_enforce_order_status_transitions.sql`) once the final canonical filename in the repo is settled, so future engineers do not have to infer which file was actually applied.
+- Consider adding a short “Migration Apply Order” snippet (CLI + SQL Editor options) in `docs/customer-order-submission.md` to reduce operator mistakes when setting up new environments.
+- If you expect handoffs to non-technical operators, add a brief “Required Vercel env vars” checklist with exact environment names and where they are used (`/` setup gating vs `/api/orders` server-only path).
 
 ### Risks / Assumptions
-- `PROJECT.md` now states the orders schema + DB-enforced status transitions are delivered (`PROJECT.md:36`); this assumes the second migration was successfully applied after the filename/version conflict was resolved.
-- `docs/employee-orders-dashboard.md` correctly documents the Supabase migration version collision risk and workaround, but future migrations can still fail the same way if contributors return to short date-only prefixes.
+- The docs correctly describe the final security posture, but it depends on the lock-down migration (`supabase/migrations/20260224110000_lock_down_public_order_submission_tables.sql`) actually being applied.
+- `PROJECT.md` now reflects the current architecture and delivered scope; future changes to the customer flow (e.g. anti-abuse controls, price snapshots) should update both `PROJECT.md` and `docs/customer-order-submission.md` together.
 
-## Acceptance Criteria
-- [x] Key decisions from the brief and implementation are documented
-- [x] Deferred items and known gaps are captured
-- [x] Operational notes added (migrations, seed, RLS, rollback guidance)
+## Acceptance Criteria (Stage 5 spot-check)
+- [x] Dedicated feature documentation exists for customer order submission
+- [x] Documentation describes delivered UX (`/`, tabs, cart, form, observações) and API behavior (`/api/orders`)
+- [x] Documentation lists relevant code paths, migrations, tests, and env requirements
+- [x] Project-level status/docs references updated in `PROJECT.md`
 - [x] Brief status updated to Stage 5 documentation complete (pending Critic)
-- [x] Project-level docs/status references updated for the delivered feature
 ---

@@ -4,7 +4,7 @@
 > Every agent reads this before starting any stage.
 > Keep it updated as the project evolves.
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 
 ---
 
@@ -33,8 +33,8 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ## Current Status
 
-- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout), Employee Orders Dashboard (`/admin` summary/list/details/status progression), Supabase `orders` schema + seed and DB-enforced status transitions.
-- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md` and `docs/employee-orders-dashboard.md`. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
+- **Delivered:** App Skeleton (Next.js, Tailwind, shadcn, Vitest, `/` and `/admin` placeholders), Employee Auth (Supabase email/password login, protected `/admin`, `/admin/login`, logout), Employee Orders Dashboard (`/admin` summary/list/details/status progression), Supabase `orders` schema + seed and DB-enforced status transitions, Customer Order Submission (`/` menu/cart/checkout, `public.customers`, `/api/orders`, service-role submission path).
+- **Docs:** Feature briefs in `docs/briefs/`; delivery notes in `docs/employee-auth.md`, `docs/employee-orders-dashboard.md`, and `docs/customer-order-submission.md`. Implementation and hardening notes in `docs/implementation-notes.md` and `docs/hardening-notes.md`.
 - Workflow: 6-stage delivery with agents (see `workflow/WORKFLOW.md`).
 
 ---
@@ -71,7 +71,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ## Architecture Overview
 
-- **Customer flow:** Public menu page (data from JSON) → cart/selection → checkout form (name, email, phone required) → order submission. Orders stored in Supabase.
+- **Customer flow:** Public menu page (data from JSON) → tabbed cardápio/pedido UX → cart/selection → checkout form (name, email, phone required; optional notes) → `POST /api/orders` (server-only service-role write path) → order submission. Orders stored in Supabase.
 - **Employee flow:** Login (Supabase Auth, email + password) → orders list → update order status. Only authenticated users can access the owner/employee area.
 - **Menu:** Sourced from a JSON config file (path and schema to be defined); no menu management UI in initial scope.
 - **Hosting:** App deployed on Vercel; Supabase used for all persistent data and auth.
@@ -87,7 +87,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 ├── workflow/
 │   └── WORKFLOW.md      ← 6-stage workflow and PR lifecycle
 ├── templates/           ← feature-brief, PROJECT, pull-request templates
-├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md, employee-orders-dashboard.md (feature docs)
+├── docs/                ← briefs/, critique.md, implementation-notes.md, hardening-notes.md, employee-auth.md, employee-orders-dashboard.md, customer-order-submission.md (feature docs)
 ├── PROJECT.md           ← This file: project context and patterns
 ├── app/                 ← Next.js App Router (routes, layouts, pages)
 ├── components/          ← React components; components/ui/ for shadcn
@@ -111,7 +111,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 
 ### Error Handling
 
-- Validate required customer fields (name, email, phone) before submission. Use clear, user-facing messages for auth and order errors; avoid leaking internal details.
+- Validate required customer fields (name, email, phone) before submission. Use clear, user-facing messages for auth and order errors; avoid leaking internal details. Public order submission uses `/api/orders` with server-side validation and service-role DB writes.
 
 ### API Design
 
@@ -140,6 +140,7 @@ A **small-scale burger ordering app** for a friend’s burger place in **Brazil*
 | Supabase for data and auth | Single provider for DB and email/password auth; fits small scale and Vercel deployment. |
 | Vercel for hosting | Simple deploy and good fit for a small full-stack or frontend app. |
 | Menu from JSON file | Keeps initial scope small; no admin UI for menu; easy to change menu by editing config. |
+| Customer order writes via server-only `/api/orders` + service role | Returns proper HTTP status codes and avoids exposing direct public table reads/writes for orders/customers. |
 | Employees login with email + password | Simple auth model for owner and staff; Supabase Auth supports it out of the box. |
 | Customer contact fields required (name, email, phone) | Ensures the burger place can identify and reach the customer for every order. |
 | Single burger place, limited features | App is for a friend’s place; avoid scope creep and multi-tenant complexity. |
