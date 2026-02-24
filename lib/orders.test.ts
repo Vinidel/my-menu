@@ -121,4 +121,48 @@ describe("parseAdminOrder total amount display", () => {
     expect(order?.totalAmountCents).toBeNull();
     expect(order?.totalAmountLabel).toBe("Indisponível");
   });
+
+  it("returns total indisponível for malformed negative pricing snapshots", () => {
+    const order = parseAdminOrder({
+      id: "6",
+      reference: "PED-0006",
+      customer_name: "Fabi",
+      customer_email: "fabi@example.com",
+      customer_phone: "11444444444",
+      status: "aguardando_confirmacao",
+      items: [
+        {
+          name: "X-Burger",
+          quantity: 1,
+          unitPriceCents: -100,
+        },
+      ],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.totalAmountCents).toBeNull();
+    expect(order?.totalAmountLabel).toBe("Indisponível");
+  });
+
+  it("returns total indisponível for implausibly large pricing snapshots", () => {
+    const order = parseAdminOrder({
+      id: "7",
+      reference: "PED-0007",
+      customer_name: "Gabi",
+      customer_email: "gabi@example.com",
+      customer_phone: "11333333333",
+      status: "aguardando_confirmacao",
+      items: [
+        {
+          name: "X-Tudo",
+          quantity: 1,
+          lineTotalCents: 99_999_999,
+        },
+      ],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.totalAmountCents).toBeNull();
+    expect(order?.totalAmountLabel).toBe("Indisponível");
+  });
 });

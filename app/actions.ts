@@ -52,6 +52,15 @@ type OrderStatus = Database["public"]["Tables"]["orders"]["Row"]["status"];
 type OrdersTablesClient = {
   from: (table: "customers" | "orders") => unknown;
 };
+type OrderItemExtraSnapshot = { id: string; name: string; priceCents: number };
+type OrderItemSnapshot = {
+  name: string;
+  quantity: number;
+  menuItemId: string;
+  unitPriceCents: number;
+  lineTotalCents: number;
+  extras?: OrderItemExtraSnapshot[];
+};
 
 export async function submitCustomerOrder(
   input: SubmitCustomerOrderInput
@@ -274,14 +283,7 @@ function findCustomerByNormalizedContact(
 function normalizeSelectedItems(
   items: SubmitCustomerOrderInput["items"],
   menuMap: ReturnType<typeof getMenuItemMap>
-): Array<{
-  name: string;
-  quantity: number;
-  menuItemId: string;
-  unitPriceCents: number;
-  lineTotalCents: number;
-  extras?: Array<{ id: string; name: string; priceCents: number }>;
-}> | null {
+): OrderItemSnapshot[] | null {
   if (!Array.isArray(items)) return null;
   if (items.length === 0 || items.length > MAX_ORDER_LINE_ITEMS) return null;
 
@@ -291,7 +293,7 @@ function normalizeSelectedItems(
       menuItemId: string;
       quantity: number;
       unitPriceCents: number;
-      extras: Array<{ id: string; name: string; priceCents: number }>;
+      extras: OrderItemExtraSnapshot[];
     }
   >();
 
@@ -303,9 +305,7 @@ function normalizeSelectedItems(
     if (!menuItemId || !quantity) return null;
     const menuItem = menuMap.get(menuItemId);
     if (!menuItem) return null;
-    if (typeof menuItem.priceCents !== "number" || menuItem.priceCents < 0) {
-      throw new MissingPriceSnapshotError("base item missing priceCents");
-    }
+    assertValidPriceCents(menuItem.priceCents, "base item missing priceCents");
 
     const normalizedExtraIds = normalizeExtraIds(item.extraIds);
     if (!normalizedExtraIds) return null;
@@ -315,9 +315,7 @@ function normalizeSelectedItems(
     const extras = normalizedExtraIds.map((extraId) => {
       const extra = extrasById.get(extraId);
       if (!extra) return null;
-      if (typeof extra.priceCents !== "number" || extra.priceCents < 0) {
-        throw new MissingPriceSnapshotError("extra missing priceCents");
-      }
+      assertValidPriceCents(extra.priceCents, "extra missing priceCents");
       return { id: extra.id, name: extra.name, priceCents: extra.priceCents };
     });
     if (extras.some((extra) => extra === null)) return null;
@@ -334,7 +332,7 @@ function normalizeSelectedItems(
       menuItemId,
       quantity,
       unitPriceCents: menuItem.priceCents,
-      extras: extras as Array<{ id: string; name: string; priceCents: number }>,
+      extras: extras as OrderItemExtraSnapshot[],
     });
   }
 
@@ -373,6 +371,15 @@ function buildOrderItemAggregationKey(menuItemId: string, extraIds: string[]) {
 }
 
 class MissingPriceSnapshotError extends Error {}
+
+function assertValidPriceCents(
+  value: unknown,
+  message: string
+): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new MissingPriceSnapshotError(message);
+  }
+}
 
 function sanitizeText(value: string): string {
   return typeof value === "string" ? value.trim() : "";

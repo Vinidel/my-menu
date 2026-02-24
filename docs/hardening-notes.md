@@ -278,3 +278,41 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | Improved  | Prevents oversized extras arrays from bloating admin render payloads |
 | Observability | Gap       | No malformed-extras telemetry |
 | Resilience    | Improved  | Defensive parser bounds with backward compatibility preserved |
+
+---
+
+## Admin Order Total Amount Display — Stage 4
+
+### Security
+
+- **Server pricing authority preserved:** New order pricing snapshots continue to be derived server-side from `data/menu.json` in the customer submit path; `/admin` totals are computed from persisted snapshots, not client-provided values. This preserves the Stage 1 trust boundary and avoids client-side price tampering affecting admin totals. **No change in Stage 4.**
+- **Malformed persisted pricing data safety:** `orders.items` is persisted JSON and may contain manual/legacy/malformed values. Stage 4 hardens `/admin` pricing parsing to reject invalid numeric snapshots (negative values, non-finite values, and implausibly large cents values) and fall back to `Total do pedido: Indisponível` instead of displaying misleading totals. **Improved in Stage 4.**
+
+### Dependencies
+
+- **No new dependencies:** Hardening uses local parser guards and tests only; no schema changes, DB migrations, or external libraries were added. **No change.**
+
+### Performance
+
+- **Bounded numeric parsing:** Added upper bounds for parsed unit price, extra price, line total, and aggregate order total in the admin parser. This prevents extreme values from propagating into formatting/rendering and keeps calculations cheap. **Improved.**
+- **Fallback over recovery:** When pricing snapshots are malformed/out-of-range, the parser marks the total unavailable rather than attempting partial recovery. This is computationally simple and aligns with the brief’s conservative “no misleading partial totals” rule. **No change in user-facing contract; implementation hardened.**
+
+### Observability
+
+- **No malformed-pricing telemetry yet:** The parser degrades silently to `Indisponível` and does not emit logs/metrics when pricing snapshots are rejected. This avoids noisy logs during admin rendering but makes data-quality issues less visible operationally. **Deferred.**
+
+### Resilience
+
+- **Safe fallback for malformed/oversized snapshots:** Stage 4 ensures negative or implausibly large `unitPriceCents`, `extras[].priceCents`, or `lineTotalCents` do not produce absurd totals in `/admin`; the order details remain readable and total falls back to `Indisponível`. **Improved with tests.**
+- **Aggregate total cap:** The parser now caps the computed aggregate order total and falls back safely if summed values exceed the configured threshold, guarding against pathological JSON data across many lines. **Improved.**
+- **Backward compatibility preserved:** Valid legacy rows without pricing snapshots still render details and show `Indisponível`; valid new rows with snapshots still display pt-BR totals. **No regression expected; covered by tests.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Reject malformed persisted pricing snapshots and fail safe to `Indisponível` |
+| Dependencies  | OK        | No new deps |
+| Performance   | Improved  | Added numeric bounds to parser/total calculation |
+| Observability | Gap       | No malformed-pricing telemetry |
+| Resilience    | Improved  | Safe fallback for negative/oversized pricing snapshots and aggregate totals |

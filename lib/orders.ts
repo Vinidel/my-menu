@@ -45,9 +45,15 @@ export type AdminOrder = {
 
 type RowLike = Record<string, unknown>;
 type OrdersRow = Database["public"]["Tables"]["orders"]["Row"];
+type ParsedOrderItemExtra = { id?: string; name: string; priceCents?: number };
 const MAX_PARSED_ITEM_EXTRAS = 20;
 const MAX_PARSED_EXTRA_NAME_LENGTH = 120;
 const MAX_PARSED_EXTRA_ID_LENGTH = 80;
+const MAX_PARSED_UNIT_PRICE_CENTS = 1_000_000; // R$ 10.000,00 por unidade
+const MAX_PARSED_EXTRA_PRICE_CENTS = 200_000; // R$ 2.000,00 por extra
+const MAX_PARSED_LINE_TOTAL_CENTS = 5_000_000; // R$ 50.000,00 por linha
+const MAX_PARSED_ORDER_TOTAL_CENTS = 20_000_000; // R$ 200.000,00 por pedido
+const ORDER_TOTAL_UNAVAILABLE_LABEL = "Indisponível";
 
 export function getOrderStatusLabel(status: OrderStatus) {
   return ORDER_STATUS_LABELS[status];
@@ -188,8 +194,16 @@ function parseOrderItemsWithTotal(
       const extras = parseOrderItemExtras(row.extras);
       const normalizedQuantity =
         Number.isFinite(quantity) && quantity > 0 ? Math.trunc(quantity) : 1;
-      const unitPriceCents = numberFrom(row.unitPriceCents ?? row.unit_price_cents);
-      const lineTotalCents = numberFrom(row.lineTotalCents ?? row.line_total_cents);
+      const unitPriceCents = parseNonNegativeCents(
+        row.unitPriceCents ?? row.unit_price_cents,
+        MAX_PARSED_UNIT_PRICE_CENTS
+      );
+      const lineTotalCents = parseNonNegativeCents(
+        row.lineTotalCents ?? row.line_total_cents,
+        MAX_PARSED_LINE_TOTAL_CENTS
+      );
+      const parsedUnitPriceCents = toTruncatedInt(unitPriceCents);
+      const parsedLineTotalCents = toTruncatedInt(lineTotalCents);
       const itemPricing = computeItemTotalCents({
         quantity: normalizedQuantity,
         unitPriceCents,
@@ -201,13 +215,16 @@ function parseOrderItemsWithTotal(
         canComputeTotal = false;
       } else if (canComputeTotal) {
         orderTotalCents += itemPricing;
+        if (orderTotalCents > MAX_PARSED_ORDER_TOTAL_CENTS) {
+          canComputeTotal = false;
+        }
       }
 
       return {
         name,
         quantity: normalizedQuantity,
-        ...(typeof unitPriceCents === "number" ? { unitPriceCents: Math.trunc(unitPriceCents) } : {}),
-        ...(typeof lineTotalCents === "number" ? { lineTotalCents: Math.trunc(lineTotalCents) } : {}),
+        ...(parsedUnitPriceCents !== null ? { unitPriceCents: parsedUnitPriceCents } : {}),
+        ...(parsedLineTotalCents !== null ? { lineTotalCents: parsedLineTotalCents } : {}),
         ...(extras.length > 0 ? { extras } : {}),
       };
     })
@@ -221,11 +238,7 @@ function parseOrderItemsWithTotal(
 
 function parseOrderItemExtras(
   value: unknown
-): Array<{
-  id?: string;
-  name: string;
-  priceCents?: number;
-}> {
+): ParsedOrderItemExtra[] {
   const parsed = parseUnknownItemsValue(value);
   if (!Array.isArray(parsed)) return [];
 
@@ -242,16 +255,17 @@ function parseOrderItemExtras(
       if (!name) return null;
 
       const id = stringFromMax(row.id, MAX_PARSED_EXTRA_ID_LENGTH) ?? undefined;
-      const priceCents = numberFrom(row.priceCents ?? row.price_cents);
+      const priceCents = parseNonNegativeCents(
+        row.priceCents ?? row.price_cents,
+        MAX_PARSED_EXTRA_PRICE_CENTS
+      );
       return {
         ...(id ? { id } : {}),
         name,
-        ...(typeof priceCents === "number" ? { priceCents: Math.trunc(priceCents) } : {}),
+        ...(priceCents !== null ? { priceCents } : {}),
       };
     })
-    .filter(
-      (extra): extra is { id?: string; name: string; priceCents?: number } => extra !== null
-    );
+    .filter((extra): extra is ParsedOrderItemExtra => extra !== null);
 }
 
 function computeItemTotalCents(input: {
@@ -261,33 +275,60 @@ function computeItemTotalCents(input: {
   extras: Array<{ priceCents?: number }>;
 }): number | null {
   if (typeof input.lineTotalCents === "number" && Number.isFinite(input.lineTotalCents)) {
-    return Math.trunc(input.lineTotalCents);
+    const parsedLineTotal = toTruncatedInt(input.lineTotalCents);
+    if (parsedLineTotal === null || parsedLineTotal < 0 || parsedLineTotal > MAX_PARSED_LINE_TOTAL_CENTS) {
+      return null;
+    }
+    return parsedLineTotal;
   }
 
-  if (typeof input.unitPriceCents !== "number" || !Number.isFinite(input.unitPriceCents)) {
+  const parsedUnitPrice = toTruncatedInt(input.unitPriceCents);
+  if (parsedUnitPrice === null || parsedUnitPrice < 0 || parsedUnitPrice > MAX_PARSED_UNIT_PRICE_CENTS) {
     return null;
   }
 
   let extrasSum = 0;
   for (const extra of input.extras) {
-    if (typeof extra.priceCents !== "number" || !Number.isFinite(extra.priceCents)) {
+    const parsedExtraPrice = toTruncatedInt(extra.priceCents ?? null);
+    if (
+      parsedExtraPrice === null ||
+      parsedExtraPrice < 0 ||
+      parsedExtraPrice > MAX_PARSED_EXTRA_PRICE_CENTS
+    ) {
       return null;
     }
-    extrasSum += Math.trunc(extra.priceCents);
+    extrasSum += parsedExtraPrice;
   }
 
-  return (Math.trunc(input.unitPriceCents) + extrasSum) * input.quantity;
+  const computedTotal = (parsedUnitPrice + extrasSum) * input.quantity;
+  if (computedTotal < 0 || computedTotal > MAX_PARSED_LINE_TOTAL_CENTS) {
+    return null;
+  }
+
+  return computedTotal;
 }
 
 function formatOrderTotalLabel(totalAmountCents: number | null) {
   if (typeof totalAmountCents !== "number" || !Number.isFinite(totalAmountCents)) {
-    return "Indisponível";
+    return ORDER_TOTAL_UNAVAILABLE_LABEL;
   }
 
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
   }).format(totalAmountCents / 100);
+}
+
+function toTruncatedInt(value: number | null): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.trunc(value);
+}
+
+function parseNonNegativeCents(value: unknown, max: number): number | null {
+  const parsed = toTruncatedInt(numberFrom(value));
+  if (parsed === null) return null;
+  if (parsed < 0 || parsed > max) return null;
+  return parsed;
 }
 
 function parseUnknownItemsValue(value: unknown): unknown {
