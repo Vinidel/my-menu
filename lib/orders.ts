@@ -1,4 +1,9 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
+import {
+  getPaymentMethodLabel,
+  normalizePaymentMethod,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
 
 export const ORDER_STATUS_LABELS = {
   aguardando_confirmacao: "Esperando confirmação",
@@ -39,6 +44,8 @@ export type AdminOrder = {
   statusLabel: string;
   rawStatus: string | null;
   notes: string | null;
+  paymentMethod: PaymentMethod | null;
+  paymentMethodLabel: string;
   totalAmountCents?: number | null;
   totalAmountLabel?: string;
 };
@@ -54,6 +61,7 @@ const MAX_PARSED_EXTRA_PRICE_CENTS = 200_000; // R$ 2.000,00 por extra
 const MAX_PARSED_LINE_TOTAL_CENTS = 5_000_000; // R$ 50.000,00 por linha
 const MAX_PARSED_ORDER_TOTAL_CENTS = 20_000_000; // R$ 200.000,00 por pedido
 const ORDER_TOTAL_UNAVAILABLE_LABEL = "Indisponível";
+const ORDER_PAYMENT_METHOD_FALLBACK_LABEL = "Não informado";
 
 export function getOrderStatusLabel(status: OrderStatus) {
   return ORDER_STATUS_LABELS[status];
@@ -149,6 +157,9 @@ export function parseAdminOrder(
     stringFrom(record.notes) ??
     stringFrom(record.observacoes) ??
     null;
+  const { paymentMethod, paymentMethodLabel } = getPaymentMethodLabelFromUnknown(
+    record.payment_method ?? record.paymentMethod
+  );
 
   return {
     id: idValue,
@@ -165,8 +176,24 @@ export function parseAdminOrder(
     statusLabel,
     rawStatus,
     notes,
+    paymentMethod,
+    paymentMethodLabel,
     totalAmountCents,
     totalAmountLabel: formatOrderTotalLabel(totalAmountCents),
+  };
+}
+
+function getPaymentMethodLabelFromUnknown(value: unknown): {
+  paymentMethod: PaymentMethod | null;
+  paymentMethodLabel: string;
+} {
+  const paymentMethod = normalizePaymentMethod(value);
+  if (!paymentMethod) {
+    return { paymentMethod: null, paymentMethodLabel: ORDER_PAYMENT_METHOD_FALLBACK_LABEL };
+  }
+  return {
+    paymentMethod,
+    paymentMethodLabel: getPaymentMethodLabel(paymentMethod) ?? ORDER_PAYMENT_METHOD_FALLBACK_LABEL,
   };
 }
 

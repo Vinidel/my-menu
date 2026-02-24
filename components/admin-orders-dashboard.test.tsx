@@ -23,6 +23,8 @@ function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
     statusLabel: "Esperando confirmação",
     rawStatus: "aguardando_confirmacao",
     notes: null,
+    paymentMethod: null,
+    paymentMethodLabel: "Não informado",
     ...overrides,
   };
 }
@@ -247,6 +249,61 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(screen.getByText(/Bacon extra, Queijo extra/)).toBeInTheDocument();
   });
 
+  it("renders payment method label in admin order details for new orders (brief: payment method display)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            paymentMethod: "pix",
+            paymentMethodLabel: "Pix",
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.getByText("Pix")).toBeInTheDocument();
+  });
+
+  it("renders payment method fallback in admin order details for legacy/unknown values (brief: payment method fallback)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            paymentMethod: null,
+            paymentMethodLabel: "Não informado",
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.getByText("Não informado")).toBeInTheDocument();
+  });
+
+  it("renders payment method fallback for unknown stored DB values in admin details (brief: unknown DB value fallback)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            rawStatus: "aguardando_confirmacao",
+            paymentMethod: null,
+            paymentMethodLabel: "Não informado",
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.getByText("Não informado")).toBeInTheDocument();
+  });
+
   it("renders 'Total do pedido' in admin order details when pricing snapshots are available (brief: total display)", () => {
     render(
       <AdminOrdersDashboard
@@ -354,6 +411,8 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
               customerName: "Ana",
               customerPhone: "1111",
               customerEmail: "ana@example.com",
+              paymentMethod: "pix",
+              paymentMethodLabel: "Pix",
               items: [{ name: "X-Burger", quantity: 2 }],
               status: "aguardando_confirmacao",
               statusLabel: "Esperando confirmação",
@@ -375,6 +434,8 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
       expect(row.getByText("Telefone")).toBeInTheDocument();
       expect(row.getByText("E-mail")).toBeInTheDocument();
       expect(row.getByText("ana@example.com")).toBeInTheDocument();
+      expect(row.getByText("Forma de pagamento")).toBeInTheDocument();
+      expect(row.getByText("Pix")).toBeInTheDocument();
       expect(row.getByText("Itens do pedido")).toBeInTheDocument();
       expect(row.getByText("X-Burger")).toBeInTheDocument();
       expect(row.getByText("2x")).toBeInTheDocument();

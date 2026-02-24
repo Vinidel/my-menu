@@ -48,9 +48,24 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByText("Informe seu nome.")).toBeInTheDocument();
     expect(screen.getByText("Informe seu e-mail.")).toBeInTheDocument();
     expect(screen.getByText("Informe seu telefone.")).toBeInTheDocument();
+    expect(screen.getByText("Selecione uma forma de pagamento.")).toBeInTheDocument();
     expect(
-      screen.getByText("Preencha nome, e-mail e telefone para continuar.")
+      screen.getByText(
+        "Preencha nome, e-mail, telefone e selecione a forma de pagamento para continuar."
+      )
     ).toBeInTheDocument();
+  });
+
+  it("renders payment method radio options in the checkout form (brief: payment method radio group)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+
+    expect(screen.getByText("Modo de pagamento")).toBeInTheDocument();
+    expect(screen.getByLabelText("Dinheiro")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pix")).toBeInTheDocument();
+    expect(screen.getByLabelText("Cartão")).toBeInTheDocument();
   });
 
   it("blocks submit with zero selected items and shows a validation message (brief: no items selected)", async () => {
@@ -106,6 +121,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.change(screen.getByLabelText("Telefone"), {
       target: { value: "(11) 99999-9999" },
     });
+    fireEvent.click(screen.getByLabelText("Pix"));
     fireEvent.change(screen.getByLabelText("Observações (opcional)"), {
       target: { value: "Sem cebola" },
     });
@@ -152,6 +168,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.change(screen.getByLabelText("Telefone"), {
       target: { value: "11999999999" },
     });
+    fireEvent.click(screen.getByLabelText("Dinheiro"));
 
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
 
@@ -206,15 +223,18 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.change(screen.getByLabelText("Telefone"), {
       target: { value: "11999999999" },
     });
+    fireEvent.click(screen.getByLabelText("Cartão"));
 
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const payload = JSON.parse(String(requestInit.body)) as {
+      paymentMethod: string;
       items: Array<{ menuItemId: string; quantity: number; extraIds?: string[] }>;
     };
 
+    expect(payload.paymentMethod).toBe("cartao");
     expect(payload.items).toEqual([
       {
         menuItemId: "x-burger",

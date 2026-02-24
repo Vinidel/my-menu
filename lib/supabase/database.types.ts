@@ -50,6 +50,7 @@ export type Database = {
           customer_name: string;
           customer_email: string;
           customer_phone: string;
+          payment_method: string | null;
           items: Json;
           status: "aguardando_confirmacao" | "em_preparo" | "entregue";
           notes: string | null;
@@ -63,6 +64,7 @@ export type Database = {
           customer_name: string;
           customer_email: string;
           customer_phone: string;
+          payment_method?: string | null;
           items?: Json;
           status?: "aguardando_confirmacao" | "em_preparo" | "entregue";
           notes?: string | null;
@@ -76,6 +78,7 @@ export type Database = {
           customer_name?: string;
           customer_email?: string;
           customer_phone?: string;
+          payment_method?: string | null;
           items?: Json;
           status?: "aguardando_confirmacao" | "em_preparo" | "entregue";
           notes?: string | null;
