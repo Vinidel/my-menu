@@ -98,20 +98,11 @@ function AdminOrdersDashboardContent({
   const isPageVisible = useDocumentVisible();
   const pollingQuery = useQuery({
     queryKey: POLLING_QUERY_KEY,
-    queryFn: async () => {
-      try {
-        const orders = await fetchAdminOrdersForDashboard();
-        setPollingRefreshErrorMessage(null);
-        return orders;
-      } catch (error) {
-        setPollingRefreshErrorMessage(POLLING_REFRESH_ERROR_MESSAGE);
-        throw error;
-      }
-    },
+    queryFn: createPollingOrdersQueryFn(setPollingRefreshErrorMessage),
     initialData: initialOrders,
     enabled: enablePolling,
     refetchOnWindowFocus: false,
-    refetchInterval: enablePolling && isPageVisible ? POLLING_INTERVAL_MS : false,
+    refetchInterval: getPollingInterval(enablePolling, isPageVisible),
     refetchIntervalInBackground: false,
     retry: false,
   });
@@ -693,6 +684,25 @@ async function fetchAdminOrdersForDashboard(): Promise<AdminOrder[]> {
   }
 
   return data.orders;
+}
+
+function createPollingOrdersQueryFn(
+  setPollingRefreshErrorMessage: (value: string | null) => void
+) {
+  return async function pollingOrdersQueryFn() {
+    try {
+      const orders = await fetchAdminOrdersForDashboard();
+      setPollingRefreshErrorMessage(null);
+      return orders;
+    } catch (error) {
+      setPollingRefreshErrorMessage(POLLING_REFRESH_ERROR_MESSAGE);
+      throw error;
+    }
+  };
+}
+
+function getPollingInterval(enablePolling: boolean, isPageVisible: boolean) {
+  return enablePolling && isPageVisible ? POLLING_INTERVAL_MS : false;
 }
 
 function mobileOrderPanelId(orderId: string) {

@@ -13,10 +13,7 @@ export async function GET() {
   const supabase = await createClient();
 
   if (!supabase) {
-    return NextResponse.json(
-      { ok: false, message: SETUP_ERROR_MESSAGE },
-      { status: 503, headers: NO_STORE_HEADERS }
-    );
+    return errorJson(503, SETUP_ERROR_MESSAGE);
   }
 
   try {
@@ -26,10 +23,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { ok: false, message: AUTH_ERROR_MESSAGE },
-        { status: 401, headers: NO_STORE_HEADERS }
-      );
+      return errorJson(401, AUTH_ERROR_MESSAGE);
     }
 
     const { data, error } = await supabase
@@ -44,25 +38,30 @@ export async function GET() {
         message: error.message,
         code: error.code,
       });
-      return NextResponse.json(
-        { ok: false, message: LOAD_ERROR_MESSAGE },
-        { status: 500, headers: NO_STORE_HEADERS }
-      );
+      return errorJson(500, LOAD_ERROR_MESSAGE);
     }
 
     const orders = parseAdminOrders(Array.isArray(data) ? data : []);
 
-    return NextResponse.json(
-      { ok: true, orders },
-      { status: 200, headers: NO_STORE_HEADERS }
-    );
+    return successJson(orders);
   } catch (error) {
     console.error("[admin/orders/api] unexpected error", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { ok: false, message: LOAD_ERROR_MESSAGE },
-      { status: 500, headers: NO_STORE_HEADERS }
-    );
+    return errorJson(500, LOAD_ERROR_MESSAGE);
   }
+}
+
+function successJson(orders: ReturnType<typeof parseAdminOrders>) {
+  return NextResponse.json(
+    { ok: true, orders },
+    { status: 200, headers: NO_STORE_HEADERS }
+  );
+}
+
+function errorJson(status: number, message: string) {
+  return NextResponse.json(
+    { ok: false, message },
+    { status, headers: NO_STORE_HEADERS }
+  );
 }
