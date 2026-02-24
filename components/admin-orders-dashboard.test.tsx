@@ -137,6 +137,49 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     ]);
   });
 
+  it("places unknown statuses after known statuses with oldest-first fallback ordering (brief: unknown fallback ordering)", () => {
+    const orders = [
+      makeOrder({
+        id: "unknown-newer",
+        reference: "PED-9992",
+        status: null,
+        statusLabel: "cancelado_legacy",
+        rawStatus: "cancelado_legacy",
+        createdAtIso: "2026-02-23T10:20:00.000Z",
+        createdAtLabel: "23/02/2026, 07:20",
+      }),
+      makeOrder({
+        id: "known",
+        reference: "PED-0001",
+        status: "entregue",
+        statusLabel: "Entregue",
+        createdAtIso: "2026-02-23T09:50:00.000Z",
+        createdAtLabel: "23/02/2026, 06:50",
+      }),
+      makeOrder({
+        id: "unknown-older",
+        reference: "PED-9991",
+        status: null,
+        statusLabel: "arquivado",
+        rawStatus: "arquivado",
+        createdAtIso: "2026-02-23T10:10:00.000Z",
+        createdAtLabel: "23/02/2026, 07:10",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+
+    const listButtons = screen.getAllByRole("button").filter((button) =>
+      button.textContent?.includes("PED-")
+    );
+
+    expect(listButtons.map((button) => button.textContent)).toEqual([
+      expect.stringContaining("PED-0001"),
+      expect.stringContaining("PED-9991"),
+      expect.stringContaining("PED-9992"),
+    ]);
+  });
+
   it("shows details for clicked order (brief: open order and see details)", () => {
     const orders = [
       makeOrder({
@@ -178,35 +221,147 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
 
   it("uses single-expand accordion behavior on mobile viewport (brief: mobile accordion)", async () => {
     const restore = mockMobileViewport(true);
-    const orders = [
-      makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" }),
-      makeOrder({
-        id: "2",
-        reference: "PED-0002",
-        customerName: "Bruno",
-        createdAtIso: "2026-02-23T10:10:00.000Z",
-        createdAtLabel: "23/02/2026, 07:10",
-      }),
-    ];
+    try {
+      const orders = [
+        makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" }),
+        makeOrder({
+          id: "2",
+          reference: "PED-0002",
+          customerName: "Bruno",
+          createdAtIso: "2026-02-23T10:10:00.000Z",
+          createdAtLabel: "23/02/2026, 07:10",
+        }),
+      ];
 
-    render(<AdminOrdersDashboard initialOrders={orders} />);
+      render(<AdminOrdersDashboard initialOrders={orders} />);
 
-    const firstTrigger = screen.getByRole("button", { name: /PED-0001/i });
-    const secondTrigger = screen.getByRole("button", { name: /PED-0002/i });
+      const firstTrigger = screen.getByRole("button", { name: /PED-0001/i });
+      const secondTrigger = screen.getByRole("button", { name: /PED-0002/i });
 
-    expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
 
-    fireEvent.click(firstTrigger);
-    expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
-    expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getAllByText("Próximo status: Em preparo").length).toBeGreaterThan(0);
+      fireEvent.click(firstTrigger);
+      expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(screen.getAllByText("Próximo status: Em preparo").length).toBeGreaterThan(0);
 
-    fireEvent.click(secondTrigger);
-    expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(secondTrigger).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(secondTrigger);
+      expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(secondTrigger).toHaveAttribute("aria-expanded", "true");
+    } finally {
+      restore();
+    }
+  });
 
-    restore();
+  it("shows minimum order details content inside expanded mobile accordion (brief: mobile details content)", () => {
+    const restore = mockMobileViewport(true);
+    try {
+      render(
+        <AdminOrdersDashboard
+          initialOrders={[
+            makeOrder({
+              id: "1",
+              reference: "PED-0001",
+              customerName: "Ana",
+              customerPhone: "1111",
+              customerEmail: "ana@example.com",
+              items: [{ name: "X-Burger", quantity: 2 }],
+              status: "aguardando_confirmacao",
+              statusLabel: "Esperando confirmação",
+            }),
+          ]}
+        />
+      );
+
+      const trigger = screen.getByRole("button", { name: /PED-0001/i });
+      fireEvent.click(trigger);
+
+      const expandedRow = trigger.closest("li");
+      expect(expandedRow).toBeTruthy();
+      const row = within(expandedRow!);
+
+      expect(row.getByText("Cliente")).toBeInTheDocument();
+      expect(row.getByText("Nome")).toBeInTheDocument();
+      expect(row.getByText("1111")).toBeInTheDocument();
+      expect(row.getByText("Telefone")).toBeInTheDocument();
+      expect(row.getByText("E-mail")).toBeInTheDocument();
+      expect(row.getByText("ana@example.com")).toBeInTheDocument();
+      expect(row.getByText("Itens do pedido")).toBeInTheDocument();
+      expect(row.getByText("X-Burger")).toBeInTheDocument();
+      expect(row.getByText("2x")).toBeInTheDocument();
+      expect(row.getByText("Próximo status: Em preparo")).toBeInTheDocument();
+      expect(row.getByRole("button", { name: "Avançar status" })).toBeInTheDocument();
+    } finally {
+      restore();
+    }
+  });
+
+  it("progresses from the mobile accordion and reorders the list by status priority (brief: mobile progress + reorder)", async () => {
+    vi.mocked(progressOrderStatus).mockResolvedValue({
+      ok: true,
+      nextStatus: "em_preparo",
+      nextStatusLabel: "Em preparo",
+    });
+
+    const restore = mockMobileViewport(true);
+    try {
+      const orders = [
+        makeOrder({
+          id: "waiting-older",
+          reference: "PED-0001",
+          status: "aguardando_confirmacao",
+          statusLabel: "Esperando confirmação",
+          createdAtIso: "2026-02-23T09:50:00.000Z",
+          createdAtLabel: "23/02/2026, 06:50",
+        }),
+        makeOrder({
+          id: "prep",
+          reference: "PED-0002",
+          status: "em_preparo",
+          statusLabel: "Em preparo",
+          createdAtIso: "2026-02-23T10:10:00.000Z",
+          createdAtLabel: "23/02/2026, 07:10",
+        }),
+        makeOrder({
+          id: "waiting-newer",
+          reference: "PED-0003",
+          status: "aguardando_confirmacao",
+          statusLabel: "Esperando confirmação",
+          createdAtIso: "2026-02-23T10:20:00.000Z",
+          createdAtLabel: "23/02/2026, 07:20",
+        }),
+      ];
+
+      render(<AdminOrdersDashboard initialOrders={orders} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /PED-0001/i }));
+      const expandedOrderRow = screen.getByRole("button", { name: /PED-0001/i }).closest("li");
+      expect(expandedOrderRow).toBeTruthy();
+      fireEvent.click(within(expandedOrderRow!).getByRole("button", { name: "Avançar status" }));
+
+      await waitFor(() => {
+        expect(progressOrderStatus).toHaveBeenCalledWith({
+          orderId: "waiting-older",
+          currentStatus: "aguardando_confirmacao",
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Pedido atualizado para Em preparo.")).toBeInTheDocument();
+      });
+
+      const listButtons = screen.getAllByRole("button").filter((button) =>
+        button.textContent?.includes("PED-000")
+      );
+      expect(listButtons.map((button) => button.textContent)).toEqual([
+        expect.stringContaining("PED-0003"),
+        expect.stringContaining("PED-0001"),
+        expect.stringContaining("PED-0002"),
+      ]);
+    } finally {
+      restore();
+    }
   });
 
   it("progresses status and updates summary counts (brief: progress waiting->preparing)", async () => {
