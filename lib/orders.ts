@@ -39,6 +39,8 @@ export type AdminOrder = {
   statusLabel: string;
   rawStatus: string | null;
   notes: string | null;
+  paymentMethod: "dinheiro" | "pix" | "cartao" | null;
+  paymentMethodLabel: string;
   totalAmountCents?: number | null;
   totalAmountLabel?: string;
 };
@@ -54,6 +56,7 @@ const MAX_PARSED_EXTRA_PRICE_CENTS = 200_000; // R$ 2.000,00 por extra
 const MAX_PARSED_LINE_TOTAL_CENTS = 5_000_000; // R$ 50.000,00 por linha
 const MAX_PARSED_ORDER_TOTAL_CENTS = 20_000_000; // R$ 200.000,00 por pedido
 const ORDER_TOTAL_UNAVAILABLE_LABEL = "Indisponível";
+const ORDER_PAYMENT_METHOD_FALLBACK_LABEL = "Não informado";
 
 export function getOrderStatusLabel(status: OrderStatus) {
   return ORDER_STATUS_LABELS[status];
@@ -149,6 +152,9 @@ export function parseAdminOrder(
     stringFrom(record.notes) ??
     stringFrom(record.observacoes) ??
     null;
+  const { paymentMethod, paymentMethodLabel } = getPaymentMethodLabelFromUnknown(
+    record.payment_method ?? record.paymentMethod
+  );
 
   return {
     id: idValue,
@@ -165,9 +171,33 @@ export function parseAdminOrder(
     statusLabel,
     rawStatus,
     notes,
+    paymentMethod,
+    paymentMethodLabel,
     totalAmountCents,
     totalAmountLabel: formatOrderTotalLabel(totalAmountCents),
   };
+}
+
+function getPaymentMethodLabelFromUnknown(value: unknown): {
+  paymentMethod: "dinheiro" | "pix" | "cartao" | null;
+  paymentMethodLabel: string;
+} {
+  if (typeof value !== "string") {
+    return { paymentMethod: null, paymentMethodLabel: ORDER_PAYMENT_METHOD_FALLBACK_LABEL };
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "dinheiro") {
+    return { paymentMethod: "dinheiro", paymentMethodLabel: "Dinheiro" };
+  }
+  if (normalized === "pix") {
+    return { paymentMethod: "pix", paymentMethodLabel: "Pix" };
+  }
+  if (normalized === "cartao") {
+    return { paymentMethod: "cartao", paymentMethodLabel: "Cartão" };
+  }
+
+  return { paymentMethod: null, paymentMethodLabel: ORDER_PAYMENT_METHOD_FALLBACK_LABEL };
 }
 
 function parseOrderItemsWithTotal(

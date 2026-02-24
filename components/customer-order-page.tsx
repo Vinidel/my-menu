@@ -19,9 +19,11 @@ type FieldErrors = {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  paymentMethod?: string;
 };
 
 type CheckoutTab = "cardapio" | "pedido";
+type PaymentMethod = "dinheiro" | "pix" | "cartao";
 
 type SelectedOrderLine = {
   lineId: string;
@@ -39,7 +41,9 @@ type SelectedEntry = {
 };
 
 const REQUIRED_ITEMS_MESSAGE = "Selecione pelo menos um item para enviar seu pedido.";
-const REQUIRED_FIELDS_MESSAGE = "Preencha nome, e-mail e telefone para continuar.";
+const REQUIRED_FIELDS_MESSAGE =
+  "Preencha nome, e-mail, telefone e selecione a forma de pagamento para continuar.";
+const REQUIRED_PAYMENT_METHOD_MESSAGE = "Selecione uma forma de pagamento.";
 const SETUP_UNAVAILABLE_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 const SETUP_BANNER_MESSAGE =
@@ -60,6 +64,7 @@ export function CustomerOrderPage({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -131,6 +136,7 @@ export function CustomerOrderPage({
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
+    setPaymentMethod("");
     setCustomerNotes("");
     setFieldErrors({});
   }
@@ -148,6 +154,7 @@ export function CustomerOrderPage({
     if (!customerName.trim()) nextErrors.customerName = "Informe seu nome.";
     if (!customerEmail.trim()) nextErrors.customerEmail = "Informe seu e-mail.";
     if (!customerPhone.trim()) nextErrors.customerPhone = "Informe seu telefone.";
+    if (!paymentMethod) nextErrors.paymentMethod = REQUIRED_PAYMENT_METHOD_MESSAGE;
 
     return nextErrors;
   }
@@ -218,11 +225,18 @@ export function CustomerOrderPage({
       return;
     }
 
+    if (!paymentMethod) {
+      setFeedback(errorFeedback(REQUIRED_FIELDS_MESSAGE));
+      return;
+    }
+    const selectedPaymentMethod = paymentMethod;
+
     startTransition(async () => {
       const result = await submitOrderRequest({
         customerName,
         customerEmail,
         customerPhone,
+        paymentMethod: selectedPaymentMethod,
         notes: customerNotes,
         items: selectedEntries.map(({ item, quantity, extraIds }) => ({
           menuItemId: item.id,
@@ -382,6 +396,7 @@ export function CustomerOrderPage({
             customerEmail={customerEmail}
             customerPhone={customerPhone}
             customerNotes={customerNotes}
+            paymentMethod={paymentMethod}
             fieldErrors={fieldErrors}
             isPending={isPending}
             canSubmit={canSubmit}
@@ -401,6 +416,10 @@ export function CustomerOrderPage({
               clearFieldError("customerPhone");
             }}
             onCustomerNotesChange={setCustomerNotes}
+            onPaymentMethodChange={(value) => {
+              setPaymentMethod(value);
+              clearFieldError("paymentMethod");
+            }}
             onStartEditLineExtras={startEditingLineExtras}
             editingLineId={editingLineId}
             editingLineExtraIds={editingLineExtraIds}
@@ -445,6 +464,7 @@ type OrderSummaryTabProps = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  paymentMethod: PaymentMethod | "";
   customerNotes: string;
   fieldErrors: FieldErrors;
   isPending: boolean;
@@ -456,6 +476,7 @@ type OrderSummaryTabProps = {
   onCustomerEmailChange: (value: string) => void;
   onCustomerPhoneChange: (value: string) => void;
   onCustomerNotesChange: (value: string) => void;
+  onPaymentMethodChange: (value: PaymentMethod) => void;
   onStartEditLineExtras: (lineId: string) => void;
   editingLineId: string | null;
   editingLineExtraIds: string[];
@@ -472,6 +493,7 @@ function OrderSummaryTab({
   customerName,
   customerEmail,
   customerPhone,
+  paymentMethod,
   customerNotes,
   fieldErrors,
   isPending,
@@ -483,6 +505,7 @@ function OrderSummaryTab({
   onCustomerEmailChange,
   onCustomerPhoneChange,
   onCustomerNotesChange,
+  onPaymentMethodChange,
   onStartEditLineExtras,
   editingLineId,
   editingLineExtraIds,
@@ -639,6 +662,39 @@ function OrderSummaryTab({
         </div>
 
         <div className="space-y-2">
+          <fieldset
+            className="space-y-2"
+            aria-invalid={Boolean(fieldErrors.paymentMethod)}
+            aria-describedby={fieldErrors.paymentMethod ? "payment-method-error" : undefined}
+          >
+            <legend className="text-sm font-medium">Modo de pagamento</legend>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {PAYMENT_METHOD_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                >
+                  <input
+                    type="radio"
+                    name="payment-method"
+                    value={option.value}
+                    checked={paymentMethod === option.value}
+                    onChange={() => onPaymentMethodChange(option.value)}
+                    disabled={isPending}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+            {fieldErrors.paymentMethod ? (
+              <p id="payment-method-error" className="text-xs text-rose-700">
+                {fieldErrors.paymentMethod}
+              </p>
+            ) : null}
+          </fieldset>
+        </div>
+
+        <div className="space-y-2">
           <label htmlFor="customer-notes" className="text-sm font-medium">Observações (opcional)</label>
           <textarea
             id="customer-notes"
@@ -741,6 +797,7 @@ type SubmitOrderRequestInput = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  paymentMethod: PaymentMethod;
   notes?: string;
   items: Array<{
     menuItemId: string;
@@ -792,6 +849,12 @@ function normalizeExtraIds(extraIds: string[]): string[] {
     a.localeCompare(b, "pt-BR")
   );
 }
+
+const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "pix", label: "Pix" },
+  { value: "cartao", label: "Cartão" },
+];
 
 function lineMergeKey(menuItemId: string, extraIds: string[]) {
   return `${menuItemId}::${normalizeExtraIds(extraIds).join("|")}`;

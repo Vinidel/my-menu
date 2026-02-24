@@ -65,7 +65,7 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
 
     expect(fromSpy).toHaveBeenCalledWith("orders");
     expect(selectSpy).toHaveBeenCalledWith(
-      "id, reference, customer_name, customer_email, customer_phone, items, status, notes, created_at"
+      "id, reference, customer_name, customer_email, customer_phone, payment_method, items, status, notes, created_at"
     );
     expect(orderSpy).toHaveBeenCalledWith("created_at", { ascending: true });
     expect(parseAdminOrders).toHaveBeenCalledWith([{ id: "1" }, { id: "2" }]);

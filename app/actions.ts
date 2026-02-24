@@ -8,9 +8,10 @@ import type { Database } from "@/lib/supabase/database.types";
 const SETUP_ERROR_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 const VALIDATION_REQUIRED_MESSAGE =
-  "Preencha nome, e-mail, telefone e selecione pelo menos um item.";
+  "Preencha nome, e-mail, telefone, forma de pagamento e selecione pelo menos um item.";
 const VALIDATION_EMAIL_MESSAGE = "Informe um e-mail válido.";
 const VALIDATION_PHONE_MESSAGE = "Informe um telefone válido.";
+const VALIDATION_PAYMENT_METHOD_MESSAGE = "Selecione uma forma de pagamento válida.";
 const VALIDATION_ITEMS_MESSAGE = "Selecione itens válidos do cardápio para enviar o pedido.";
 const VALIDATION_PRICING_MESSAGE =
   "Alguns itens selecionados estão sem preço configurado. Revise o cardápio e tente novamente.";
@@ -29,6 +30,7 @@ export type SubmitCustomerOrderInput = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  paymentMethod: "dinheiro" | "pix" | "cartao";
   notes?: string;
   items: Array<{
     menuItemId: string;
@@ -80,6 +82,7 @@ export async function submitCustomerOrderWithClient(
   const customerName = sanitizeText(input.customerName);
   const customerEmail = sanitizeText(input.customerEmail);
   const customerPhone = sanitizeText(input.customerPhone);
+  const paymentMethod = normalizePaymentMethod(input.paymentMethod);
   const notes = sanitizeOptionalText(input.notes);
 
   if (
@@ -104,6 +107,10 @@ export async function submitCustomerOrderWithClient(
 
   if (!normalizedPhone) {
     return submitErrorResult("validation", VALIDATION_PHONE_MESSAGE);
+  }
+
+  if (!paymentMethod) {
+    return submitErrorResult("validation", VALIDATION_PAYMENT_METHOD_MESSAGE);
   }
 
   const menuMap = getMenuItemMap();
@@ -140,6 +147,7 @@ export async function submitCustomerOrderWithClient(
       customer_name: customerName,
       customer_email: customerEmail,
       customer_phone: customerPhone,
+      payment_method: paymentMethod,
       notes,
       items: orderItems,
       status: "aguardando_confirmacao" satisfies OrderStatus,
@@ -397,6 +405,17 @@ function normalizeEmail(value: string): string {
 
 function normalizePhone(value: string): string {
   return value.trim().replace(/\D+/g, "");
+}
+
+function normalizePaymentMethod(
+  value: SubmitCustomerOrderInput["paymentMethod"] | string | undefined
+): "dinheiro" | "pix" | "cartao" | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "dinheiro" || normalized === "pix" || normalized === "cartao") {
+    return normalized;
+  }
+  return null;
 }
 
 function isBasicEmail(value: string): boolean {

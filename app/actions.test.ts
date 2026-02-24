@@ -40,6 +40,7 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
         customerName: "Ana",
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
+        paymentMethod: "pix",
         items: [
           {
             menuItemId: "x-burger",
@@ -83,6 +84,7 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
         customerName: "Ana",
         customerEmail: "ana@example.com",
         customerPhone: "(11) 99999-9999",
+        paymentMethod: "dinheiro",
         items: [
           {
             menuItemId: "x-burger",
@@ -104,6 +106,7 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
       customer_name: "Ana",
       customer_email: "ana@example.com",
       customer_phone: "(11) 99999-9999",
+      payment_method: "dinheiro",
       status: "aguardando_confirmacao",
     });
 
@@ -142,6 +145,7 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
         customerName: "Ana",
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
+        paymentMethod: "cartao",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       makeFakeSupabase()
@@ -175,6 +179,7 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
         customerName: "Ana",
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
+        paymentMethod: "pix",
         items: [
           {
             menuItemId: "x-burger",
@@ -191,6 +196,38 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
       code: "validation",
       message:
         "Alguns itens selecionados estão sem preço configurado. Revise o cardápio e tente novamente.",
+    });
+  });
+
+  it("rejects tampered payment method values (brief: payment method server validation)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "credito" as never,
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Selecione uma forma de pagamento válida.",
     });
   });
 });

@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 0 brief review — Modo de Pagamento no Pedido (Customer + Admin) (`docs/briefs/order-payment-method-selection.md`)
+Scope: Stage 2 test coverage review — Modo de Pagamento no Pedido (Customer + Admin) (`docs/briefs/order-payment-method-selection.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,20 +12,20 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- If you want tighter UX testability in Stage 2, lock whether the “payment method required” validation appears inline under the radio group vs a global form message (current brief only requires a clear pt-BR validation message).
-- Consider documenting a migration rollback note in Stage 5 docs because this feature introduces a new `CHECK` constraint and legacy-null compatibility assumptions.
+- Add a parser-level unit test in `lib/orders.test.ts` for unknown `payment_method` string mapping (e.g. `credito`) if you want to isolate parser fallback behavior from UI fixture wiring.
+- Consider one `/api/orders` route test asserting the payment method field is passed through to `submitCustomerOrderWithClient(...)` in the route body contract (Stage 2 already covers this at UI + shared action layers).
 
 ### Risks / Assumptions
-- The brief now correctly locks both the client payload contract (`paymentMethod` canonical values) and the DB integrity strategy (nullable column + `CHECK` constraint), which removes the main Stage 1 ambiguity.
-- Legacy compatibility is handled cleanly with `NULL` allowed and `/admin` fallback `Não informado`.
-- Unknown/manual DB values can still exist if constraints are bypassed or added later with dirty data; `/admin` fallback behavior is explicitly locked and should be covered in tests.
+- Stage 2 now covers the customer radio UI, required validation, canonical payload contract, server tampered-value rejection, and `/admin` details display/fallback behavior.
+- Mobile accordion parity is explicitly tested for payment method display, which aligns with the brief’s desktop/mobile details parity requirement.
+- Unknown stored-value fallback is covered at the dashboard UI level; parser-specific fallback behavior remains an implicit dependency unless separately unit-tested later.
 
-## Acceptance Criteria (Stage 0 spot-check)
-- [x] Problem is clearly defined (customer payment intent missing in `/` and `/admin`)
-- [x] Goals are concrete and testable (required selection, persistence, admin details display)
-- [x] Non-goals are explicitly listed
-- [x] Happy and unhappy paths are documented
-- [x] Edge cases are surfaced (legacy rows, unknown stored values, polling stability)
-- [x] Key decisions are locked (payload contract, canonical values, DB constraint, admin mapping/fallback)
-- [x] Approach is outlined at a high level (no code)
+## Acceptance Criteria (Stage 2 spot-check)
+- [x] Customer checkout renders required payment method radio options (`Dinheiro`, `Pix`, `Cartão`)
+- [x] Customer validation covers missing payment method (pt-BR message)
+- [x] Customer payload uses canonical `paymentMethod` values (not labels)
+- [x] Server rejects invalid/tampered payment method values
+- [x] `/admin` details render payment method label for valid stored values
+- [x] `/admin` fallback `Não informado` is covered for missing/unknown cases
+- [x] Mobile `/admin` accordion details show payment method (parity with desktop details)
 ---
