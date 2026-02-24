@@ -6,6 +6,13 @@ export type MenuItem = {
   category?: string;
   description?: string;
   priceCents?: number;
+  extras?: MenuExtra[];
+};
+
+export type MenuExtra = {
+  id: string;
+  name: string;
+  priceCents?: number;
 };
 
 type JsonMenuRow = Record<string, unknown>;
@@ -34,6 +41,7 @@ function parseMenuItem(value: unknown): MenuItem | null {
   const description = stringFrom(row.description) ?? undefined;
   const category = stringFrom(row.category) ?? stringFrom(row.categoria) ?? undefined;
   const priceCents = numberFrom(row.priceCents ?? row.price_cents) ?? undefined;
+  const extras = parseMenuExtras(row.extras);
 
   return {
     id,
@@ -41,7 +49,29 @@ function parseMenuItem(value: unknown): MenuItem | null {
     ...(category ? { category } : {}),
     ...(description ? { description } : {}),
     ...(typeof priceCents === "number" && priceCents >= 0 ? { priceCents } : {}),
+    ...(extras.length > 0 ? { extras } : {}),
   };
+}
+
+function parseMenuExtras(value: unknown): MenuExtra[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((extra) => {
+      if (!extra || typeof extra !== "object") return null;
+      const row = extra as JsonMenuRow;
+      const id = stringFrom(row.id);
+      const name = stringFrom(row.name);
+      if (!id || !name) return null;
+
+      const priceCents = numberFrom(row.priceCents ?? row.price_cents);
+      return {
+        id,
+        name,
+        ...(typeof priceCents === "number" && priceCents >= 0 ? { priceCents } : {}),
+      };
+    })
+    .filter((extra): extra is MenuExtra => extra !== null);
 }
 
 function stringFrom(value: unknown): string | null {

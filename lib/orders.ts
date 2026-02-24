@@ -17,6 +17,10 @@ export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
 export type AdminOrderItem = {
   name: string;
   quantity: number;
+  extras?: Array<{
+    id?: string;
+    name: string;
+  }>;
 };
 
 export type AdminOrder = {
@@ -36,6 +40,9 @@ export type AdminOrder = {
 
 type RowLike = Record<string, unknown>;
 type OrdersRow = Database["public"]["Tables"]["orders"]["Row"];
+const MAX_PARSED_ITEM_EXTRAS = 20;
+const MAX_PARSED_EXTRA_NAME_LENGTH = 120;
+const MAX_PARSED_EXTRA_ID_LENGTH = 80;
 
 export function getOrderStatusLabel(status: OrderStatus) {
   return ORDER_STATUS_LABELS[status];
@@ -166,13 +173,45 @@ function parseOrderItems(value: Json | unknown): AdminOrderItem[] {
       if (!name) return null;
 
       const quantity = numberFrom(row.quantity) ?? numberFrom(row.qty) ?? numberFrom(row.qtd) ?? 1;
+      const extras = parseOrderItemExtras(row.extras);
 
       return {
         name,
         quantity: Number.isFinite(quantity) && quantity > 0 ? Math.trunc(quantity) : 1,
+        ...(extras.length > 0 ? { extras } : {}),
       };
     })
     .filter((item): item is AdminOrderItem => item !== null);
+}
+
+function parseOrderItemExtras(
+  value: unknown
+): Array<{
+  id?: string;
+  name: string;
+}> {
+  const parsed = parseUnknownItemsValue(value);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .slice(0, MAX_PARSED_ITEM_EXTRAS)
+    .map((extra) => {
+      if (!extra || typeof extra !== "object") return null;
+      const row = extra as RowLike;
+      const name =
+        stringFromMax(row.name, MAX_PARSED_EXTRA_NAME_LENGTH) ??
+        stringFromMax(row.nome, MAX_PARSED_EXTRA_NAME_LENGTH) ??
+        stringFromMax(row.label, MAX_PARSED_EXTRA_NAME_LENGTH) ??
+        stringFromMax(row.title, MAX_PARSED_EXTRA_NAME_LENGTH);
+      if (!name) return null;
+
+      const id = stringFromMax(row.id, MAX_PARSED_EXTRA_ID_LENGTH) ?? undefined;
+      return {
+        ...(id ? { id } : {}),
+        name,
+      };
+    })
+    .filter((extra): extra is { id?: string; name: string } => extra !== null);
 }
 
 function parseUnknownItemsValue(value: unknown): unknown {
@@ -212,6 +251,12 @@ function stringFrom(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function stringFromMax(value: unknown, maxLength: number): string | null {
+  const parsed = stringFrom(value);
+  if (!parsed) return null;
+  return parsed.length > maxLength ? parsed.slice(0, maxLength) : parsed;
 }
 
 function numberFrom(value: unknown): number | null {

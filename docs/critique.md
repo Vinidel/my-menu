@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) (`docs/admin-orders-dashboard-ux-mobile-and-status-sorting.md`, `PROJECT.md`, `docs/briefs/admin-orders-dashboard-ux-mobile-and-status-sorting.md`)
+Scope: Stage 5 documentation review — Order Item Extras / Customization (`docs/briefs/order-item-extras-customization.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,19 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a small cross-link from `docs/employee-orders-dashboard.md` to this UX follow-up doc for engineers starting from the original dashboard feature.
-- If a future feature introduces polling/realtime, update this doc’s “Known Gaps” and “For the Next Engineer” sections together so accordion reordering caveats remain accurate.
-- Consider adding one screenshot/gif reference in docs later if the team wants faster visual onboarding for the mobile accordion interaction.
+- When this feature is merged, consider adding a one-line pointer from `docs/customer-order-submission.md` to `docs/order-item-extras-customization.md` so engineers starting from the older customer-flow doc discover the payload extension faster.
+- If extras pricing becomes active later, document whether `priceCents` is display-only or part of persisted price snapshots to avoid retroactive ambiguity.
 
 ### Risks / Assumptions
-- Documentation correctly describes the responsive breakpoint rule and mobile accordion semantics, but actual visual behavior still depends on manual QA because no visual regression artifacts are included.
-- `PROJECT.md` now reflects the UX enhancement as a separate delivered feature; this assumes the team wants feature-level tracking granularity for UX improvements (reasonable and consistent with the workflow).
+- The doc correctly describes a backward-compatible JSON extension in `orders.items`, but future relational normalization work will need a migration/backfill plan not covered here.
+- Stage 5 notes assume menu `extras.id` stability for historical readability; frequent renames/re-ids in `data/menu.json` may still affect operational troubleshooting even though snapshots preserve display names.
 
 ## Acceptance Criteria (Stage 5 spot-check)
-- [x] Dedicated feature documentation exists for the admin dashboard UX enhancement
-- [x] Docs describe delivered behavior (status-first sorting, mobile accordion, single-expand, viewport threshold)
-- [x] Known tradeoffs/deferred work are documented (no realtime, no visual regression tests, duplicate hidden desktop details on mobile)
-- [x] `PROJECT.md` reflects the feature in current status/docs and employee flow summary
-- [x] Brief status updated to Stage 5 documentation complete and prior Critic approval recorded
+- [x] Dedicated feature documentation exists (`docs/order-item-extras-customization.md`)
+- [x] Delivered scope matches approved brief (additive extras, payload contract, server validation, `/admin` details display)
+- [x] Locked decisions are documented clearly (merge normalization, server authority, no DB schema by default)
+- [x] Backward-compatible `orders.items` shape extension is documented for future engineers
+- [x] Stage 4 hardening behavior/tradeoffs are documented
+- [x] `PROJECT.md` references/status/architecture summary include the feature
+- [x] Brief status is updated to `Stage 5 — Documentation Complete (pending Critic)`
 ---

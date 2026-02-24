@@ -202,3 +202,39 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK/Deferred | In-memory sorting fine; duplicated mobile/desktop detail rendering documented |
 | Observability | Gap       | No interaction telemetry |
 | Resilience    | Improved  | Mobile accordion accessibility semantics hardened |
+
+---
+
+## Order Item Extras / Customization — Stage 4
+
+### Security
+
+- **Server-side validation authority remains intact:** `/api/orders` / shared submit logic validates `extraIds` against the current `data/menu.json` and derives persisted extras snapshots server-side. This still prevents tampered client payloads from injecting arbitrary extras names into newly created orders. **No change.**
+- **Admin rendering safety for persisted JSON:** Historical/manual `orders.items` JSON can still contain malformed or oversized `extras` arrays/strings. Stage 4 hardens `lib/orders.ts` parsing by bounding parsed extras per item (`20`) and truncating oversized extras `name`/`id` values before rendering in `/admin`. This reduces UI/performance risk from untrusted persisted JSON while preserving backward compatibility. **Improved in Stage 4.**
+
+### Dependencies
+
+- **No new dependencies:** Extras hardening uses local parser bounds only; no schema changes or external libraries were added. **No change.**
+
+### Performance
+
+- **Defensive parse bounds:** Limiting parsed extras per item in `/admin` prevents pathological large JSON arrays from expanding into large DOM/text payloads. This is a lightweight resilience guard, not a replacement for database/data hygiene. **Improved.**
+
+### Observability
+
+- **No new extras-specific telemetry:** There are still no logs/metrics for malformed historical extras payloads encountered during admin rendering. Current behavior degrades silently by truncating/ignoring invalid entries. **Acceptable for current scope; deferred if data import tooling is added.**
+
+### Resilience
+
+- **Backward compatibility preserved:** Legacy orders without `extras` continue to parse normally; customized orders with valid extras still render the same `Extras:` line in `/admin`. New parser bounds are defensive and do not change happy-path behavior. **Improved with tests.**
+- **Unknown historical shapes:** Parser continues to read extras defensively from multiple common keys (`name`, `nome`, `label`, `title`) while dropping invalid entries. Stage 4 adds limits, not stricter schema enforcement, to avoid breaking old data. **Acceptable.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Bounded/truncated extras parsing in `/admin` for persisted JSON safety |
+| Dependencies  | OK        | No new deps |
+| Performance   | Improved  | Prevents oversized extras arrays from bloating admin render payloads |
+| Observability | Gap       | No malformed-extras telemetry |
+| Resilience    | Improved  | Defensive parser bounds with backward compatibility preserved |

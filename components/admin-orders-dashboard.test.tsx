@@ -219,6 +219,33 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(details.getByText("1x")).toBeInTheDocument();
   });
 
+  it("renders extras in order details when present (brief: admin extras display)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            items: [
+              {
+                name: "X-Burger",
+                quantity: 1,
+                extras: [
+                  { id: "bacon-extra", name: "Bacon extra" },
+                  { id: "queijo-extra", name: "Queijo extra" },
+                ],
+              },
+            ],
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("X-Burger")).toBeInTheDocument();
+    expect(screen.getByText(/Extras:/)).toBeInTheDocument();
+    expect(screen.getByText(/Bacon extra, Queijo extra/)).toBeInTheDocument();
+  });
+
   it("uses single-expand accordion behavior on mobile viewport (brief: mobile accordion)", async () => {
     const restore = mockMobileViewport(true);
     try {
