@@ -13,8 +13,18 @@ import {
 const MAX_REQUEST_BODY_BYTES = 32 * 1024;
 const ORDER_SUBMIT_RATE_LIMIT_MAX_REQUESTS = 5;
 const ORDER_SUBMIT_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const ORDER_SUBMIT_RATE_LIMIT_KEY_PREFIX = "api_orders:";
+const UNKNOWN_SOURCE_KEY = "unknown";
+const UNKNOWN_SOURCE_LOG_KEY = "unknown";
 const RATE_LIMIT_MESSAGE =
   "Muitas tentativas de envio em pouco tempo. Aguarde um instante e tente novamente.";
+const INVALID_CONTENT_TYPE_MESSAGE =
+  "Formato de requisição inválido. Envie os dados em JSON.";
+const REQUEST_TOO_LARGE_MESSAGE =
+  "Requisição muito grande. Reduza os dados e tente novamente.";
+const INVALID_JSON_MESSAGE = "Requisição inválida. Atualize a página e tente novamente.";
+const SETUP_UNAVAILABLE_MESSAGE =
+  "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 
 type ErrorBody = {
   ok: false;
@@ -52,14 +62,7 @@ export async function POST(request: Request) {
 
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().includes("application/json")) {
-    return jsonError(
-      {
-        ok: false,
-        code: "validation",
-        message: "Formato de requisição inválido. Envie os dados em JSON.",
-      },
-      415
-    );
+    return validationError(INVALID_CONTENT_TYPE_MESSAGE, 415);
   }
 
   let body: SubmitCustomerOrderInput | null = null;
@@ -67,38 +70,17 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
     if (rawBody.length > MAX_REQUEST_BODY_BYTES) {
-      return jsonError(
-        {
-          ok: false,
-          code: "validation",
-          message: "Requisição muito grande. Reduza os dados e tente novamente.",
-        },
-        413
-      );
+      return validationError(REQUEST_TOO_LARGE_MESSAGE, 413);
     }
 
     body = JSON.parse(rawBody) as SubmitCustomerOrderInput;
   } catch {
-    return jsonError(
-      {
-        ok: false,
-        code: "validation",
-        message: "Requisição inválida. Atualize a página e tente novamente.",
-      },
-      400
-    );
+    return validationError(INVALID_JSON_MESSAGE, 400);
   }
 
   const supabase = createServiceRoleClient();
   if (!supabase) {
-    return jsonError(
-      {
-        ok: false,
-        code: "setup",
-        message: "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.",
-      },
-      503
-    );
+    return setupError(SETUP_UNAVAILABLE_MESSAGE, 503);
   }
 
   const result = await submitCustomerOrderWithClient(body, supabase);
@@ -130,6 +112,14 @@ function jsonError(
   });
 }
 
+function validationError(message: string, status: number, extraHeaders?: Record<string, string>) {
+  return jsonError({ ok: false, code: "validation", message }, status, extraHeaders);
+}
+
+function setupError(message: string, status: number) {
+  return jsonError({ ok: false, code: "setup", message }, status);
+}
+
 function noStoreHeaders() {
   return { "Cache-Control": "no-store" };
 }
@@ -137,7 +127,7 @@ function noStoreHeaders() {
 function enforceOrderSubmitRateLimit(bucketKey: string): FixedWindowRateLimitResult {
   try {
     return consumeFixedWindowRateLimit({
-      key: `api_orders:${bucketKey}`,
+      key: `${ORDER_SUBMIT_RATE_LIMIT_KEY_PREFIX}${bucketKey}`,
       maxRequests: ORDER_SUBMIT_RATE_LIMIT_MAX_REQUESTS,
       windowMs: ORDER_SUBMIT_RATE_LIMIT_WINDOW_MS,
     });
@@ -163,18 +153,22 @@ function getRequestSource(request: Request): { bucketKey: string; logKey: string
     forwardedForToken(request.headers.get("forwarded"));
 
   if (!ip) {
-    return { bucketKey: "unknown", logKey: "unknown" };
+    return unknownSource();
   }
 
   const normalizedIp = normalizeIp(ip);
   if (!normalizedIp) {
-    return { bucketKey: "unknown", logKey: "unknown" };
+    return unknownSource();
   }
 
   return {
     bucketKey: `ip:${normalizedIp}`,
     logKey: `ip_hash:${hashForLogs(normalizedIp)}`,
   };
+}
+
+function unknownSource() {
+  return { bucketKey: UNKNOWN_SOURCE_KEY, logKey: UNKNOWN_SOURCE_LOG_KEY };
 }
 
 function firstHeaderValue(value: string | null): string | null {

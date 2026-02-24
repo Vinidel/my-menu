@@ -33,8 +33,9 @@ export function consumeFixedWindowRateLimit(
   const nowMs = config.nowMs ?? Date.now();
   const store = getStore();
   const bucket = store.get(config.key);
+  const resetAtMs = bucket ? bucket.windowStartMs + config.windowMs : null;
 
-  if (!bucket || nowMs >= bucket.windowStartMs + config.windowMs) {
+  if (!bucket || (resetAtMs !== null && nowMs >= resetAtMs)) {
     const nextBucket: FixedWindowBucket = {
       count: 1,
       windowStartMs: nowMs,
@@ -49,14 +50,15 @@ export function consumeFixedWindowRateLimit(
     };
   }
 
+  const activeResetAtMs = resetAtMs ?? bucket.windowStartMs + config.windowMs;
+
   if (bucket.count >= config.maxRequests) {
-    const resetAtMs = bucket.windowStartMs + config.windowMs;
-    const retryAfterSeconds = Math.max(1, Math.ceil((resetAtMs - nowMs) / 1000));
+    const retryAfterSeconds = Math.max(1, Math.ceil((activeResetAtMs - nowMs) / 1000));
 
     return {
       ok: false,
       retryAfterSeconds,
-      resetAtMs,
+      resetAtMs: activeResetAtMs,
     };
   }
 
@@ -66,7 +68,7 @@ export function consumeFixedWindowRateLimit(
   return {
     ok: true,
     remaining: Math.max(0, config.maxRequests - bucket.count),
-    resetAtMs: bucket.windowStartMs + config.windowMs,
+    resetAtMs: activeResetAtMs,
   };
 }
 
