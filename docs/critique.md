@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 4 hardening review — Order Item Extras / Customization (`docs/briefs/order-item-extras-customization.md`)
+Scope: Stage 5 documentation review — Order Item Extras / Customization (`docs/briefs/order-item-extras-customization.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,19 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- If you later add import/backfill tooling for historical orders, consider logging/counting truncated extras payloads in `/admin` parsing (or during import validation) so malformed data does not fail silently in operations.
-- If extras labels become business-critical (e.g., kitchen print integration), consider preserving raw oversized values in a separate audit path instead of truncation-at-render only.
+- When this feature is merged, consider adding a one-line pointer from `docs/customer-order-submission.md` to `docs/order-item-extras-customization.md` so engineers starting from the older customer-flow doc discover the payload extension faster.
+- If extras pricing becomes active later, document whether `priceCents` is display-only or part of persisted price snapshots to avoid retroactive ambiguity.
 
 ### Risks / Assumptions
-- The new parser bounds protect `/admin` rendering from oversized persisted extras JSON, but they do not sanitize or repair the underlying stored data in `public.orders.items`; malformed payloads remain in the database until cleaned.
-- Truncation limits are a UI resilience choice, not a schema contract. If future features depend on full extras labels/ids in historical orders, the limits may need revisiting or relocation to a more explicit data-normalization layer.
+- The doc correctly describes a backward-compatible JSON extension in `orders.items`, but future relational normalization work will need a migration/backfill plan not covered here.
+- Stage 5 notes assume menu `extras.id` stability for historical readability; frequent renames/re-ids in `data/menu.json` may still affect operational troubleshooting even though snapshots preserve display names.
 
-## Acceptance Criteria (Stage 4 spot-check)
-- [x] Hardening change stays within extras/customization scope (`/admin` extras parsing/rendering path)
-- [x] Defensive limits are implemented for persisted extras JSON parsing (array length and oversized fields)
-- [x] Happy-path extras rendering remains backward-compatible (no intended behavior change to valid data)
-- [x] Hardening notes document the risk, mitigation, and remaining tradeoffs
-- [x] New hardening behavior is covered by tests (`lib/orders.test.ts`)
-- [x] Full test suite and build pass after hardening changes
+## Acceptance Criteria (Stage 5 spot-check)
+- [x] Dedicated feature documentation exists (`docs/order-item-extras-customization.md`)
+- [x] Delivered scope matches approved brief (additive extras, payload contract, server validation, `/admin` details display)
+- [x] Locked decisions are documented clearly (merge normalization, server authority, no DB schema by default)
+- [x] Backward-compatible `orders.items` shape extension is documented for future engineers
+- [x] Stage 4 hardening behavior/tradeoffs are documented
+- [x] `PROJECT.md` references/status/architecture summary include the feature
+- [x] Brief status is updated to `Stage 5 — Documentation Complete (pending Critic)`
 ---

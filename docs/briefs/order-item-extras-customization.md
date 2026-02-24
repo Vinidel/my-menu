@@ -1,6 +1,6 @@
 # Feature Brief — Order Item Extras / Customization
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-02-24
 Author: Orchestrator Agent
 
