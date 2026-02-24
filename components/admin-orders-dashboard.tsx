@@ -89,6 +89,7 @@ function AdminOrdersDashboardContent({
   );
   const [mobileExpandedOrderId, setMobileExpandedOrderId] = useState<string | null>(null);
   const [pendingProgressOrderId, setPendingProgressOrderId] = useState<string | null>(null);
+  const [pollingRefreshErrorMessage, setPollingRefreshErrorMessage] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState | null>(
     initialLoadError ? { type: "error", message: initialLoadError } : null
   );
@@ -97,7 +98,16 @@ function AdminOrdersDashboardContent({
   const isPageVisible = useDocumentVisible();
   const pollingQuery = useQuery({
     queryKey: POLLING_QUERY_KEY,
-    queryFn: fetchAdminOrdersForDashboard,
+    queryFn: async () => {
+      try {
+        const orders = await fetchAdminOrdersForDashboard();
+        setPollingRefreshErrorMessage(null);
+        return orders;
+      } catch (error) {
+        setPollingRefreshErrorMessage(POLLING_REFRESH_ERROR_MESSAGE);
+        throw error;
+      }
+    },
     initialData: initialOrders,
     enabled: enablePolling,
     refetchOnWindowFocus: false,
@@ -109,7 +119,10 @@ function AdminOrdersDashboardContent({
 
   const sortedOrders = useMemo(() => sortOrdersForDashboard(orders), [orders]);
   const showPollingErrorBanner =
-    enablePolling && orders.length > 0 && pollingQuery.isError;
+    enablePolling &&
+    orders.length > 0 &&
+    !pollingQuery.isFetching &&
+    Boolean(pollingRefreshErrorMessage);
 
   const counts = countOrdersByStatus(orders);
   const selectedOrder = findOrderById(sortedOrders, selectedOrderId) ?? sortedOrders[0] ?? null;
@@ -253,7 +266,7 @@ function AdminOrdersDashboardContent({
       <SummaryCards counts={counts} />
       {feedback && <FeedbackBanner {...feedback} />}
       {showPollingErrorBanner ? (
-        <FeedbackBanner type="error" message={POLLING_REFRESH_ERROR_MESSAGE} />
+        <FeedbackBanner type="error" message={pollingRefreshErrorMessage!} />
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">

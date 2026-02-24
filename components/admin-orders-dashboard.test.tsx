@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AdminOrdersDashboard } from "./admin-orders-dashboard";
 import type { AdminOrder } from "@/lib/orders";
 
@@ -30,6 +30,7 @@ function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
 describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
   beforeEach(() => {
     vi.mocked(progressOrderStatus).mockReset();
+    vi.unstubAllGlobals();
   });
 
   afterEach(() => {
@@ -619,6 +620,268 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
       screen.getByText("Não foi possível carregar os pedidos agora. Tente novamente em instantes.")
     ).toBeInTheDocument();
   });
+
+  it("pauses polling while hidden and triggers one immediate refetch on visibility restore (brief: hidden-tab behavior)", async () => {
+    vi.useFakeTimers();
+    const restoreVisibility = mockDocumentVisibility("visible");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(makeJsonResponse({ ok: true, orders: [makeOrder({ id: "1" })] }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      render(
+        <AdminOrdersDashboard
+          initialOrders={[makeOrder({ id: "1" })]}
+          enablePolling
+        />
+      );
+
+      await flushAsyncWork();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await flushAsyncWork();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      setDocumentVisibility("hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+      await flushAsyncWork();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      setDocumentVisibility("visible");
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+
+      await flushAsyncWork();
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await flushAsyncWork();
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+    } finally {
+      restoreVisibility();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps last successful data visible after a background polling failure (brief: background polling failure)", async () => {
+    vi.useFakeTimers();
+    const restoreVisibility = mockDocumentVisibility("visible");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          ok: true,
+          orders: [makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" })],
+        })
+      )
+      .mockResolvedValueOnce(
+        makeJsonResponse(
+          { ok: false, message: "falha" },
+          { status: 500 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      render(
+        <AdminOrdersDashboard
+          initialOrders={[makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" })]}
+          enablePolling
+        />
+      );
+
+      await flushAsyncWork();
+      expect(screen.getAllByText("PED-0001").length).toBeGreaterThan(0);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await flushAsyncWork();
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(
+        screen.getByText(
+          "Não foi possível atualizar os pedidos automaticamente. Exibindo os últimos dados carregados."
+        )
+      ).toBeInTheDocument();
+      expect(screen.getAllByText("PED-0001").length).toBeGreaterThan(0);
+    } finally {
+      restoreVisibility();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps mobile accordion usable while polling is enabled (brief: mobile polling usability)", async () => {
+    vi.useFakeTimers();
+    const restoreViewport = mockMobileViewport(true);
+    const restoreVisibility = mockDocumentVisibility("visible");
+    const fetchSpy = vi.fn().mockResolvedValue(
+      makeJsonResponse({
+        ok: true,
+        orders: [
+          makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" }),
+          makeOrder({ id: "2", reference: "PED-0002", customerName: "Bruno" }),
+        ],
+      })
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      render(
+        <AdminOrdersDashboard
+          initialOrders={[
+            makeOrder({ id: "1", reference: "PED-0001", customerName: "Ana" }),
+            makeOrder({ id: "2", reference: "PED-0002", customerName: "Bruno" }),
+          ]}
+          enablePolling
+        />
+      );
+
+      await flushAsyncWork();
+
+      const firstTrigger = screen.getByRole("button", { name: /PED-0001/i });
+      const secondTrigger = screen.getByRole("button", { name: /PED-0002/i });
+
+      fireEvent.click(firstTrigger);
+      expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(secondTrigger).toHaveAttribute("aria-expanded", "false");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await flushAsyncWork();
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getAllByText("Próximo status: Em preparo").length).toBeGreaterThan(0);
+    } finally {
+      restoreViewport();
+      restoreVisibility();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not let polling overwrite the local pending state of the order being updated (brief: polling vs mutation conflict)", async () => {
+    vi.useFakeTimers();
+    const restoreVisibility = mockDocumentVisibility("visible");
+    let resolveProgress:
+      | ((value: Awaited<ReturnType<typeof progressOrderStatus>>) => void)
+      | null = null;
+
+    vi.mocked(progressOrderStatus).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveProgress = resolve as typeof resolveProgress;
+        })
+    );
+
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          ok: true,
+          orders: [
+            makeOrder({
+              id: "1",
+              reference: "PED-0001",
+              status: "aguardando_confirmacao",
+              statusLabel: "Esperando confirmação",
+            }),
+            makeOrder({
+              id: "2",
+              reference: "PED-0002",
+              status: "aguardando_confirmacao",
+              statusLabel: "Esperando confirmação",
+            }),
+          ],
+        })
+      )
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          ok: true,
+          orders: [
+            makeOrder({
+              id: "1",
+              reference: "PED-0001",
+              status: "aguardando_confirmacao",
+              statusLabel: "Esperando confirmação",
+            }),
+            makeOrder({
+              id: "2",
+              reference: "PED-0002",
+              status: "em_preparo",
+              statusLabel: "Em preparo",
+            }),
+          ],
+        })
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      render(
+        <AdminOrdersDashboard
+          initialOrders={[
+            makeOrder({
+              id: "1",
+              reference: "PED-0001",
+              status: "aguardando_confirmacao",
+              statusLabel: "Esperando confirmação",
+            }),
+            makeOrder({
+              id: "2",
+              reference: "PED-0002",
+              status: "aguardando_confirmacao",
+              statusLabel: "Esperando confirmação",
+            }),
+          ]}
+          enablePolling
+        />
+      );
+
+      await flushAsyncWork();
+      fireEvent.click(screen.getAllByRole("button", { name: "Avançar status" }).at(-1)!);
+
+      await flushAsyncWork();
+      expect(progressOrderStatus).toHaveBeenCalledWith({
+        orderId: "1",
+        currentStatus: "aguardando_confirmacao",
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await flushAsyncWork();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      expect(screen.getAllByText("Esperando confirmação").length).toBeGreaterThan(1);
+      expect(screen.getAllByText("Em preparo").length).toBeGreaterThan(0);
+
+      await act(async () => {
+        resolveProgress?.({
+          ok: true,
+          nextStatus: "em_preparo",
+          nextStatusLabel: "Em preparo",
+        });
+      });
+      await flushAsyncWork();
+
+      expect(screen.getAllByText("Em preparo").length).toBeGreaterThan(0);
+    } finally {
+      restoreVisibility();
+      vi.useRealTimers();
+    }
+  });
 });
 
 function mockMobileViewport(matches: boolean) {
@@ -656,4 +919,43 @@ function mockMobileViewport(matches: boolean) {
       value: original,
     });
   };
+}
+
+let documentVisibilityState: "visible" | "hidden" = "visible";
+
+function mockDocumentVisibility(initial: "visible" | "hidden") {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(document, "visibilityState");
+  documentVisibilityState = initial;
+
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get() {
+      return documentVisibilityState;
+    },
+  });
+
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(document, "visibilityState", originalDescriptor);
+    }
+  };
+}
+
+function setDocumentVisibility(next: "visible" | "hidden") {
+  documentVisibilityState = next;
+}
+
+function makeJsonResponse(body: unknown, init?: ResponseInit) {
+  return new Response(JSON.stringify(body), {
+    status: init?.status ?? 200,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+}
+
+async function flushAsyncWork() {
+  await Promise.resolve();
+  await Promise.resolve();
 }
