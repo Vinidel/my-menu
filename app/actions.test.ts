@@ -28,7 +28,8 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
           {
             id: "x-burger",
             name: "X-Burger",
-            extras: [{ id: "queijo-extra", name: "Queijo extra" }],
+            priceCents: 2500,
+            extras: [{ id: "queijo-extra", name: "Queijo extra", priceCents: 300 }],
           },
         ],
       ])
@@ -65,9 +66,10 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
           {
             id: "x-burger",
             name: "X-Burger",
+            priceCents: 2500,
             extras: [
-              { id: "bacon-extra", name: "Bacon extra" },
-              { id: "queijo-extra", name: "Queijo extra" },
+              { id: "bacon-extra", name: "Bacon extra", priceCents: 400 },
+              { id: "queijo-extra", name: "Queijo extra", priceCents: 300 },
             ],
           },
         ],
@@ -110,14 +112,86 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
         menuItemId: "x-burger",
         name: "X-Burger",
         quantity: 3,
+        unitPriceCents: 2500,
+        lineTotalCents: 9600,
         extras: [
-          { id: "bacon-extra", name: "Bacon extra" },
-          { id: "queijo-extra", name: "Queijo extra" },
+          { id: "bacon-extra", name: "Bacon extra", priceCents: 400 },
+          { id: "queijo-extra", name: "Queijo extra", priceCents: 300 },
         ],
       },
     ]);
 
     expect(revalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("rejects order when base item is missing priceCents (brief: fail closed pricing snapshots)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message:
+        "Alguns itens selecionados estão sem preço configurado. Revise o cardápio e tente novamente.",
+    });
+  });
+
+  it("rejects order when selected extra is missing priceCents (brief: fail closed pricing snapshots)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+            extras: [{ id: "queijo-extra", name: "Queijo extra" }],
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            extraIds: ["queijo-extra"],
+          },
+        ],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message:
+        "Alguns itens selecionados estão sem preço configurado. Revise o cardápio e tente novamente.",
+    });
   });
 });
 

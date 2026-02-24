@@ -12,6 +12,8 @@ const VALIDATION_REQUIRED_MESSAGE =
 const VALIDATION_EMAIL_MESSAGE = "Informe um e-mail válido.";
 const VALIDATION_PHONE_MESSAGE = "Informe um telefone válido.";
 const VALIDATION_ITEMS_MESSAGE = "Selecione itens válidos do cardápio para enviar o pedido.";
+const VALIDATION_PRICING_MESSAGE =
+  "Alguns itens selecionados estão sem preço configurado. Revise o cardápio e tente novamente.";
 const SUBMIT_ERROR_MESSAGE =
   "Não foi possível enviar seu pedido agora. Tente novamente em instantes.";
 const VALIDATION_TOO_LARGE_MESSAGE =
@@ -49,6 +51,15 @@ type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 type OrderStatus = Database["public"]["Tables"]["orders"]["Row"]["status"];
 type OrdersTablesClient = {
   from: (table: "customers" | "orders") => unknown;
+};
+type OrderItemExtraSnapshot = { id: string; name: string; priceCents: number };
+type OrderItemSnapshot = {
+  name: string;
+  quantity: number;
+  menuItemId: string;
+  unitPriceCents: number;
+  lineTotalCents: number;
+  extras?: OrderItemExtraSnapshot[];
 };
 
 export async function submitCustomerOrder(
@@ -96,7 +107,16 @@ export async function submitCustomerOrderWithClient(
   }
 
   const menuMap = getMenuItemMap();
-  const orderItems = normalizeSelectedItems(input.items, menuMap);
+  let orderItems: ReturnType<typeof normalizeSelectedItems>;
+  try {
+    orderItems = normalizeSelectedItems(input.items, menuMap);
+  } catch (error) {
+    if (error instanceof MissingPriceSnapshotError) {
+      return submitErrorResult("validation", VALIDATION_PRICING_MESSAGE);
+    }
+
+    throw error;
+  }
   if (!orderItems || orderItems.length === 0) {
     return submitErrorResult("validation", VALIDATION_ITEMS_MESSAGE);
   }
@@ -263,12 +283,7 @@ function findCustomerByNormalizedContact(
 function normalizeSelectedItems(
   items: SubmitCustomerOrderInput["items"],
   menuMap: ReturnType<typeof getMenuItemMap>
-): Array<{
-  name: string;
-  quantity: number;
-  menuItemId: string;
-  extras?: Array<{ id: string; name: string }>;
-}> | null {
+): OrderItemSnapshot[] | null {
   if (!Array.isArray(items)) return null;
   if (items.length === 0 || items.length > MAX_ORDER_LINE_ITEMS) return null;
 
@@ -277,7 +292,8 @@ function normalizeSelectedItems(
     {
       menuItemId: string;
       quantity: number;
-      extras: Array<{ id: string; name: string }>;
+      unitPriceCents: number;
+      extras: OrderItemExtraSnapshot[];
     }
   >();
 
@@ -289,6 +305,7 @@ function normalizeSelectedItems(
     if (!menuItemId || !quantity) return null;
     const menuItem = menuMap.get(menuItemId);
     if (!menuItem) return null;
+    assertValidPriceCents(menuItem.priceCents, "base item missing priceCents");
 
     const normalizedExtraIds = normalizeExtraIds(item.extraIds);
     if (!normalizedExtraIds) return null;
@@ -298,7 +315,8 @@ function normalizeSelectedItems(
     const extras = normalizedExtraIds.map((extraId) => {
       const extra = extrasById.get(extraId);
       if (!extra) return null;
-      return { id: extra.id, name: extra.name };
+      assertValidPriceCents(extra.priceCents, "extra missing priceCents");
+      return { id: extra.id, name: extra.name, priceCents: extra.priceCents };
     });
     if (extras.some((extra) => extra === null)) return null;
 
@@ -313,17 +331,22 @@ function normalizeSelectedItems(
     aggregated.set(comparisonKey, {
       menuItemId,
       quantity,
-      extras: extras as Array<{ id: string; name: string }>,
+      unitPriceCents: menuItem.priceCents,
+      extras: extras as OrderItemExtraSnapshot[],
     });
   }
 
   return Array.from(aggregated.values()).map((entry) => {
     const menuItem = menuMap.get(entry.menuItemId);
+    const extrasTotalCents = entry.extras.reduce((sum, extra) => sum + extra.priceCents, 0);
+    const lineTotalCents = (entry.unitPriceCents + extrasTotalCents) * entry.quantity;
 
     return {
       name: menuItem?.name ?? "Item",
       quantity: entry.quantity,
       menuItemId: entry.menuItemId,
+      unitPriceCents: entry.unitPriceCents,
+      lineTotalCents,
       ...(entry.extras.length > 0 ? { extras: entry.extras } : {}),
     };
   });
@@ -345,6 +368,17 @@ function normalizeExtraIds(value: unknown): string[] | null {
 
 function buildOrderItemAggregationKey(menuItemId: string, extraIds: string[]) {
   return `${menuItemId}::${extraIds.join("|")}`;
+}
+
+class MissingPriceSnapshotError extends Error {}
+
+function assertValidPriceCents(
+  value: unknown,
+  message: string
+): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new MissingPriceSnapshotError(message);
+  }
 }
 
 function sanitizeText(value: string): string {
