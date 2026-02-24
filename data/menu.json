@@ -1,0 +1,30 @@
+[
+  {
+    "id": "x-burger",
+    "name": "X-Burger",
+    "category": "Hambúrgueres",
+    "description": "Pão, hambúrguer bovino, queijo, alface e tomate.",
+    "priceCents": 2890
+  },
+  {
+    "id": "x-salada",
+    "name": "X-Salada",
+    "category": "Hambúrgueres",
+    "description": "Pão, hambúrguer bovino, queijo, alface, tomate e maionese da casa.",
+    "priceCents": 3190
+  },
+  {
+    "id": "batata-frita",
+    "name": "Batata frita",
+    "category": "Acompanhamentos",
+    "description": "Porção média crocante.",
+    "priceCents": 1590
+  },
+  {
+    "id": "refrigerante-lata",
+    "name": "Refrigerante lata",
+    "category": "Bebidas",
+    "description": "Lata 350ml (sabores sujeitos à disponibilidade).",
+    "priceCents": 790
+  }
+]

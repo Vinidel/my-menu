@@ -45,3 +45,10 @@ Issues or observations spotted during implementation that are **out of scope** f
 - **Orders schema assumptions (mostly addressed):** Supabase migrations now exist for `public.orders` and DB-level status transition enforcement. The dashboard query uses explicit columns and `created_at` ordering. The main remaining gap is the typed Supabase `.update()` workaround in `app/admin/actions.ts` (see `docs/hardening-notes.md`).
 - **Items shape assumptions:** Order items are treated as an array (or JSON stringified array) of objects with a name/title and quantity. If existing rows store items in a different shape, the details panel may show “Itens não disponíveis neste registro.” until the schema mapping is finalized.
 - **Concurrency handling dependency:** Stale status progression rejection assumes the `orders` table has `id` and `status` columns and supports a conditional update (`eq(\"id\") + eq(\"status\")`) via RLS for authenticated employees.
+
+---
+
+## Customer Order Submission (Stage 1)
+
+- **Server-only write path:** Customer submission now goes through `POST /api/orders`, which uses `SUPABASE_SERVICE_ROLE_KEY` server-side. A follow-up hardening migration locks down the temporary public `customers`/`orders` write/read grants created during the initial implementation.
+- **No pricing persisted on orders:** The order payload intentionally stores only `{ name, quantity }` items for `/admin` compatibility. If the business needs historical pricing totals, add price snapshots in a future brief (e.g. `price_cents`, `line_total_cents`, `order_total_cents`).
