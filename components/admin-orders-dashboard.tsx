@@ -100,6 +100,7 @@ function AdminOrdersDashboardContent({
     queryFn: fetchAdminOrdersForDashboard,
     initialData: initialOrders,
     enabled: enablePolling,
+    refetchOnWindowFocus: false,
     refetchInterval: enablePolling && isPageVisible ? POLLING_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
     retry: false,
