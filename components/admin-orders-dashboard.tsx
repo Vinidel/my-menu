@@ -25,12 +25,20 @@ type FeedbackState = {
   message: string;
 };
 
+const ORDER_LIST_SORT_DESCRIPTION =
+  "Ordenados por status e depois do mais antigo para o mais recente";
+const MOBILE_VIEWPORT_MEDIA_QUERY = "(max-width: 767px)";
+const ORDER_LIST_BUTTON_BASE_CLASS =
+  "w-full px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
 export function AdminOrdersDashboard({
   initialOrders,
   initialLoadError = null,
 }: AdminOrdersDashboardProps) {
   const [orders, setOrders] = useState(initialOrders);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(initialOrders[0]?.id ?? null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
+    initialOrders[0]?.id ?? null
+  );
   const [mobileExpandedOrderId, setMobileExpandedOrderId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState | null>(
     initialLoadError ? { type: "error", message: initialLoadError } : null
@@ -41,8 +49,7 @@ export function AdminOrdersDashboard({
   const sortedOrders = useMemo(() => sortOrdersForDashboard(orders), [orders]);
 
   const counts = countOrdersByStatus(orders);
-  const selectedOrder =
-    sortedOrders.find((order) => order.id === selectedOrderId) ?? sortedOrders[0] ?? null;
+  const selectedOrder = findOrderById(sortedOrders, selectedOrderId) ?? sortedOrders[0] ?? null;
 
   const nextStatus = selectedOrder ? getNextOrderStatus(selectedOrder.status) : null;
 
@@ -55,7 +62,7 @@ export function AdminOrdersDashboard({
 
     setSelectedOrderId((current) => current ?? selectedOrder.id);
     setMobileExpandedOrderId((current) =>
-      current && sortedOrders.some((order) => order.id === current) ? current : null
+      current && hasOrderWithId(sortedOrders, current) ? current : null
     );
   }, [selectedOrder, sortedOrders]);
 
@@ -87,14 +94,7 @@ export function AdminOrdersDashboard({
 
       setOrders((previousOrders) =>
         previousOrders.map((order) =>
-          order.id === currentOrderId
-            ? {
-                ...order,
-                status: result.nextStatus,
-                statusLabel: result.nextStatusLabel,
-                rawStatus: result.nextStatus,
-              }
-            : order
+          updateOrderStatusLocally(order, currentOrderId, result.nextStatus, result.nextStatusLabel)
         )
       );
       setFeedback(successFeedback(`Pedido atualizado para ${result.nextStatusLabel}.`));
@@ -167,9 +167,7 @@ export function AdminOrdersDashboard({
         <section className="rounded-lg border border-border bg-background">
           <header className="border-b border-border px-4 py-3">
             <h1 className="text-lg font-semibold text-foreground">Pedidos</h1>
-            <p className="text-xs text-muted-foreground">
-              Ordenados por status e depois do mais antigo para o mais recente
-            </p>
+            <p className="text-xs text-muted-foreground">{ORDER_LIST_SORT_DESCRIPTION}</p>
           </header>
 
           <ul className="max-h-[65vh] overflow-auto">
@@ -185,8 +183,7 @@ export function AdminOrdersDashboard({
                     onClick={() => handleSelectOrder(order.id)}
                     aria-expanded={isExpandedMobile}
                     className={[
-                      "w-full px-4 py-3 text-left transition-colors",
-                      "hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                      ORDER_LIST_BUTTON_BASE_CLASS,
                       isSelected ? "bg-accent" : "",
                     ].join(" ")}
                   >
@@ -366,7 +363,13 @@ function OrderDetailsContent({
         </section>
       )}
 
-      <footer className={compact ? "mt-4 border-t border-border pt-4" : "mt-auto border-t border-border px-5 py-4"}>
+      <footer
+        className={
+          compact
+            ? "mt-4 border-t border-border pt-4"
+            : "mt-auto border-t border-border px-5 py-4"
+        }
+      >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             {nextStatus
@@ -434,6 +437,30 @@ function statusChipClass(status: OrderStatus | null) {
   }
 }
 
+function findOrderById(orders: AdminOrder[], orderId: string | null) {
+  if (!orderId) return null;
+  return orders.find((order) => order.id === orderId) ?? null;
+}
+
+function hasOrderWithId(orders: AdminOrder[], orderId: string) {
+  return orders.some((order) => order.id === orderId);
+}
+
+function updateOrderStatusLocally(
+  order: AdminOrder,
+  orderId: string,
+  nextStatus: OrderStatus,
+  nextStatusLabel: string
+) {
+  if (order.id !== orderId) return order;
+  return {
+    ...order,
+    status: nextStatus,
+    statusLabel: nextStatusLabel,
+    rawStatus: nextStatus,
+  };
+}
+
 function sortOrdersForDashboard(orders: AdminOrder[]) {
   return [...orders].sort((a, b) => {
     const statusDelta = getStatusSortRank(a.status) - getStatusSortRank(b.status);
@@ -467,7 +494,7 @@ function useIsMobileViewport() {
       return;
     }
 
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const mediaQuery = window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY);
     const update = (matches: boolean) => setIsMobile(matches);
     update(mediaQuery.matches);
 
