@@ -163,3 +163,42 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Early throttle and lightweight pruning retained |
 | Observability | Gap       | Logs only; no abuse metrics/alerts |
 | Resilience    | Deferred  | Degrade-open + in-memory multi-instance inconsistency accepted |
+
+---
+
+## Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) — Stage 4
+
+### Security
+
+- **No new privilege changes:** This feature is UI-only and reuses the existing protected `/admin` route plus the previously hardened status progression server action. No new Supabase permissions, RLS policies, or schema changes were introduced. **No change.**
+- **Display sorting only:** Status-first ordering is a client-side display sort and does not alter persisted data or server authorization logic. **No change.**
+
+### Dependencies
+
+- **No new dependencies:** The mobile accordion and responsive behavior use existing React/Next.js APIs plus current UI components. **No change.**
+- **`matchMedia` reliance:** The responsive interaction model depends on browser `window.matchMedia`; tests mock this API. This is standard for client UI but should be considered if the component is heavily refactored or extracted. **Documented.**
+
+### Performance
+
+- **Client-side sorting:** Orders are sorted in-memory in the dashboard component by status priority and timestamp. This is acceptable for the current small-scale order volume and avoids extra server query complexity. **Acceptable for current scope.**
+- **Duplicate detail UI rendering on mobile:** The desktop detail panel remains mounted in the DOM and is hidden on mobile via CSS when `isMobileViewport` is true, while the mobile accordion details render inline. This is acceptable at current scale; if order detail content grows substantially, consider conditional rendering or layout-level branching for mobile/desktop to reduce duplicated render work. **Documented; deferred optimization.**
+
+### Observability
+
+- **No new UX interaction telemetry:** The feature adds no logs/metrics for accordion opens, mobile usage, or sorting behavior. This is acceptable for current scope; production issues will rely on manual QA/user reports. **Deferred.**
+
+### Resilience
+
+- **Mobile accordion semantics hardening:** Stage 4 adds explicit accordion accessibility linkage on mobile (`aria-controls` on trigger + labeled `role="region"` panel) and avoids exposing misleading `aria-expanded` semantics on desktop where the accordion interaction is not active. **Improved in Stage 4.**
+- **Responsive breakpoint behavior:** Mobile accordion mode is controlled by client-side `matchMedia` (`< 768px`, Tailwind `md` breakpoint). There can be a brief initial desktop-style render before the client effect runs on mobile devices (standard client-rendered responsive behavior). This is acceptable for current scope. **Documented.**
+- **Reordering after status progression:** When a mobile-expanded order progresses status, it may move to a different list position due to status-first sorting. Current behavior keeps state consistent and remains functional; UX is covered by tests but not further optimized (e.g., scroll anchoring/animation). **Acceptable; deferred polish.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | UI-only changes; existing auth/update hardening reused |
+| Dependencies  | OK        | No new deps; `matchMedia` reliance documented |
+| Performance   | OK/Deferred | In-memory sorting fine; duplicated mobile/desktop detail rendering documented |
+| Observability | Gap       | No interaction telemetry |
+| Resilience    | Improved  | Mobile accordion accessibility semantics hardened |
