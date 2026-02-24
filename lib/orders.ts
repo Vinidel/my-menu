@@ -40,6 +40,9 @@ export type AdminOrder = {
 
 type RowLike = Record<string, unknown>;
 type OrdersRow = Database["public"]["Tables"]["orders"]["Row"];
+const MAX_PARSED_ITEM_EXTRAS = 20;
+const MAX_PARSED_EXTRA_NAME_LENGTH = 120;
+const MAX_PARSED_EXTRA_ID_LENGTH = 80;
 
 export function getOrderStatusLabel(status: OrderStatus) {
   return ORDER_STATUS_LABELS[status];
@@ -191,17 +194,18 @@ function parseOrderItemExtras(
   if (!Array.isArray(parsed)) return [];
 
   return parsed
+    .slice(0, MAX_PARSED_ITEM_EXTRAS)
     .map((extra) => {
       if (!extra || typeof extra !== "object") return null;
       const row = extra as RowLike;
       const name =
-        stringFrom(row.name) ??
-        stringFrom(row.nome) ??
-        stringFrom(row.label) ??
-        stringFrom(row.title);
+        stringFromMax(row.name, MAX_PARSED_EXTRA_NAME_LENGTH) ??
+        stringFromMax(row.nome, MAX_PARSED_EXTRA_NAME_LENGTH) ??
+        stringFromMax(row.label, MAX_PARSED_EXTRA_NAME_LENGTH) ??
+        stringFromMax(row.title, MAX_PARSED_EXTRA_NAME_LENGTH);
       if (!name) return null;
 
-      const id = stringFrom(row.id) ?? undefined;
+      const id = stringFromMax(row.id, MAX_PARSED_EXTRA_ID_LENGTH) ?? undefined;
       return {
         ...(id ? { id } : {}),
         name,
@@ -247,6 +251,12 @@ function stringFrom(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function stringFromMax(value: unknown, maxLength: number): string | null {
+  const parsed = stringFrom(value);
+  if (!parsed) return null;
+  return parsed.length > maxLength ? parsed.slice(0, maxLength) : parsed;
 }
 
 function numberFrom(value: unknown): number | null {

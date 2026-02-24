@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Order Item Extras / Customization (`docs/briefs/order-item-extras-customization.md`)
+Scope: Stage 4 hardening review — Order Item Extras / Customization (`docs/briefs/order-item-extras-customization.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,19 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding one route-level `/api/orders` test that passes `extraIds` through the HTTP layer (not only `submitCustomerOrderWithClient(...)`) if you want tighter end-to-end payload-contract regression protection.
-- Add an explicit legacy-order parsing assertion for unknown historical extras payload shapes in `/admin` if you expect manual JSON edits/imports in the future.
+- If you later add import/backfill tooling for historical orders, consider logging/counting truncated extras payloads in `/admin` parsing (or during import validation) so malformed data does not fail silently in operations.
+- If extras labels become business-critical (e.g., kitchen print integration), consider preserving raw oversized values in a separate audit path instead of truncation-at-render only.
 
 ### Risks / Assumptions
-- Stage 2 coverage strongly validates the locked additive-extras flow, but UI rendering variations in `Seu pedido` (layout-only changes) may still cause brittle selector assertions over time.
-- Existing non-extras order submission and `/admin` regression coverage is assumed to remain in the broader test suite (and currently passes).
+- The new parser bounds protect `/admin` rendering from oversized persisted extras JSON, but they do not sanitize or repair the underlying stored data in `public.orders.items`; malformed payloads remain in the database until cleaned.
+- Truncation limits are a UI resilience choice, not a schema contract. If future features depend on full extras labels/ids in historical orders, the limits may need revisiting or relocation to a more explicit data-normalization layer.
 
-## Acceptance Criteria (Stage 2 spot-check)
-- [x] Customer extras selection/edit flow has direct UI coverage on `/`
-- [x] Locked submit payload shape (`menuItemId`, `quantity`, `extraIds?`) is asserted
-- [x] Tampered/invalid `extraIds` are rejected by server-side validation tests
-- [x] Extras-set normalization/merge behavior is covered (dedupe + sort + merge)
-- [x] Server-derived extras snapshot persistence in `orders.items` is asserted
-- [x] `/admin` details render `Extras:` for customized items
-- [x] Existing suite still passes (no evident regression introduced by extras feature tests)
+## Acceptance Criteria (Stage 4 spot-check)
+- [x] Hardening change stays within extras/customization scope (`/admin` extras parsing/rendering path)
+- [x] Defensive limits are implemented for persisted extras JSON parsing (array length and oversized fields)
+- [x] Happy-path extras rendering remains backward-compatible (no intended behavior change to valid data)
+- [x] Hardening notes document the risk, mitigation, and remaining tradeoffs
+- [x] New hardening behavior is covered by tests (`lib/orders.test.ts`)
+- [x] Full test suite and build pass after hardening changes
 ---
