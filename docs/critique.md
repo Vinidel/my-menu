@@ -3,7 +3,7 @@
 
 Date: 2026-02-24
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) (`docs/admin-orders-dashboard-ux-mobile-and-status-sorting.md`, `PROJECT.md`, `docs/briefs/admin-orders-dashboard-ux-mobile-and-status-sorting.md`)
+Scope: Stage 0 brief review — Order Item Extras / Customization (`docs/briefs/order-item-extras-customization.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,21 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a small cross-link from `docs/employee-orders-dashboard.md` to this UX follow-up doc for engineers starting from the original dashboard feature.
-- If a future feature introduces polling/realtime, update this doc’s “Known Gaps” and “For the Next Engineer” sections together so accordion reordering caveats remain accurate.
-- Consider adding one screenshot/gif reference in docs later if the team wants faster visual onboarding for the mobile accordion interaction.
+- Consider locking a maximum number of extras per item (or explicitly deferring) to bound payload/UI complexity if the menu grows.
+- Add one optional success criterion for how extras are shown in `Seu pedido` (e.g., chips/list under each line item) if you want less UX interpretation in Stage 1.
+- If `priceCents` for extras will be shown in UI, clarify whether display-only subtotal hints are allowed without changing billing logic.
 
 ### Risks / Assumptions
-- Documentation correctly describes the responsive breakpoint rule and mobile accordion semantics, but actual visual behavior still depends on manual QA because no visual regression artifacts are included.
-- `PROJECT.md` now reflects the UX enhancement as a separate delivered feature; this assumes the team wants feature-level tracking granularity for UX improvements (reasonable and consistent with the workflow).
+- The brief now locks the client/server contract and merge semantics well enough for implementation, but `/admin` parser/display changes still need careful backward-compatible handling for historical `orders.items` shapes.
+- Additive-only scope is explicit now; future requests for removals/substitutions should be treated as a follow-up feature to avoid hidden complexity.
 
-## Acceptance Criteria (Stage 5 spot-check)
-- [x] Dedicated feature documentation exists for the admin dashboard UX enhancement
-- [x] Docs describe delivered behavior (status-first sorting, mobile accordion, single-expand, viewport threshold)
-- [x] Known tradeoffs/deferred work are documented (no realtime, no visual regression tests, duplicate hidden desktop details on mobile)
-- [x] `PROJECT.md` reflects the feature in current status/docs and employee flow summary
-- [x] Brief status updated to Stage 5 documentation complete and prior Critic approval recorded
+## Acceptance Criteria (Stage 0 spot-check)
+- [x] Problem/goals/non-goals are clear and product-relevant
+- [x] End-to-end scope is covered (`/` customization, `/api/orders` validation, `/admin` display)
+- [x] Backward-compatibility intent for `orders.items` is documented
+- [x] Server-side validation authority is locked
+- [x] Client submit payload shape for customized items is locked
+- [x] Extras-set merge/equality normalization is locked
+- [x] Scope mismatch in problem examples vs additive-only schema is resolved
+- [x] Minimum `/admin` extras display format is locked for testability
 ---
