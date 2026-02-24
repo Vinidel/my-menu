@@ -34,6 +34,22 @@ describe("POST /api/orders", () => {
     });
   });
 
+  it("returns 415 for non-JSON content type (hardening: request format validation)", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: "customerName=Ana",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      })
+    );
+
+    expect(response.status).toBe(415);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+  });
+
   it("returns 503 when service-role client is unavailable (brief: setup resilience)", async () => {
     vi.mocked(createServiceRoleClient).mockReturnValue(null);
 

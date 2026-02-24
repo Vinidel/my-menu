@@ -14,6 +14,13 @@ const VALIDATION_PHONE_MESSAGE = "Informe um telefone válido.";
 const VALIDATION_ITEMS_MESSAGE = "Selecione itens válidos do cardápio para enviar o pedido.";
 const SUBMIT_ERROR_MESSAGE =
   "Não foi possível enviar seu pedido agora. Tente novamente em instantes.";
+const VALIDATION_TOO_LARGE_MESSAGE =
+  "Alguns dados do pedido são muito longos. Revise e tente novamente.";
+const MAX_CUSTOMER_NAME_LENGTH = 120;
+const MAX_CUSTOMER_EMAIL_LENGTH = 254;
+const MAX_CUSTOMER_PHONE_LENGTH = 32;
+const MAX_NOTES_LENGTH = 1000;
+const MAX_ORDER_LINE_ITEMS = 50;
 
 export type SubmitCustomerOrderInput = {
   customerName: string;
@@ -61,6 +68,15 @@ export async function submitCustomerOrderWithClient(
   const customerEmail = sanitizeText(input.customerEmail);
   const customerPhone = sanitizeText(input.customerPhone);
   const notes = sanitizeOptionalText(input.notes);
+
+  if (
+    customerName.length > MAX_CUSTOMER_NAME_LENGTH ||
+    customerEmail.length > MAX_CUSTOMER_EMAIL_LENGTH ||
+    customerPhone.length > MAX_CUSTOMER_PHONE_LENGTH ||
+    (notes?.length ?? 0) > MAX_NOTES_LENGTH
+  ) {
+    return submitErrorResult("validation", VALIDATION_TOO_LARGE_MESSAGE);
+  }
 
   if (!customerName || !customerEmail || !customerPhone) {
     return submitErrorResult("validation", VALIDATION_REQUIRED_MESSAGE);
@@ -236,6 +252,7 @@ function normalizeSelectedItems(
   menuMap: Map<string, { name: string }>
 ): Array<{ name: string; quantity: number }> | null {
   if (!Array.isArray(items)) return null;
+  if (items.length === 0 || items.length > MAX_ORDER_LINE_ITEMS) return null;
 
   const aggregated = new Map<string, number>();
 

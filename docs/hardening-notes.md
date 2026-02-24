@@ -81,3 +81,44 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | No changes needed for current scale |
 | Observability | OK/Gap    | Basic logs present; metrics/tracing deferred |
 | Resilience    | OK        | Stale update handling and graceful errors already in place |
+
+---
+
+## Customer Order Submission — Stage 4
+
+### Security
+
+- **Server-only privileged writes:** `POST /api/orders` uses `SUPABASE_SERVICE_ROLE_KEY` server-side to create/reuse customers and insert orders while returning the generated reference. Public table access previously added for prototyping has been locked down by migration `supabase/migrations/20260224110000_lock_down_public_order_submission_tables.sql`. **Improved.**
+- **Input validation and bounds:** The submission logic validates required fields, basic email format, menu item ids, and positive quantities. Stage 4 adds upper bounds for customer field lengths, optional notes length, and maximum line items per request to reduce abuse via oversized payloads (`app/actions.ts`). **Improved.**
+- **Public endpoint abuse risk:** `/api/orders` is a public endpoint and still has no rate limiting, CAPTCHA, or bot detection. Service-role reduces DB permission exposure but does not prevent spam. **Deferred hardening item.**
+
+### Dependencies
+
+- **Service-role secret management:** `SUPABASE_SERVICE_ROLE_KEY` is now required for order submission. This must remain server-only and never appear in `NEXT_PUBLIC_*`. No code change needed beyond current separation, but deployment config must enforce this. **Documented.**
+- **Supabase typing workaround:** The customer submission path still uses local typed-cast helpers for Supabase query chains (`app/actions.ts`) due inference friction in this project setup. Compile-time safety gap only. **Deferred.**
+
+### Performance
+
+- **Payload handling:** `/api/orders` now rejects oversized request bodies (>32KB) before JSON parsing. This is a simple guardrail, not a full DoS defense. **Improved.**
+- **Menu lookup:** Menu item validation uses an in-memory map from local JSON (`getMenuItemMap()`), which is acceptable for the current small static menu. **No change.**
+
+### Observability
+
+- **Submission error logs:** Server-side logs already capture customer dedupe/order insert failures without rendering internal details to users. Stage 4 keeps this and adds no PII to new route-level errors. **Acceptable for current scope.**
+- **Metrics/rate tracking:** No metrics on submit volume/error rates, no request correlation IDs, no abuse dashboards. **Deferred.**
+
+### Resilience
+
+- **Request format validation:** `/api/orders` now rejects non-JSON requests (`415`) and malformed JSON (`400`) with Portuguese messages. **Improved.**
+- **Caching behavior:** `/api/orders` responses now send `Cache-Control: no-store` to avoid unintended caching of success/error payloads. **Improved.**
+- **Setup readiness UX:** The public `/` page now treats order submission as “configured” only when `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are present, reducing submit-time `503` surprises. **Improved.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Locked down public table access; added input bounds |
+| Dependencies  | Deferred  | Secret hygiene + typing workaround documented |
+| Performance   | Improved  | Request size guard added |
+| Observability | Gap       | Logs only; metrics/rate telemetry deferred |
+| Resilience    | Improved  | Content-type/JSON checks + no-store + setup readiness |
