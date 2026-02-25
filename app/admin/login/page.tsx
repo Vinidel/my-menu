@@ -12,6 +12,8 @@ const EMPTY_EMAIL_MESSAGE = "Informe o e-mail.";
 const EMPTY_PASSWORD_MESSAGE = "Informe a senha.";
 const SETUP_MESSAGE =
   "Configure as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY no .env.local para usar o login.";
+const LOGIN_SUBMIT_LABEL = "Entrar";
+const LOGIN_REDIRECTING_LABEL = "Redirecionando...";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -21,6 +23,13 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const supabase = createClient();
+
+  function navigateToAdminAfterLogin() {
+    // Navigate first, then refresh to re-run middleware once the new auth cookie/session
+    // has propagated (fresh-session first login path can race otherwise).
+    router.replace("/admin");
+    router.refresh();
+  }
 
   if (!supabase) {
     return (
@@ -65,10 +74,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    // Navigate first, then refresh to re-run middleware once the new auth cookie/session
-    // has propagated (fresh-session first login path can race otherwise).
-    router.replace("/admin");
-    router.refresh();
+    navigateToAdminAfterLogin();
   }
 
   return (
@@ -116,7 +122,7 @@ export default function AdminLoginPage() {
           </p>
         )}
         <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Redirecionando..." : "Entrar"}
+          {isSubmitting ? LOGIN_REDIRECTING_LABEL : LOGIN_SUBMIT_LABEL}
         </Button>
       </form>
 
