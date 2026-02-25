@@ -107,6 +107,9 @@ export function CustomerOrderPage({
     0
   );
   const cartCountLabel = formatItemCountLabel(totalItems);
+  const cartFeedbackState = isCartFeedbackActive ? "recent-add" : "idle";
+  const cartTabLabel = `Carrinho (${cartCountLabel})`;
+  const viewCartButtonLabel = `Ver carrinho (${cartCountLabel})`;
 
   const canSubmit = isSupabaseConfigured && !isPending;
 
@@ -332,10 +335,10 @@ export function CustomerOrderPage({
             role="tab"
             aria-selected={activeTab === "pedido"}
             onClick={() => setActiveTab("pedido")}
-            data-cart-feedback-state={isCartFeedbackActive ? "recent-add" : "idle"}
+            data-cart-feedback-state={cartFeedbackState}
             className={`${tabTriggerClass(activeTab === "pedido", isCartFeedbackActive)} w-full text-center md:w-auto md:min-w-[9.5rem]`}
           >
-            {`Carrinho (${cartCountLabel})`}
+            {cartTabLabel}
           </button>
         </div>
 
@@ -346,7 +349,7 @@ export function CustomerOrderPage({
               <button
                 type="button"
                 onClick={() => setActiveTab("pedido")}
-                data-cart-feedback-state={isCartFeedbackActive ? "recent-add" : "idle"}
+                data-cart-feedback-state={cartFeedbackState}
                 className={[
                   "text-sm text-primary underline underline-offset-4 hover:no-underline transition-colors",
                   isCartFeedbackActive
@@ -354,7 +357,7 @@ export function CustomerOrderPage({
                     : "",
                 ].join(" ")}
               >
-                {`Ver carrinho (${cartCountLabel})`}
+                {viewCartButtonLabel}
               </button>
             </div>
 
