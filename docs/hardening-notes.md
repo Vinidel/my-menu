@@ -426,3 +426,39 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | No meaningful impact |
 | Observability | Gap       | No login redirect/latency telemetry |
 | Resilience    | Improved  | Fresh-session redirect convergence + thrown-error recovery |
+
+---
+
+## Customer Menu Mobile Overflow Bugfix (`/` Cardápio) — Stage 4
+
+### Security
+
+- **UI-only layout fix:** This bugfix changes responsive layout/wrapping behavior in the customer `Cardápio` view only. No API, auth, database, or order payload behavior was changed. **No new security surface.**
+
+### Dependencies
+
+- **No new dependencies:** The fix and hardening use existing Tailwind utility classes and current React component structure only. **No change.**
+
+### Performance
+
+- **No measurable runtime cost:** The fix relies on responsive layout classes (`flex-wrap`, mobile stacking, `min-w-0`, `break-words`) rather than new JS logic. **No change.**
+
+### Observability
+
+- **No UI layout telemetry:** There is no instrumentation for client-side overflow/layout regressions. Detection remains manual QA/visual checks. **Deferred.**
+
+### Resilience / Accessibility
+
+- **Long text defensive wrapping:** Stage 4 adds `break-words` on menu card titles and descriptions to reduce the chance that unusually long unbroken item names/descriptions force horizontal overflow on narrow mobile viewports. **Improved in Stage 4.**
+- **No hidden-content workaround:** The fix continues to favor natural wrapping/stacking (`min-w-0`, `flex-wrap`, mobile column layout) instead of clipping content, preserving readability and tap targets. **Aligned with brief; no regression expected.**
+- **Recent mobile cart UI compatibility preserved:** The overflow fix coexists with the sticky `Cardápio/Carrinho` mobile tabs and Carrinho feedback UI introduced in the prior feature. **No regression observed in customer-page tests/build.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | UI-only layout fix |
+| Dependencies  | OK        | No new deps |
+| Performance   | OK        | CSS-only responsive fixes |
+| Observability | Gap       | No layout telemetry |
+| Resilience    | Improved  | Added wrapping/stacking + long-text guards for mobile overflow prevention |

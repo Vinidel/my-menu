@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CustomerOrderPage } from "./customer-order-page";
 import type { MenuItem } from "@/lib/menu";
 
@@ -131,6 +131,55 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       "data-cart-feedback-state",
       "recent-add"
     );
+  });
+
+  it("uses mobile-safe wrapping classes in card list rows (brief: mobile overflow bugfix structure)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    const cardTitle = screen.getByRole("heading", { level: 3, name: "X-Burger" });
+    const card = cardTitle.closest("article");
+    expect(card).toBeTruthy();
+    expect(card?.className).toContain("min-w-0");
+    expect(cardTitle.className).toContain("break-words");
+
+    const description = within(card as HTMLElement).getByText("Clássico");
+    expect(description.className).toContain("break-words");
+
+    const statusText = within(card as HTMLElement).getByText("Ainda não selecionado");
+    const actionRow = statusText.parentElement;
+    expect(actionRow).toBeTruthy();
+    expect(actionRow?.className).toContain("flex-col");
+    expect(actionRow?.className).toContain("sm:flex-row");
+
+    const actionButtonsRow = within(card as HTMLElement).getByRole("button", { name: "Adicionar" }).parentElement;
+    expect(actionButtonsRow).toBeTruthy();
+    expect(actionButtonsRow?.className).toContain("flex-wrap");
+  });
+
+  it("uses wrapping/min-width guards in extras editor on mobile (brief: extras editor overflow bugfix structure)", () => {
+    const menuWithExtras: MenuItem[] = [
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        category: "Hambúrgueres",
+        priceCents: 2500,
+        extras: [{ id: "bacon-extra", name: "Bacon extra", priceCents: 500 }],
+      },
+    ];
+
+    render(<CustomerOrderPage menuItems={menuWithExtras} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+
+    const editorTitle = screen.getByText("Extras para X-Burger");
+    const editorContainer = editorTitle.closest("div");
+    expect(editorContainer).toBeTruthy();
+    expect(editorContainer?.className).toContain("min-w-0");
+
+    const extraLabel = screen.getByLabelText(/Bacon extra/).closest("label");
+    expect(extraLabel).toBeTruthy();
+    expect(extraLabel?.className).toContain("min-w-0");
+    expect(extraLabel?.className).toContain("flex-wrap");
   });
 
   it("shows inline required-field messages when submitting without nome/email/telefone (brief: in-field validation)", async () => {
