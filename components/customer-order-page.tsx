@@ -51,6 +51,14 @@ const SETUP_UNAVAILABLE_MESSAGE =
 const SETUP_BANNER_MESSAGE =
   "Pedidos indisponíveis no momento. Configure o Supabase para habilitar o envio.";
 const CART_ADD_FEEDBACK_DURATION_MS = 1400;
+const MENU_CARD_CLASS =
+  "flex min-h-40 min-w-0 flex-col justify-between rounded-xl border bg-card p-4";
+const MENU_CARD_ACTION_ROW_CLASS =
+  "mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
+const MENU_CARD_ACTION_BUTTONS_ROW_CLASS =
+  "flex flex-wrap items-center gap-2 sm:justify-end";
+const MENU_EXTRAS_EDITOR_CLASS = "mt-3 min-w-0 rounded-md border border-dashed p-3";
+const MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS = "flex min-w-0 flex-wrap items-center gap-2 text-sm";
 
 export function CustomerOrderPage({
   menuItems,
@@ -398,7 +406,7 @@ export function CustomerOrderPage({
                 const isCustomizing = customizingMenuItemId === item.id;
 
                 return (
-                  <article key={item.id} className="flex min-h-40 min-w-0 flex-col justify-between rounded-xl border bg-card p-4">
+                  <article key={item.id} className={MENU_CARD_CLASS}>
                     <div className="min-w-0 space-y-2">
                       <h3 className="text-lg font-semibold">{item.name}</h3>
                       {item.description ? (
@@ -409,11 +417,11 @@ export function CustomerOrderPage({
                       ) : null}
                     </div>
 
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className={MENU_CARD_ACTION_ROW_CLASS}>
                       <span className="min-w-0 text-sm text-muted-foreground">
                         {quantity > 0 ? `${quantity} no pedido` : "Ainda não selecionado"}
                       </span>
-                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <div className={MENU_CARD_ACTION_BUTTONS_ROW_CLASS}>
                         {hasExtras ? (
                           <Button
                             type="button"
@@ -822,13 +830,13 @@ function MenuItemExtrasEditor({
   confirmLabel?: string;
 }) {
   return (
-    <div className="mt-3 min-w-0 rounded-md border border-dashed p-3">
+    <div className={MENU_EXTRAS_EDITOR_CLASS}>
       <p className="text-sm font-medium">Extras para {itemName}</p>
       <div className="mt-2 space-y-2">
         {extras.map((extra) => {
           const checked = selectedExtraIds.includes(extra.id);
           return (
-            <label key={extra.id} className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+            <label key={extra.id} className={MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS}>
               <input type="checkbox" checked={checked} onChange={() => onToggleExtra(extra.id)} />
               <span className="break-words">{extra.name}</span>
               {typeof extra.priceCents === "number" ? (
