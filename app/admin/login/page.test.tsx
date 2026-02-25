@@ -1,12 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import AdminLoginPage from "./page";
 
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 const mockRefresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, refresh: mockRefresh }),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -23,7 +24,12 @@ describe("Admin Login Page (Employee Auth)", () => {
       },
     } as unknown as ReturnType<typeof createClient>);
     mockPush.mockClear();
+    mockReplace.mockClear();
     mockRefresh.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe("when Supabase env vars are missing (brief: env vars missing)", () => {
@@ -94,6 +100,68 @@ describe("Admin Login Page (Employee Auth)", () => {
         });
       });
       expect(mockPush).not.toHaveBeenCalled();
+      expect(mockReplace).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
+    });
+
+    it("recovers if signInWithPassword throws unexpectedly (hardening: no stuck redirecting state)", async () => {
+      const signInWithPassword = vi.fn().mockRejectedValue(new Error("network down"));
+      vi.mocked(createClient).mockReturnValue({
+        auth: { signInWithPassword },
+      } as unknown as ReturnType<typeof createClient>);
+
+      render(<AdminLoginPage />);
+
+      const emailInput = screen.getAllByPlaceholderText("seu@email.com").at(-1)!;
+      const passwordInput = screen.getAllByPlaceholderText("••••••••").at(-1)!;
+      fireEvent.change(emailInput, { target: { value: "emp@burger.com" } });
+      fireEvent.change(passwordInput, { target: { value: "validpassword" } });
+      fireEvent.submit(emailInput.closest("form")!);
+
+      await waitFor(() => {
+        expect(screen.getByText("E-mail ou senha incorretos.")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
+      });
+
+      expect(mockReplace).not.toHaveBeenCalled();
+      expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it("keeps submit disabled while login request is pending (bugfix UX: prevent double submit)", async () => {
+      let resolveSignIn:
+        | ((value: { data: { user: {} | null; session: {} | null }; error: null }) => void)
+        | null = null;
+      const signInWithPassword = vi.fn(
+        () =>
+          new Promise<{ data: { user: {} | null; session: {} | null }; error: null }>((resolve) => {
+            resolveSignIn = resolve;
+          })
+      );
+
+      vi.mocked(createClient).mockReturnValue({
+        auth: { signInWithPassword },
+      } as unknown as ReturnType<typeof createClient>);
+
+      render(<AdminLoginPage />);
+
+      const emailInput = screen.getAllByPlaceholderText("seu@email.com").at(-1)!;
+      const passwordInput = screen.getAllByPlaceholderText("••••••••").at(-1)!;
+      fireEvent.change(emailInput, { target: { value: "emp@burger.com" } });
+      fireEvent.change(passwordInput, { target: { value: "validpassword" } });
+
+      fireEvent.submit(emailInput.closest("form")!);
+
+      await waitFor(() => {
+        expect(signInWithPassword).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole("button", { name: "Redirecionando..." })).toBeDisabled();
+      });
+
+      resolveSignIn?.({ data: { user: {}, session: {} }, error: null });
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/admin");
+        expect(mockRefresh).toHaveBeenCalled();
+      });
     });
 
     it("redirects to /admin after successful login (brief: happy path)", async () => {
@@ -119,10 +187,39 @@ describe("Admin Login Page (Employee Auth)", () => {
             email: "emp@burger.com",
             password: "validpassword",
           });
-          expect(mockPush).toHaveBeenCalledWith("/admin");
+          expect(mockReplace).toHaveBeenCalledWith("/admin");
           expect(mockRefresh).toHaveBeenCalled();
         },
         { timeout: 2000 }
+      );
+      expect(screen.getByRole("button", { name: "Redirecionando..." })).toBeDisabled();
+    });
+
+    it("navigates before refresh on successful login (bugfix: fresh-session redirect race)", async () => {
+      const signInWithPassword = vi.fn().mockResolvedValue({
+        data: { user: {}, session: {} },
+        error: null,
+      });
+      vi.mocked(createClient).mockReturnValue({
+        auth: { signInWithPassword },
+      } as unknown as ReturnType<typeof createClient>);
+      render(<AdminLoginPage />);
+      const emailInputs = screen.getAllByPlaceholderText("seu@email.com");
+      const passwordInputs = screen.getAllByPlaceholderText("••••••••");
+      const emailInput = emailInputs[emailInputs.length - 1];
+      const passwordInput = passwordInputs[passwordInputs.length - 1];
+      fireEvent.change(emailInput, { target: { value: "emp@burger.com" } });
+      fireEvent.change(passwordInput, { target: { value: "validpassword" } });
+
+      fireEvent.submit(emailInput.closest("form")!);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/admin");
+        expect(mockRefresh).toHaveBeenCalled();
+      });
+
+      expect(mockReplace.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRefresh.mock.invocationCallOrder[0]
       );
     });
   });
