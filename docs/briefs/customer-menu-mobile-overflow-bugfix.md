@@ -1,6 +1,6 @@
 # Feature Brief — Fix Mobile Overflow of Menu Items on `/` (Cardápio)
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-02-25
 Author: Orchestrator Agent
 
@@ -130,4 +130,3 @@ Implementer must lock and document:
   - e.g. container padding adjustment, min-width reset (`min-w-0`), grid/card width constraints, flex wrapping corrections
 - **Test/verification strategy**
   - how the fix is validated given jsdom limits for real layout measurement
-
