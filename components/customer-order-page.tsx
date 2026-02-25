@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { MenuExtra, MenuItem } from "@/lib/menu";
 import {
   PAYMENT_METHOD_OPTIONS,
@@ -50,6 +50,7 @@ const SETUP_UNAVAILABLE_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 const SETUP_BANNER_MESSAGE =
   "Pedidos indisponíveis no momento. Configure o Supabase para habilitar o envio.";
+const CART_ADD_FEEDBACK_DURATION_MS = 1400;
 
 export function CustomerOrderPage({
   menuItems,
@@ -71,6 +72,10 @@ export function CustomerOrderPage({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isPending, startTransition] = useTransition();
+  const [isCartFeedbackActive, setIsCartFeedbackActive] = useState(false);
+  const [isPageScrolled, setIsPageScrolled] = useState(false);
+  const [cartFeedbackAnnouncementCount, setCartFeedbackAnnouncementCount] = useState(0);
+  const cartFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedEntries = selectedLines
     .map((line) => {
@@ -102,12 +107,33 @@ export function CustomerOrderPage({
     (acc, entry) => acc + (entry.item.priceCents ?? 0) * entry.quantity,
     0
   );
+  const cartCountLabel = formatItemCountLabel(totalItems);
+  const cartFeedbackState = isCartFeedbackActive ? "recent-add" : "idle";
+  const cartTabLabel = `Carrinho (${cartCountLabel})`;
+  const viewCartButtonLabel = `Ver carrinho (${cartCountLabel})`;
+  const cartFeedbackAnnouncement =
+    cartFeedbackAnnouncementCount > 0
+      ? `Item adicionado ao carrinho. ${viewCartButtonLabel}.`
+      : "";
 
   const canSubmit = isSupabaseConfigured && !isPending;
 
   function addItem(menuItemId: string, extraIds: string[] = []) {
     setFeedback(null);
     setSelectedLines((current) => addOrMergeOrderLine(current, menuItemId, 1, extraIds));
+    triggerCartFeedback();
+  }
+
+  function triggerCartFeedback() {
+    if (cartFeedbackTimeoutRef.current) {
+      clearTimeout(cartFeedbackTimeoutRef.current);
+    }
+    setCartFeedbackAnnouncementCount((current) => current + 1);
+    setIsCartFeedbackActive(true);
+    cartFeedbackTimeoutRef.current = setTimeout(() => {
+      setIsCartFeedbackActive(false);
+      cartFeedbackTimeoutRef.current = null;
+    }, CART_ADD_FEEDBACK_DURATION_MS);
   }
 
   function changeLineQuantity(lineId: string, nextQuantity: number) {
@@ -149,6 +175,25 @@ export function CustomerOrderPage({
       return { ...current, [field]: undefined };
     });
   }
+
+  useEffect(() => {
+    return () => {
+      if (cartFeedbackTimeoutRef.current) {
+        clearTimeout(cartFeedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateScrollState = () => {
+      const nextIsScrolled = window.scrollY > 8;
+      setIsPageScrolled((current) => (current === nextIsScrolled ? current : nextIsScrolled));
+    };
+
+    updateScrollState();
+    window.addEventListener("scroll", updateScrollState, { passive: true });
+    return () => window.removeEventListener("scroll", updateScrollState);
+  }, []);
 
   function validateRequiredFields(): FieldErrors {
     const nextErrors: FieldErrors = {};
@@ -275,13 +320,23 @@ export function CustomerOrderPage({
       </header>
 
       <section className="rounded-xl border bg-background p-5">
-        <div role="tablist" aria-label="Navegação do pedido" className="mb-5 flex flex-wrap gap-2">
+        <p aria-live="polite" aria-atomic="true" className="sr-only">
+          {cartFeedbackAnnouncement}
+        </p>
+        <div
+          role="tablist"
+          aria-label="Navegação do pedido"
+          className={[
+            "sticky top-2 z-20 mb-5 grid grid-cols-2 gap-2 rounded-lg bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:top-3 md:static md:top-auto md:z-auto md:flex md:flex-wrap md:justify-start md:bg-transparent md:p-0 md:backdrop-blur-none",
+            isPageScrolled ? "shadow-sm ring-1 ring-border/50" : "",
+          ].join(" ")}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "cardapio"}
             onClick={() => setActiveTab("cardapio")}
-            className={tabTriggerClass(activeTab === "cardapio")}
+            className={`${tabTriggerClass(activeTab === "cardapio")} w-full text-center md:w-auto md:min-w-[9.5rem]`}
           >
             Cardápio
           </button>
@@ -290,9 +345,10 @@ export function CustomerOrderPage({
             role="tab"
             aria-selected={activeTab === "pedido"}
             onClick={() => setActiveTab("pedido")}
-            className={tabTriggerClass(activeTab === "pedido")}
+            data-cart-feedback-state={cartFeedbackState}
+            className={`${tabTriggerClass(activeTab === "pedido", isCartFeedbackActive)} w-full text-center md:w-auto md:min-w-[9.5rem]`}
           >
-            Seu pedido
+            {cartTabLabel}
           </button>
         </div>
 
@@ -303,9 +359,15 @@ export function CustomerOrderPage({
               <button
                 type="button"
                 onClick={() => setActiveTab("pedido")}
-                className="text-sm text-primary underline underline-offset-4 hover:no-underline"
+                data-cart-feedback-state={cartFeedbackState}
+                className={[
+                  "text-sm text-primary underline underline-offset-4 hover:no-underline transition-colors",
+                  isCartFeedbackActive
+                    ? "font-semibold text-foreground motion-safe:animate-pulse"
+                    : "",
+                ].join(" ")}
               >
-                {totalItems} itens
+                {viewCartButtonLabel}
               </button>
             </div>
 
@@ -449,14 +511,20 @@ function buildMenuCategories(menuItems: MenuItem[]): string[] {
   return Array.from(categories);
 }
 
-function tabTriggerClass(isActive: boolean): string {
+function tabTriggerClass(isActive: boolean, isHighlighted = false): string {
   return [
     "rounded-full border px-3 py-1.5 text-sm transition-colors",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+    isHighlighted ? "ring-2 ring-amber-300 ring-offset-1 motion-safe:animate-pulse" : "",
     isActive
       ? "border-primary bg-primary text-primary-foreground"
       : "border-border bg-background text-foreground hover:bg-accent",
   ].join(" ");
+}
+
+function formatItemCountLabel(totalItems: number): string {
+  const normalizedCount = Math.max(0, Math.trunc(totalItems));
+  return normalizedCount === 1 ? "1 item" : `${normalizedCount} itens`;
 }
 
 type OrderSummaryTabProps = {
@@ -516,14 +584,16 @@ function OrderSummaryTab({
   onCancelEditingLineExtras,
   onBackToMenu,
 }: OrderSummaryTabProps) {
+  const cartCountLabel = formatItemCountLabel(totalItems);
+
   return (
     <section aria-labelledby="checkout-heading" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 id="checkout-heading" className="text-xl font-semibold">
-          Seu pedido
+          Carrinho
         </h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{totalItems} itens</span>
+          <span className="text-sm text-muted-foreground">{cartCountLabel}</span>
           <button
             type="button"
             onClick={onBackToMenu}
