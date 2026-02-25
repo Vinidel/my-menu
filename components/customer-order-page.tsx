@@ -408,9 +408,9 @@ export function CustomerOrderPage({
                 return (
                   <article key={item.id} className={MENU_CARD_CLASS}>
                     <div className="min-w-0 space-y-2">
-                      <h3 className="text-lg font-semibold">{item.name}</h3>
+                      <h3 className="break-words text-lg font-semibold">{item.name}</h3>
                       {item.description ? (
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
+                        <p className="break-words text-sm text-muted-foreground">{item.description}</p>
                       ) : null}
                       {typeof item.priceCents === "number" ? (
                         <p className="text-sm font-medium">{formatCurrency(item.priceCents)}</p>

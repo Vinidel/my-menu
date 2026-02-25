@@ -140,6 +140,10 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     const card = cardTitle.closest("article");
     expect(card).toBeTruthy();
     expect(card?.className).toContain("min-w-0");
+    expect(cardTitle.className).toContain("break-words");
+
+    const description = within(card as HTMLElement).getByText("Clássico");
+    expect(description.className).toContain("break-words");
 
     const statusText = within(card as HTMLElement).getByText("Ainda não selecionado");
     const actionRow = statusText.parentElement;
