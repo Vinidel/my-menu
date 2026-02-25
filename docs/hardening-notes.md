@@ -352,3 +352,40 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | No meaningful impact |
 | Observability | Gap       | No payment-method telemetry |
 | Resilience    | Improved  | Length-capped normalization fails safely on oversized values |
+
+---
+
+## Customer Cart Visibility / Feedback (`Carrinho`) — Stage 4
+
+### Security
+
+- **UI-only feature:** This feature changes customer-side cart discoverability/feedback on `/` only. No API routes, DB schema, or order payload contracts were modified. **No security surface increase in Stage 4.**
+
+### Dependencies
+
+- **No new dependencies:** Sticky mobile navigation and cart feedback behavior continue using local React state/effects and Tailwind utility classes only. **No change.**
+
+### Performance
+
+- **Scroll listener guard:** The mobile sticky tab bar uses a `scroll` listener to add a subtle shadow when the page is scrolled. Stage 4 hardens this by avoiding redundant state updates when the scrolled/not-scrolled boolean has not changed. This keeps the listener lightweight on long menu pages. **Improved in Stage 4.**
+- **Feedback timer scope:** The cart feedback timer remains a short local UI timer (~1.4s) and is cleared on unmount, so it does not accumulate background timers across page transitions. **No change from Stage 1 behavior; verified.**
+
+### Observability
+
+- **No interaction telemetry:** There are still no metrics/logs for how often customers use the `Carrinho` tab or how often add-feedback is triggered. This is acceptable for current scope and should be handled in a separate analytics/telemetry feature if needed. **Deferred.**
+
+### Resilience / Accessibility
+
+- **Screen-reader feedback parity:** Stage 4 adds a polite `aria-live` announcement when an item is added to the cart (`Item adicionado ao carrinho. Ver carrinho (...)`). This ensures non-visual users receive equivalent feedback, since the primary Stage 1 cue is visual highlighting on the `Carrinho` entry point. **Improved in Stage 4.**
+- **Reduced-motion compatibility preserved:** The visual feedback still uses color/ring emphasis and only applies pulse animation behind `motion-safe`, so users with reduced-motion preferences retain a clear non-motion cue. **No change; behavior remains acceptable.**
+- **Mobile sticky visibility:** The main `Cardápio` / `Carrinho` tab bar remains sticky on mobile, improving discoverability of the feedback while scrolling large menus. Stage 4 does not alter this behavior. **No regression expected.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | UI-only changes; no new API/DB surface |
+| Dependencies  | OK        | No new deps |
+| Performance   | Improved  | Scroll-state updates now avoid redundant setState calls |
+| Observability | Gap       | No cart UX telemetry |
+| Resilience    | Improved  | Added screen-reader live announcement for add-to-cart feedback |

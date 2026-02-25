@@ -54,6 +54,9 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       "data-cart-feedback-state",
       "recent-add"
     );
+    expect(
+      screen.getByText("Item adicionado ao carrinho. Ver carrinho (1 item).")
+    ).toBeInTheDocument();
   });
 
   it("keeps the customer on Cardápio after adding an item (brief: no forced navigation)", () => {

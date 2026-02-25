@@ -74,6 +74,7 @@ export function CustomerOrderPage({
   const [isPending, startTransition] = useTransition();
   const [isCartFeedbackActive, setIsCartFeedbackActive] = useState(false);
   const [isPageScrolled, setIsPageScrolled] = useState(false);
+  const [cartFeedbackAnnouncementCount, setCartFeedbackAnnouncementCount] = useState(0);
   const cartFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedEntries = selectedLines
@@ -110,6 +111,10 @@ export function CustomerOrderPage({
   const cartFeedbackState = isCartFeedbackActive ? "recent-add" : "idle";
   const cartTabLabel = `Carrinho (${cartCountLabel})`;
   const viewCartButtonLabel = `Ver carrinho (${cartCountLabel})`;
+  const cartFeedbackAnnouncement =
+    cartFeedbackAnnouncementCount > 0
+      ? `Item adicionado ao carrinho. ${viewCartButtonLabel}.`
+      : "";
 
   const canSubmit = isSupabaseConfigured && !isPending;
 
@@ -123,6 +128,7 @@ export function CustomerOrderPage({
     if (cartFeedbackTimeoutRef.current) {
       clearTimeout(cartFeedbackTimeoutRef.current);
     }
+    setCartFeedbackAnnouncementCount((current) => current + 1);
     setIsCartFeedbackActive(true);
     cartFeedbackTimeoutRef.current = setTimeout(() => {
       setIsCartFeedbackActive(false);
@@ -180,7 +186,8 @@ export function CustomerOrderPage({
 
   useEffect(() => {
     const updateScrollState = () => {
-      setIsPageScrolled(window.scrollY > 8);
+      const nextIsScrolled = window.scrollY > 8;
+      setIsPageScrolled((current) => (current === nextIsScrolled ? current : nextIsScrolled));
     };
 
     updateScrollState();
@@ -313,6 +320,9 @@ export function CustomerOrderPage({
       </header>
 
       <section className="rounded-xl border bg-background p-5">
+        <p aria-live="polite" aria-atomic="true" className="sr-only">
+          {cartFeedbackAnnouncement}
+        </p>
         <div
           role="tablist"
           aria-label="Navegação do pedido"
