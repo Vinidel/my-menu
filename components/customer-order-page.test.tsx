@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CustomerOrderPage } from "./customer-order-page";
 import type { MenuItem } from "@/lib/menu";
 
@@ -32,17 +32,109 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
-    expect(screen.getByRole("heading", { level: 2, name: "Seu pedido" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Carrinho" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voltar ao cardápio" })).toBeInTheDocument();
+  });
+
+  it("highlights the cart entry point after clicking Adicionar (brief: cart feedback reaction)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    const cartTab = screen.getByRole("tab", { name: "Carrinho (0 itens)" });
+    expect(cartTab).toHaveAttribute("data-cart-feedback-state", "idle");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+
+    expect(screen.getByRole("tab", { name: "Carrinho (1 item)" })).toHaveAttribute(
+      "data-cart-feedback-state",
+      "recent-add"
+    );
+    expect(screen.getByRole("button", { name: "Ver carrinho (1 item)" })).toHaveAttribute(
+      "data-cart-feedback-state",
+      "recent-add"
+    );
+  });
+
+  it("keeps the customer on Cardápio after adding an item (brief: no forced navigation)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+
+    expect(screen.getByRole("heading", { level: 2, name: "Itens do cardápio" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Carrinho" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Carrinho (1 item)" })).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+  });
+
+  it("re-triggers cart feedback when adding items in sequence (brief: repeatable feedback)", () => {
+    vi.useFakeTimers();
+    try {
+      render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+      expect(screen.getByRole("tab", { name: "Carrinho (1 item)" })).toHaveAttribute(
+        "data-cart-feedback-state",
+        "recent-add"
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+
+      expect(screen.getByRole("tab", { name: "Carrinho (1 item)" })).toHaveAttribute(
+        "data-cart-feedback-state",
+        "idle"
+      );
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[1]);
+
+      expect(screen.getByRole("tab", { name: "Carrinho (2 itens)" })).toHaveAttribute(
+        "data-cart-feedback-state",
+        "recent-add"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies the same cart feedback when adding a customized item (brief: customized add parity)", () => {
+    const menuWithExtras: MenuItem[] = [
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        category: "Hambúrgueres",
+        priceCents: 2500,
+        extras: [
+          { id: "bacon-extra", name: "Bacon extra", priceCents: 500 },
+          { id: "queijo-extra", name: "Queijo extra", priceCents: 300 },
+        ],
+      },
+    ];
+
+    render(<CustomerOrderPage menuItems={menuWithExtras} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+    fireEvent.click(screen.getByLabelText(/Bacon extra/));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+
+    expect(screen.getByRole("tab", { name: "Carrinho (1 item)" })).toHaveAttribute(
+      "data-cart-feedback-state",
+      "recent-add"
+    );
+    expect(screen.getByRole("button", { name: "Ver carrinho (1 item)" })).toHaveAttribute(
+      "data-cart-feedback-state",
+      "recent-add"
+    );
   });
 
   it("shows inline required-field messages when submitting without nome/email/telefone (brief: in-field validation)", async () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
 
     expect(screen.getByText("Informe seu nome.")).toBeInTheDocument();
@@ -60,7 +152,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     expect(screen.getByText("Modo de pagamento")).toBeInTheDocument();
     expect(screen.getByLabelText("Dinheiro")).toBeInTheDocument();
@@ -74,7 +166,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
 
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Seu pedido" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Carrinho (0 itens)" }));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     expect(
       screen.getByText("Selecione pelo menos um item para enviar seu pedido.")
@@ -86,7 +178,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     expect(screen.getByText("X-Burger")).toBeInTheDocument();
 
@@ -112,7 +204,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
     fireEvent.change(screen.getByLabelText("E-mail"), {
@@ -160,7 +252,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
     fireEvent.change(screen.getByLabelText("E-mail"), {
       target: { value: "ana@example.com" },
@@ -182,7 +274,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByLabelText("E-mail")).toHaveValue("ana@example.com");
     expect(screen.getByLabelText("Telefone")).toHaveValue("11999999999");
     expect(screen.getByText("X-Burger")).toBeInTheDocument();
-    expect(screen.getByText("1 itens")).toBeInTheDocument();
+    expect(screen.getByText("1 item")).toBeInTheDocument();
   });
 
   it("submits customized item extras in the /api/orders payload (brief: extras payload shape)", async () => {
@@ -214,7 +306,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByLabelText(/Bacon extra/));
     fireEvent.click(screen.getByLabelText(/Queijo extra/));
     fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
-    fireEvent.click(screen.getByRole("button", { name: "1 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
     fireEvent.change(screen.getByLabelText("E-mail"), {
@@ -268,7 +360,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByLabelText(/Queijo extra/));
     fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "2 itens" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (2 itens)" }));
 
     expect(screen.getAllByText("X-Burger")).toHaveLength(2);
 
