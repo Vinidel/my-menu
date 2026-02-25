@@ -398,8 +398,8 @@ export function CustomerOrderPage({
                 const isCustomizing = customizingMenuItemId === item.id;
 
                 return (
-                  <article key={item.id} className="flex min-h-40 flex-col justify-between rounded-xl border bg-card p-4">
-                    <div className="space-y-2">
+                  <article key={item.id} className="flex min-h-40 min-w-0 flex-col justify-between rounded-xl border bg-card p-4">
+                    <div className="min-w-0 space-y-2">
                       <h3 className="text-lg font-semibold">{item.name}</h3>
                       {item.description ? (
                         <p className="text-sm text-muted-foreground">{item.description}</p>
@@ -409,11 +409,11 @@ export function CustomerOrderPage({
                       ) : null}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <span className="text-sm text-muted-foreground">
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="min-w-0 text-sm text-muted-foreground">
                         {quantity > 0 ? `${quantity} no pedido` : "Ainda não selecionado"}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                         {hasExtras ? (
                           <Button
                             type="button"
@@ -822,15 +822,15 @@ function MenuItemExtrasEditor({
   confirmLabel?: string;
 }) {
   return (
-    <div className="mt-3 rounded-md border border-dashed p-3">
+    <div className="mt-3 min-w-0 rounded-md border border-dashed p-3">
       <p className="text-sm font-medium">Extras para {itemName}</p>
       <div className="mt-2 space-y-2">
         {extras.map((extra) => {
           const checked = selectedExtraIds.includes(extra.id);
           return (
-            <label key={extra.id} className="flex items-center gap-2 text-sm">
+            <label key={extra.id} className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
               <input type="checkbox" checked={checked} onChange={() => onToggleExtra(extra.id)} />
-              <span>{extra.name}</span>
+              <span className="break-words">{extra.name}</span>
               {typeof extra.priceCents === "number" ? (
                 <span className="text-xs text-muted-foreground">(+{formatCurrency(extra.priceCents)})</span>
               ) : null}
