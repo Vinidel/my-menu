@@ -1,6 +1,6 @@
 # Feature Brief — Carrinho Mais Explícito (Feedback ao Adicionar)
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-02-25
 Author: Orchestrator Agent
 
