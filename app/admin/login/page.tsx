@@ -58,15 +58,17 @@ export default function AdminLoginPage() {
       email: trimmedEmail,
       password,
     });
-    setIsSubmitting(false);
 
     if (signInError) {
+      setIsSubmitting(false);
       setError(AUTH_ERROR_MESSAGE);
       return;
     }
 
+    // Navigate first, then refresh to re-run middleware once the new auth cookie/session
+    // has propagated (fresh-session first login path can race otherwise).
+    router.replace("/admin");
     router.refresh();
-    router.push("/admin");
   }
 
   return (
@@ -114,7 +116,7 @@ export default function AdminLoginPage() {
           </p>
         )}
         <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Entrando…" : "Entrar"}
+          {isSubmitting ? "Redirecionando..." : "Entrar"}
         </Button>
       </form>
 
