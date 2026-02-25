@@ -389,3 +389,40 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | Improved  | Scroll-state updates now avoid redundant setState calls |
 | Observability | Gap       | No cart UX telemetry |
 | Resilience    | Improved  | Added screen-reader live announcement for add-to-cart feedback |
+
+---
+
+## Admin Login Redirect Bugfix (`/admin/login` -> `/admin`) — Stage 4
+
+### Security
+
+- **Auth scope unchanged:** The bugfix does not change Supabase auth provider usage, credentials handling, or middleware route protection rules. `/admin` remains middleware-protected and `/admin/login` remains the public login entry point. **No security surface expansion.**
+- **No redirect-on-failure regression:** Redirect still occurs only after a successful `signInWithPassword` result. Invalid credentials and unexpected auth failures remain on `/admin/login`. **Preserved; covered by tests.**
+
+### Dependencies
+
+- **No new dependencies:** The fix and hardening stay within Next.js App Router + Supabase client usage already present in the app. **No change.**
+
+### Performance
+
+- **Negligible impact:** Reordering login navigation (`replace` then `refresh`) and keeping the disabled submit state through redirect introduces no meaningful performance cost. **No change.**
+
+### Observability
+
+- **No login telemetry yet:** There is still no structured logging/metrics for login success timing, redirect convergence, or first-login failures. This would help diagnose future auth timing issues but remains out of scope here. **Deferred.**
+
+### Resilience
+
+- **Fresh-session redirect convergence:** The Stage 1 bugfix uses `router.replace("/admin")` followed by `router.refresh()` to better tolerate session cookie propagation timing on first login in a fresh browser session. This reduces cases where users appear stuck on `/admin/login` until manual refresh. **Improved in Stage 1; covered by tests.**
+- **No stuck loading state on thrown auth exceptions:** Stage 4 adds a `try/catch` around `signInWithPassword(...)` so unexpected thrown errors (e.g., network/runtime exceptions) reset the submit state and show the existing generic auth error instead of leaving the button stuck in `Redirecionando...`. **Improved in Stage 4.**
+- **Double-submit confusion reduced:** The login button remains disabled with `Redirecionando...` after successful auth while navigation completes, reducing repeated clicks during redirect timing gaps. **Improved (Stage 1 UX fix), retained in Stage 4.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | Auth protections unchanged; no redirect on failure |
+| Dependencies  | OK        | No new deps |
+| Performance   | OK        | No meaningful impact |
+| Observability | Gap       | No login redirect/latency telemetry |
+| Resilience    | Improved  | Fresh-session redirect convergence + thrown-error recovery |

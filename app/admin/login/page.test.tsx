@@ -104,6 +104,29 @@ describe("Admin Login Page (Employee Auth)", () => {
       expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
     });
 
+    it("recovers if signInWithPassword throws unexpectedly (hardening: no stuck redirecting state)", async () => {
+      const signInWithPassword = vi.fn().mockRejectedValue(new Error("network down"));
+      vi.mocked(createClient).mockReturnValue({
+        auth: { signInWithPassword },
+      } as unknown as ReturnType<typeof createClient>);
+
+      render(<AdminLoginPage />);
+
+      const emailInput = screen.getAllByPlaceholderText("seu@email.com").at(-1)!;
+      const passwordInput = screen.getAllByPlaceholderText("••••••••").at(-1)!;
+      fireEvent.change(emailInput, { target: { value: "emp@burger.com" } });
+      fireEvent.change(passwordInput, { target: { value: "validpassword" } });
+      fireEvent.submit(emailInput.closest("form")!);
+
+      await waitFor(() => {
+        expect(screen.getByText("E-mail ou senha incorretos.")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
+      });
+
+      expect(mockReplace).not.toHaveBeenCalled();
+      expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
     it("keeps submit disabled while login request is pending (bugfix UX: prevent double submit)", async () => {
       let resolveSignIn:
         | ((value: { data: { user: {} | null; session: {} | null }; error: null }) => void)

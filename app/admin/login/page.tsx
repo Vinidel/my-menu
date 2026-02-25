@@ -63,18 +63,23 @@ export default function AdminLoginPage() {
     }
 
     setIsSubmitting(true);
-    const { error: signInError } = await client.auth.signInWithPassword({
-      email: trimmedEmail,
-      password,
-    });
+    try {
+      const { error: signInError } = await client.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
 
-    if (signInError) {
+      if (signInError) {
+        setIsSubmitting(false);
+        setError(AUTH_ERROR_MESSAGE);
+        return;
+      }
+
+      navigateToAdminAfterLogin();
+    } catch {
       setIsSubmitting(false);
       setError(AUTH_ERROR_MESSAGE);
-      return;
     }
-
-    navigateToAdminAfterLogin();
   }
 
   return (
