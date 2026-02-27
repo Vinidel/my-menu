@@ -12,10 +12,13 @@ import { Input } from "@/components/ui/input";
 type CustomerOrderPageProps = {
   menuItems: MenuItem[];
   isSupabaseConfigured: boolean;
+  isCaptchaRequired?: boolean;
+  turnstileSiteKey?: string | null;
 };
 
 type FeedbackState =
   | { type: "success"; message: string }
+  | { type: "info"; message: string }
   | { type: "error"; message: string }
   | null;
 
@@ -50,6 +53,11 @@ const SETUP_UNAVAILABLE_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 const SETUP_BANNER_MESSAGE =
   "Pedidos indisponíveis no momento. Configure o Supabase para habilitar o envio.";
+const CAPTCHA_SETUP_BANNER_MESSAGE =
+  "Verificação de segurança indisponível no momento. Recarregue a página ou tente novamente em instantes.";
+const CAPTCHA_VALIDATION_MESSAGE =
+  "Falha na verificação de segurança. Atualize a página e tente novamente.";
+const CAPTCHA_LOADING_MESSAGE = "Verificando segurança...";
 const CART_ADD_FEEDBACK_DURATION_MS = 1400;
 const MENU_CARD_CLASS =
   "flex min-h-40 min-w-0 flex-col justify-between rounded-xl border bg-card p-4";
@@ -59,10 +67,36 @@ const MENU_CARD_ACTION_BUTTONS_ROW_CLASS =
   "flex flex-wrap items-center gap-2 sm:justify-end";
 const MENU_EXTRAS_EDITOR_CLASS = "mt-3 min-w-0 rounded-md border border-dashed p-3";
 const MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS = "flex min-w-0 flex-wrap items-center gap-2 text-sm";
+const TURNSTILE_SCRIPT_ID = "cloudflare-turnstile-script";
+const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      size: "invisible";
+      callback: (token: string) => void;
+      "error-callback": () => void;
+      "expired-callback": () => void;
+    }
+  ) => string;
+  execute: (widgetId: string) => void;
+  reset: (widgetId: string) => void;
+  remove: (widgetId: string) => void;
+};
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
 
 export function CustomerOrderPage({
   menuItems,
   isSupabaseConfigured,
+  isCaptchaRequired = false,
+  turnstileSiteKey = null,
 }: CustomerOrderPageProps) {
   const menuCategories = buildMenuCategories(menuItems);
   const [selectedLines, setSelectedLines] = useState<SelectedOrderLine[]>([]);
@@ -80,10 +114,15 @@ export function CustomerOrderPage({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isPending, startTransition] = useTransition();
+  const [isCaptchaPending, setIsCaptchaPending] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isCartFeedbackActive, setIsCartFeedbackActive] = useState(false);
   const [isPageScrolled, setIsPageScrolled] = useState(false);
   const [cartFeedbackAnnouncementCount, setCartFeedbackAnnouncementCount] = useState(0);
   const cartFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
+  const pendingSubmitPayloadRef = useRef<SubmitOrderRequestInput | null>(null);
 
   const selectedEntries = selectedLines
     .map((line) => {
@@ -124,7 +163,8 @@ export function CustomerOrderPage({
       ? `Item adicionado ao carrinho. ${viewCartButtonLabel}.`
       : "";
 
-  const canSubmit = isSupabaseConfigured && !isPending;
+  const isCaptchaConfigured = !isCaptchaRequired || Boolean(turnstileSiteKey);
+  const canSubmit = isSupabaseConfigured && isCaptchaConfigured && !isPending && !isCaptchaPending;
 
   function addItem(menuItemId: string, extraIds: string[] = []) {
     setFeedback(null);
@@ -203,6 +243,58 @@ export function CustomerOrderPage({
     return () => window.removeEventListener("scroll", updateScrollState);
   }, []);
 
+  useEffect(() => {
+    if (!isCaptchaRequired || !turnstileSiteKey) return;
+    if (typeof window === "undefined") return;
+    const container = turnstileContainerRef.current;
+    if (!container) return;
+
+    let disposed = false;
+
+    const renderWidget = () => {
+      if (disposed) return;
+      if (!window.turnstile || turnstileWidgetIdRef.current) return;
+      turnstileWidgetIdRef.current = window.turnstile.render(container, {
+        sitekey: turnstileSiteKey,
+        size: "invisible",
+        callback: handleTurnstileSuccess,
+        "error-callback": handleTurnstileFailure,
+        "expired-callback": handleTurnstileExpired,
+      });
+    };
+
+    const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID) as
+      | HTMLScriptElement
+      | null;
+
+    if (window.turnstile) {
+      renderWidget();
+    } else if (existingScript) {
+      existingScript.addEventListener("load", renderWidget);
+      existingScript.addEventListener("error", handleTurnstileFailure);
+    } else {
+      const script = document.createElement("script");
+      script.id = TURNSTILE_SCRIPT_ID;
+      script.src = TURNSTILE_SCRIPT_SRC;
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", renderWidget);
+      script.addEventListener("error", handleTurnstileFailure);
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      disposed = true;
+      const script = document.getElementById(TURNSTILE_SCRIPT_ID) as HTMLScriptElement | null;
+      script?.removeEventListener("load", renderWidget);
+      script?.removeEventListener("error", handleTurnstileFailure);
+      if (window.turnstile && turnstileWidgetIdRef.current) {
+        window.turnstile.remove(turnstileWidgetIdRef.current);
+        turnstileWidgetIdRef.current = null;
+      }
+    };
+  }, [isCaptchaRequired, turnstileSiteKey]);
+
   function validateRequiredFields(): FieldErrors {
     const nextErrors: FieldErrors = {};
 
@@ -280,32 +372,100 @@ export function CustomerOrderPage({
       return;
     }
 
+    if (!isCaptchaConfigured) {
+      setFeedback(errorFeedback(CAPTCHA_SETUP_BANNER_MESSAGE));
+      return;
+    }
+
     if (!paymentMethod) {
       setFeedback(errorFeedback(REQUIRED_FIELDS_MESSAGE));
       return;
     }
     const selectedPaymentMethod = paymentMethod;
+    const payload: SubmitOrderRequestInput = {
+      customerName,
+      customerEmail,
+      customerPhone,
+      paymentMethod: selectedPaymentMethod,
+      notes: customerNotes,
+      items: selectedEntries.map(({ item, quantity, extraIds }) => ({
+        menuItemId: item.id,
+        quantity,
+        ...(extraIds.length > 0 ? { extraIds } : {}),
+      })),
+    };
 
+    if (isCaptchaRequired) {
+      pendingSubmitPayloadRef.current = payload;
+      requestTurnstileToken();
+      return;
+    }
+
+    submitOrder(payload);
+  }
+
+  function requestTurnstileToken() {
+    const widgetId = turnstileWidgetIdRef.current;
+    if (!widgetId || !window.turnstile) {
+      setFeedback(errorFeedback(CAPTCHA_SETUP_BANNER_MESSAGE));
+      pendingSubmitPayloadRef.current = null;
+      return;
+    }
+
+    setIsCaptchaPending(true);
+    setFeedback(infoFeedback(CAPTCHA_LOADING_MESSAGE));
+    setTurnstileToken(null);
+    window.turnstile.execute(widgetId);
+  }
+
+  function resetTurnstileWidget() {
+    const widgetId = turnstileWidgetIdRef.current;
+    if (!widgetId || !window.turnstile) return;
+    window.turnstile.reset(widgetId);
+  }
+
+  function handleTurnstileSuccess(token: string) {
+    setIsCaptchaPending(false);
+    setTurnstileToken(token);
+
+    const pendingPayload = pendingSubmitPayloadRef.current;
+    if (!pendingPayload) return;
+    pendingSubmitPayloadRef.current = null;
+    submitOrder(pendingPayload, token);
+  }
+
+  function handleTurnstileFailure() {
+    setIsCaptchaPending(false);
+    pendingSubmitPayloadRef.current = null;
+    setTurnstileToken(null);
+    setFeedback(errorFeedback(CAPTCHA_VALIDATION_MESSAGE));
+  }
+
+  function handleTurnstileExpired() {
+    setTurnstileToken(null);
+  }
+
+  function submitOrder(payload: SubmitOrderRequestInput, token?: string) {
     startTransition(async () => {
       const result = await submitOrderRequest({
-        customerName,
-        customerEmail,
-        customerPhone,
-        paymentMethod: selectedPaymentMethod,
-        notes: customerNotes,
-        items: selectedEntries.map(({ item, quantity, extraIds }) => ({
-          menuItemId: item.id,
-          quantity,
-          ...(extraIds.length > 0 ? { extraIds } : {}),
-        })),
+        ...payload,
+        ...(isCaptchaRequired ? { turnstileToken: token ?? turnstileToken ?? "" } : {}),
       });
 
       if (!result.ok) {
         setFeedback(errorFeedback(result.message));
+        if (isCaptchaRequired) {
+          setTurnstileToken(null);
+          resetTurnstileWidget();
+        }
         return;
       }
 
       resetFormAndCart();
+      if (isCaptchaRequired) {
+        setTurnstileToken(null);
+        resetTurnstileWidget();
+      }
       setFeedback(successFeedback(`Pedido ${result.orderReference} enviado com sucesso! Entraremos em contato em breve para confirmar seu pedido.`));
       setActiveTab("pedido");
     });
@@ -324,10 +484,17 @@ export function CustomerOrderPage({
           <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             {SETUP_BANNER_MESSAGE}
           </p>
+        ) : isCaptchaRequired && !isCaptchaConfigured ? (
+          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {CAPTCHA_SETUP_BANNER_MESSAGE}
+          </p>
         ) : null}
       </header>
 
       <section className="rounded-xl border bg-background p-5">
+        {isCaptchaRequired ? (
+          <div ref={turnstileContainerRef} className="sr-only" aria-hidden="true" />
+        ) : null}
         <p aria-live="polite" aria-atomic="true" className="sr-only">
           {cartFeedbackAnnouncement}
         </p>
@@ -797,6 +964,8 @@ function OrderSummaryTab({
             className={
               feedback.type === "success"
                 ? "rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+                : feedback.type === "info"
+                  ? "rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900"
                 : "rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900"
             }
           >
@@ -862,6 +1031,10 @@ function successFeedback(message: string): FeedbackState {
   return { type: "success", message };
 }
 
+function infoFeedback(message: string): FeedbackState {
+  return { type: "info", message };
+}
+
 function errorFeedback(message: string): FeedbackState {
   return { type: "error", message };
 }
@@ -878,6 +1051,7 @@ type SubmitOrderRequestInput = {
   customerEmail: string;
   customerPhone: string;
   paymentMethod: PaymentMethod;
+  turnstileToken?: string;
   notes?: string;
   items: Array<{
     menuItemId: string;

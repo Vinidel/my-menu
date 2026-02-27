@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/app/actions", () => ({
   submitCustomerOrderWithClient: vi.fn(),
@@ -24,15 +24,22 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { consumeFixedWindowRateLimit } from "@/lib/anti-abuse/rate-limit";
 
 describe("POST /api/orders", () => {
+  const originalCaptchaToggle = process.env.ORDERS_CAPTCHA_ENABLED;
+
   beforeEach(() => {
     (
       globalThis as typeof globalThis & {
         __my_menu_rate_limit_store__?: Map<string, unknown>;
       }
     ).__my_menu_rate_limit_store__ = new Map();
+    process.env.ORDERS_CAPTCHA_ENABLED = "false";
     vi.mocked(submitCustomerOrderWithClient).mockReset();
     vi.mocked(createServiceRoleClient).mockReset();
     vi.mocked(consumeFixedWindowRateLimit).mockClear();
+  });
+
+  afterEach(() => {
+    process.env.ORDERS_CAPTCHA_ENABLED = originalCaptchaToggle;
   });
 
   it("returns 400 for invalid JSON body (brief: validation/unhappy path)", async () => {
@@ -281,5 +288,108 @@ describe("POST /api/orders", () => {
       "[customer/orders] rate limiter unavailable; degrading open",
       expect.objectContaining({ route: "/api/orders" })
     );
+  });
+
+  it("returns 503 when CAPTCHA is required but Turnstile keys are missing (brief: deterministic setup failure)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    delete process.env.TURNSTILE_SECRET_KEY;
+
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ana",
+          customerEmail: "ana@example.com",
+          customerPhone: "11999999999",
+          paymentMethod: "pix",
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when CAPTCHA is required and token is missing (brief: token required)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ana",
+          customerEmail: "ana@example.com",
+          customerPhone: "11999999999",
+          paymentMethod: "pix",
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("verifies Turnstile token before submit when CAPTCHA is required (brief: server-side verify gate)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
+      ok: true,
+      orderReference: "PED-CAPTCHA1",
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const body = {
+      customerName: "Ana",
+      customerEmail: "ana@example.com",
+      customerPhone: "11999999999",
+      paymentMethod: "pix",
+      turnstileToken: "token-123",
+      items: [{ menuItemId: "x-burger", quantity: 1 }],
+    };
+
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "pix",
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      {}
+    );
+    expect(response.status).toBe(201);
+    fetchSpy.mockRestore();
   });
 });
