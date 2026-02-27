@@ -336,7 +336,7 @@ export function CustomerOrderPage({
           aria-label="Navegação do pedido"
           className={[
             "sticky top-2 z-20 mb-5 grid grid-cols-2 gap-2 rounded-lg bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:top-3 md:static md:top-auto md:z-auto md:flex md:flex-wrap md:justify-start md:bg-transparent md:p-0 md:backdrop-blur-none",
-            isPageScrolled ? "shadow-sm ring-1 ring-border/50" : "",
+            isPageScrolled ? "shadow-sm ring-1 ring-border/50 md:shadow-none md:ring-0" : "",
           ].join(" ")}
         >
           <button
