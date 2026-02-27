@@ -19,6 +19,22 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+function addFirstMenuItemAndOpenCart() {
+  fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+}
+
+function fillRequiredCheckoutFields() {
+  fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
+  fireEvent.change(screen.getByLabelText("E-mail"), {
+    target: { value: "ana@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText("Telefone"), {
+    target: { value: "11999999999" },
+  });
+  fireEvent.click(screen.getByLabelText("Pix"));
+}
+
 describe("CustomerOrderPage (Customer Order Submission)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -218,8 +234,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       <CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured isCaptchaRequired />
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+    addFirstMenuItemAndOpenCart();
 
     expect(
       screen.getByText(
@@ -364,16 +379,8 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       />
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
-    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
-    fireEvent.change(screen.getByLabelText("E-mail"), {
-      target: { value: "ana@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText("Telefone"), {
-      target: { value: "11999999999" },
-    });
-    fireEvent.click(screen.getByLabelText("Pix"));
+    addFirstMenuItemAndOpenCart();
+    fillRequiredCheckoutFields();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
 
     await waitFor(() => expect(executeSpy).toHaveBeenCalledTimes(1));

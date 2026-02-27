@@ -23,6 +23,27 @@ import { submitCustomerOrderWithClient } from "@/app/actions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { consumeFixedWindowRateLimit } from "@/lib/anti-abuse/rate-limit";
 
+const BASE_ORDER_BODY = {
+  customerName: "Ana",
+  customerEmail: "ana@example.com",
+  customerPhone: "11999999999",
+  paymentMethod: "pix",
+  items: [{ menuItemId: "x-burger", quantity: 1 }],
+};
+
+function postOrders(body: unknown, headers?: HeadersInit) {
+  return POST(
+    new Request("http://localhost/api/orders", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+    })
+  );
+}
+
 describe("POST /api/orders", () => {
   const originalCaptchaToggle = process.env.ORDERS_CAPTCHA_ENABLED;
   const originalNodeEnv = process.env.NODE_ENV;
@@ -302,19 +323,7 @@ describe("POST /api/orders", () => {
     delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
     delete process.env.TURNSTILE_SECRET_KEY;
 
-    const response = await POST(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        body: JSON.stringify({
-          customerName: "Ana",
-          customerEmail: "ana@example.com",
-          customerPhone: "11999999999",
-          paymentMethod: "pix",
-          items: [{ menuItemId: "x-burger", quantity: 1 }],
-        }),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const response = await postOrders(BASE_ORDER_BODY);
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
@@ -329,19 +338,7 @@ describe("POST /api/orders", () => {
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
     process.env.TURNSTILE_SECRET_KEY = "secret-key";
 
-    const response = await POST(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        body: JSON.stringify({
-          customerName: "Ana",
-          customerEmail: "ana@example.com",
-          customerPhone: "11999999999",
-          paymentMethod: "pix",
-          items: [{ menuItemId: "x-burger", quantity: 1 }],
-        }),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const response = await postOrders(BASE_ORDER_BODY);
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
@@ -369,30 +366,16 @@ describe("POST /api/orders", () => {
     );
 
     const body = {
-      customerName: "Ana",
-      customerEmail: "ana@example.com",
-      customerPhone: "11999999999",
-      paymentMethod: "pix",
+      ...BASE_ORDER_BODY,
       turnstileToken: "token-123",
-      items: [{ menuItemId: "x-burger", quantity: 1 }],
     };
 
-    const response = await POST(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        body: JSON.stringify(body),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const response = await postOrders(body);
 
     expect(fetchSpy).toHaveBeenCalled();
     expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(
       {
-        customerName: "Ana",
-        customerEmail: "ana@example.com",
-        customerPhone: "11999999999",
-        paymentMethod: "pix",
-        items: [{ menuItemId: "x-burger", quantity: 1 }],
+        ...BASE_ORDER_BODY,
       },
       {}
     );
@@ -406,19 +389,7 @@ describe("POST /api/orders", () => {
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
     process.env.TURNSTILE_SECRET_KEY = "secret-key";
 
-    const response = await POST(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        body: JSON.stringify({
-          customerName: "Ana",
-          customerEmail: "ana@example.com",
-          customerPhone: "11999999999",
-          paymentMethod: "pix",
-          items: [{ menuItemId: "x-burger", quantity: 1 }],
-        }),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const response = await postOrders(BASE_ORDER_BODY);
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
@@ -437,20 +408,10 @@ describe("POST /api/orders", () => {
       new Response("upstream unavailable", { status: 503 })
     );
 
-    const response = await POST(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        body: JSON.stringify({
-          customerName: "Ana",
-          customerEmail: "ana@example.com",
-          customerPhone: "11999999999",
-          paymentMethod: "pix",
-          turnstileToken: "token-123",
-          items: [{ menuItemId: "x-burger", quantity: 1 }],
-        }),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const response = await postOrders({
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    });
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
@@ -473,20 +434,10 @@ describe("POST /api/orders", () => {
       })
     );
 
-    const response = await POST(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        body: JSON.stringify({
-          customerName: "Ana",
-          customerEmail: "ana@example.com",
-          customerPhone: "11999999999",
-          paymentMethod: "pix",
-          turnstileToken: "token-123",
-          items: [{ menuItemId: "x-burger", quantity: 1 }],
-        }),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    const response = await postOrders({
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    });
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
