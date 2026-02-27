@@ -33,6 +33,7 @@ const CAPTCHA_VALIDATION_MESSAGE =
   "Falha na verificação de segurança. Atualize a página e tente novamente.";
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const TURNSTILE_TOKEN_MAX_LENGTH = 4096;
+const TURNSTILE_VERIFY_TIMEOUT_MS = 5000;
 
 type ErrorBody = {
   ok: false;
@@ -92,8 +93,10 @@ export async function POST(request: Request) {
 
   const captchaRequired = isOrdersCaptchaRequired();
   if (captchaRequired) {
-    const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-    const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+    const turnstileSiteKey = normalizeTurnstileConfigValue(
+      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+    );
+    const turnstileSecretKey = normalizeTurnstileConfigValue(process.env.TURNSTILE_SECRET_KEY);
     if (!turnstileSiteKey || !turnstileSecretKey) {
       return setupError(CAPTCHA_SETUP_UNAVAILABLE_MESSAGE, 503);
     }
@@ -262,10 +265,19 @@ function normalizeTurnstileToken(value: unknown): string | null {
   return trimmed;
 }
 
+function normalizeTurnstileConfigValue(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 async function verifyTurnstileToken(
   secretKey: string,
   token: string
 ): Promise<"valid" | "invalid" | "service_unavailable"> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TURNSTILE_VERIFY_TIMEOUT_MS);
+
   try {
     const response = await fetch(TURNSTILE_VERIFY_URL, {
       method: "POST",
@@ -277,6 +289,7 @@ async function verifyTurnstileToken(
         response: token,
       }),
       cache: "no-store",
+      signal: controller.signal,
     });
     if (!response.ok) {
       console.error("[customer/orders] turnstile verify unavailable", {
@@ -296,8 +309,11 @@ async function verifyTurnstileToken(
     return data.success ? "valid" : "invalid";
   } catch (error) {
     console.error("[customer/orders] turnstile verify request failed", {
+      type: error instanceof Error ? error.name : "unknown",
       message: error instanceof Error ? error.message : String(error),
     });
     return "service_unavailable";
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

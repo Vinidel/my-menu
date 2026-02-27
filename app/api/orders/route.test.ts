@@ -333,6 +333,21 @@ describe("POST /api/orders", () => {
     expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
   });
 
+  it("returns 503 when CAPTCHA keys are blank strings (hardening: trimmed key validation)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "   ";
+    process.env.TURNSTILE_SECRET_KEY = "\n";
+
+    const response = await postOrders(BASE_ORDER_BODY);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when CAPTCHA is required and token is missing (brief: token required)", async () => {
     process.env.ORDERS_CAPTCHA_ENABLED = "true";
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
@@ -407,6 +422,29 @@ describe("POST /api/orders", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("upstream unavailable", { status: 503 })
     );
+
+    const response = await postOrders({
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("returns 503 when Turnstile verify request aborts (hardening: timeout fail closed)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("The operation was aborted."));
 
     const response = await postOrders({
       ...BASE_ORDER_BODY,
