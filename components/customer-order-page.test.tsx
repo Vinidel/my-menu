@@ -25,6 +25,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
   });
 
   afterEach(() => {
+    delete (window as Window & { turnstile?: unknown }).turnstile;
     cleanup();
   });
 
@@ -212,6 +213,22 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByLabelText("Cartão")).toBeInTheDocument();
   });
 
+  it("shows CAPTCHA setup warning and disables submit when CAPTCHA is required but site key is missing", () => {
+    render(
+      <CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured isCaptchaRequired />
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+
+    expect(
+      screen.getByText(
+        "Verificação de segurança indisponível no momento. Recarregue a página ou tente novamente em instantes."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
+  });
+
   it("blocks submit with zero selected items and shows a validation message (brief: no items selected)", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
@@ -327,6 +344,43 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByLabelText("Telefone")).toHaveValue("11999999999");
     expect(screen.getByText("X-Burger")).toBeInTheDocument();
     expect(screen.getByText("1 item")).toBeInTheDocument();
+  });
+
+  it("shows info-style CAPTCHA loading feedback while waiting for invisible verification", async () => {
+    const executeSpy = vi.fn();
+    (window as Window & { turnstile?: unknown }).turnstile = {
+      render: vi.fn(() => "widget-1"),
+      execute: executeSpy,
+      reset: vi.fn(),
+      remove: vi.fn(),
+    };
+
+    render(
+      <CustomerOrderPage
+        menuItems={MENU_ITEMS}
+        isSupabaseConfigured
+        isCaptchaRequired
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
+    fireEvent.change(screen.getByLabelText("E-mail"), {
+      target: { value: "ana@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Telefone"), {
+      target: { value: "11999999999" },
+    });
+    fireEvent.click(screen.getByLabelText("Pix"));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await waitFor(() => expect(executeSpy).toHaveBeenCalledTimes(1));
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Verificando segurança...");
+    expect(status.className).toContain("border-sky-300");
+    expect(status.className).toContain("text-sky-900");
   });
 
   it("submits customized item extras in the /api/orders payload (brief: extras payload shape)", async () => {

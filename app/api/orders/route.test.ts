@@ -25,6 +25,9 @@ import { consumeFixedWindowRateLimit } from "@/lib/anti-abuse/rate-limit";
 
 describe("POST /api/orders", () => {
   const originalCaptchaToggle = process.env.ORDERS_CAPTCHA_ENABLED;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalTurnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const originalTurnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
 
   beforeEach(() => {
     (
@@ -40,6 +43,10 @@ describe("POST /api/orders", () => {
 
   afterEach(() => {
     process.env.ORDERS_CAPTCHA_ENABLED = originalCaptchaToggle;
+    process.env.NODE_ENV = originalNodeEnv;
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = originalTurnstileSiteKey;
+    process.env.TURNSTILE_SECRET_KEY = originalTurnstileSecretKey;
+    vi.restoreAllMocks();
   });
 
   it("returns 400 for invalid JSON body (brief: validation/unhappy path)", async () => {
@@ -390,6 +397,103 @@ describe("POST /api/orders", () => {
       {}
     );
     expect(response.status).toBe(201);
+    fetchSpy.mockRestore();
+  });
+
+  it("enforces CAPTCHA in production even when toggle is false (brief: production override)", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.ORDERS_CAPTCHA_ENABLED = "false";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ana",
+          customerEmail: "ana@example.com",
+          customerPhone: "11999999999",
+          paymentMethod: "pix",
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when Turnstile verify service fails (brief: fail closed on upstream errors)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("upstream unavailable", { status: 503 })
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ana",
+          customerEmail: "ana@example.com",
+          customerPhone: "11999999999",
+          paymentMethod: "pix",
+          turnstileToken: "token-123",
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("returns 400 when Turnstile verification rejects token (brief: invalid token path)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ success: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ana",
+          customerEmail: "ana@example.com",
+          customerPhone: "11999999999",
+          paymentMethod: "pix",
+          turnstileToken: "token-123",
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 });

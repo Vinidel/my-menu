@@ -1,9 +1,9 @@
 ---
 # Critique
 
-Date: 2026-02-24
+Date: 2026-02-27
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Modo de Pagamento no Pedido (Customer + Admin) (`docs/briefs/order-payment-method-selection.md`)
+Scope: Stage 2 test coverage review — Invisible Turnstile CAPTCHA on `/api/orders` (`docs/briefs/api-orders-turnstile-captcha.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,20 +12,21 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a small `lib/orders.test.ts` unit test for unknown `payment_method` string mapping (e.g. `credito`) if you want parser-level fallback coverage independent of UI fixture wiring.
-- Consider one `/api/orders` route-level assertion that the JSON body includes/pass-throughs `paymentMethod`, although Stage 2 already covers this at UI and shared-submit layers.
+- Add one UI-level assertion that a successful CAPTCHA callback path includes `turnstileToken` in the `/api/orders` payload body (current coverage validates API behavior when token is present, but not the final client request shape end-to-end).
 
 ### Risks / Assumptions
-- Stage 2 now covers the full user-visible contract: customer radio selection, missing-selection validation, canonical payload values, server-side tampered-value rejection, and `/admin` details display/fallback.
-- Mobile `/admin` accordion parity is explicitly asserted for payment method display, aligning with the brief’s desktop/mobile details parity requirement.
-- Unknown stored-value fallback is validated at the dashboard UI layer; parser-level behavior remains an implicit dependency unless tested separately.
+- Current Stage 2 coverage is strong for server-side enforcement and config gating.
+- Turnstile widget lifecycle behavior is partially mocked in component tests; browser/runtime integration details still depend on manual or e2e validation.
 
 ## Acceptance Criteria (Stage 2 spot-check)
-- [x] Customer checkout renders required payment method radio options (`Dinheiro`, `Pix`, `Cartão`)
-- [x] Customer validation covers missing payment method (pt-BR message)
-- [x] Customer payload uses canonical `paymentMethod` values (not labels)
-- [x] Server rejects invalid/tampered payment method values
-- [x] `/admin` details render payment method label for valid stored values
-- [x] `/admin` fallback `Não informado` is covered for missing and unknown cases
-- [x] Mobile `/admin` accordion details show payment method (parity with desktop details)
+- [x] Non-production CAPTCHA toggle behavior is covered.
+- [x] Production override (`NODE_ENV=production`) is covered.
+- [x] Missing Turnstile keys when required returns deterministic `503`.
+- [x] Missing token returns `400` and no order write.
+- [x] Invalid verification result returns `400` and no order write.
+- [x] Verify upstream failure returns `503` (fail closed).
+- [x] Valid token verification path succeeds and strips `turnstileToken` before submit action call.
+- [x] Customer UI blocks submit when CAPTCHA is required but site key is missing.
+- [x] Customer UI shows info-state feedback for `Verificando segurança...`.
+
 ---
