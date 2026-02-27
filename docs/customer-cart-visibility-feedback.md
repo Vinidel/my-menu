@@ -15,6 +15,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 - **Add-to-cart visual feedback:** Clicking `Adicionar` (including customized add via `Adicionar com extras`) triggers a temporary visual highlight on the `Carrinho` entry points.
 - **No forced navigation:** Customers remain on `Cardápio` after adding items; the feature only improves discoverability and feedback.
 - **Mobile discoverability improvement:** The main `Cardápio / Carrinho` tab bar is sticky on mobile so the `Carrinho` feedback remains visible while scrolling long menus.
+- **Desktop visual regression fix:** The mobile-only scroll separation ring/shadow on `Navegação do pedido` is now explicitly disabled at `md+`, preventing unintended border/ring artifacts on desktop.
 - **Stage 4 accessibility hardening:** Added a polite `aria-live` announcement when an item is added, so non-visual users receive equivalent feedback.
 
 ---
@@ -50,7 +51,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 - **Mobile sticky behavior:**
   - main `Cardápio / Carrinho` navigation is sticky on mobile
   - mobile-only subtle shadow/ring appears while scrolling for separation from menu cards
-  - desktop keeps normal left-aligned non-sticky tabs
+  - desktop keeps normal left-aligned non-sticky tabs without scroll ring/shadow
 - **No cart logic changes:**
   - extras customization, payment method selection, quantity editing, and submit flow all remain unchanged
 
