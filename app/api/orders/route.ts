@@ -4,6 +4,7 @@ import {
   submitCustomerOrderWithClient,
   type SubmitCustomerOrderInput,
 } from "@/app/actions";
+import { isOrdersCaptchaRequired } from "@/lib/anti-abuse/captcha-config";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
   consumeFixedWindowRateLimit,
@@ -26,6 +27,13 @@ const REQUEST_TOO_LARGE_MESSAGE =
 const INVALID_JSON_MESSAGE = "Requisição inválida. Atualize a página e tente novamente.";
 const SETUP_UNAVAILABLE_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
+const CAPTCHA_SETUP_UNAVAILABLE_MESSAGE =
+  "Pedidos indisponíveis no momento. Verifique a configuração de segurança.";
+const CAPTCHA_VALIDATION_MESSAGE =
+  "Falha na verificação de segurança. Atualize a página e tente novamente.";
+const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const TURNSTILE_TOKEN_MAX_LENGTH = 4096;
+const TURNSTILE_VERIFY_TIMEOUT_MS = 5000;
 
 type ErrorBody = {
   ok: false;
@@ -36,6 +44,10 @@ type ErrorBody = {
 type SuccessBody = {
   ok: true;
   orderReference: string;
+};
+
+type OrdersRequestBody = SubmitCustomerOrderInput & {
+  turnstileToken?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -66,7 +78,7 @@ export async function POST(request: Request) {
     return validationError(INVALID_CONTENT_TYPE_MESSAGE, 415);
   }
 
-  let body: SubmitCustomerOrderInput | null = null;
+  let body: OrdersRequestBody | null = null;
 
   try {
     const rawBody = await request.text();
@@ -74,9 +86,33 @@ export async function POST(request: Request) {
       return validationError(REQUEST_TOO_LARGE_MESSAGE, 413);
     }
 
-    body = JSON.parse(rawBody) as SubmitCustomerOrderInput;
+    body = JSON.parse(rawBody) as OrdersRequestBody;
   } catch {
     return validationError(INVALID_JSON_MESSAGE, 400);
+  }
+
+  const captchaRequired = isOrdersCaptchaRequired();
+  if (captchaRequired) {
+    const turnstileSiteKey = normalizeTurnstileConfigValue(
+      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+    );
+    const turnstileSecretKey = normalizeTurnstileConfigValue(process.env.TURNSTILE_SECRET_KEY);
+    if (!turnstileSiteKey || !turnstileSecretKey) {
+      return setupError(CAPTCHA_SETUP_UNAVAILABLE_MESSAGE, 503);
+    }
+
+    const turnstileToken = normalizeTurnstileToken(body.turnstileToken);
+    if (!turnstileToken) {
+      return validationError(CAPTCHA_VALIDATION_MESSAGE, 400);
+    }
+
+    const captchaResult = await verifyTurnstileToken(turnstileSecretKey, turnstileToken);
+    if (captchaResult === "service_unavailable") {
+      return setupError(CAPTCHA_SETUP_UNAVAILABLE_MESSAGE, 503);
+    }
+    if (captchaResult === "invalid") {
+      return validationError(CAPTCHA_VALIDATION_MESSAGE, 400);
+    }
   }
 
   const supabase = createServiceRoleClient();
@@ -84,7 +120,8 @@ export async function POST(request: Request) {
     return setupError(SETUP_UNAVAILABLE_MESSAGE, 503);
   }
 
-  const result = await submitCustomerOrderWithClient(body, supabase);
+  const { turnstileToken: _turnstileToken, ...orderBody } = body;
+  const result = await submitCustomerOrderWithClient(orderBody, supabase);
 
   if (result.ok) {
     return NextResponse.json<SuccessBody>(result, {
@@ -218,4 +255,65 @@ function hashForRateLimit(value: string): string {
 
 function hashForLogs(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 12);
+}
+
+function normalizeTurnstileToken(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > TURNSTILE_TOKEN_MAX_LENGTH) return null;
+  return trimmed;
+}
+
+function normalizeTurnstileConfigValue(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+async function verifyTurnstileToken(
+  secretKey: string,
+  token: string
+): Promise<"valid" | "invalid" | "service_unavailable"> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TURNSTILE_VERIFY_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(TURNSTILE_VERIFY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        secret: secretKey,
+        response: token,
+      }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      console.error("[customer/orders] turnstile verify unavailable", {
+        status: response.status,
+      });
+      return "service_unavailable";
+    }
+
+    const data = (await response.json().catch(() => null)) as
+      | { success?: boolean }
+      | null;
+    if (!data || typeof data.success !== "boolean") {
+      console.error("[customer/orders] turnstile verify malformed response");
+      return "service_unavailable";
+    }
+
+    return data.success ? "valid" : "invalid";
+  } catch (error) {
+    console.error("[customer/orders] turnstile verify request failed", {
+      type: error instanceof Error ? error.name : "unknown",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return "service_unavailable";
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

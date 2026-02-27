@@ -4,6 +4,42 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 
 ---
 
+## API Orders Turnstile CAPTCHA — Stage 4
+
+### Security
+
+- **CAPTCHA config normalization:** `/api/orders` now trims Turnstile env keys before validation. Whitespace-only `NEXT_PUBLIC_TURNSTILE_SITE_KEY` or `TURNSTILE_SECRET_KEY` is treated as missing config and returns deterministic `503` with no order write. **Improved in Stage 4.**
+- **Fail-closed behavior retained:** Missing/invalid token and verification failures still block writes and keep user-facing messages in pt-BR. **No change.**
+
+### Dependencies
+
+- **No new packages:** Hardening uses native `AbortController` timeout and local validation helpers only. **No change.**
+
+### Performance
+
+- **Bounded verify latency:** Turnstile verify call now has a request timeout (`5s`) so `/api/orders` does not hang indefinitely on upstream stalls. Timeout path returns `503` and avoids backend resource saturation under upstream instability. **Improved in Stage 4.**
+
+### Observability
+
+- **Timeout/error log context:** Turnstile verify failure logs now include error type (`name`) and message for faster diagnosis of abort/network failures without exposing request payloads. **Improved in Stage 4.**
+
+### Resilience
+
+- **Upstream timeout fail-closed:** Abort/timeout behaves the same as other Turnstile upstream failures (`503` setup error, no order write), preserving deterministic behavior under degraded network conditions. **Improved in Stage 4.**
+- **Deferred:** No circuit-breaker/backoff yet for repeated upstream failures; acceptable for current small scale and can be added if repeated incidents occur. **Deferred.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Trimmed key validation for required Turnstile env vars |
+| Dependencies  | OK        | No new dependencies |
+| Performance   | Improved  | Added 5s timeout for Turnstile verify call |
+| Observability | Improved  | Error type added to Turnstile failure logs |
+| Resilience    | Improved  | Deterministic fail-closed timeout behavior |
+
+---
+
 ## Employee Auth — Stage 4
 
 ### Security

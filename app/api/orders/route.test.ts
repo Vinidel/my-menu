@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/app/actions", () => ({
   submitCustomerOrderWithClient: vi.fn(),
@@ -23,16 +23,51 @@ import { submitCustomerOrderWithClient } from "@/app/actions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { consumeFixedWindowRateLimit } from "@/lib/anti-abuse/rate-limit";
 
+const BASE_ORDER_BODY = {
+  customerName: "Ana",
+  customerEmail: "ana@example.com",
+  customerPhone: "11999999999",
+  paymentMethod: "pix",
+  items: [{ menuItemId: "x-burger", quantity: 1 }],
+};
+
+function postOrders(body: unknown, headers?: HeadersInit) {
+  return POST(
+    new Request("http://localhost/api/orders", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+    })
+  );
+}
+
 describe("POST /api/orders", () => {
+  const originalCaptchaToggle = process.env.ORDERS_CAPTCHA_ENABLED;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalTurnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const originalTurnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+
   beforeEach(() => {
     (
       globalThis as typeof globalThis & {
         __my_menu_rate_limit_store__?: Map<string, unknown>;
       }
     ).__my_menu_rate_limit_store__ = new Map();
+    process.env.ORDERS_CAPTCHA_ENABLED = "false";
     vi.mocked(submitCustomerOrderWithClient).mockReset();
     vi.mocked(createServiceRoleClient).mockReset();
     vi.mocked(consumeFixedWindowRateLimit).mockClear();
+  });
+
+  afterEach(() => {
+    process.env.ORDERS_CAPTCHA_ENABLED = originalCaptchaToggle;
+    process.env.NODE_ENV = originalNodeEnv;
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = originalTurnstileSiteKey;
+    process.env.TURNSTILE_SECRET_KEY = originalTurnstileSecretKey;
+    vi.restoreAllMocks();
   });
 
   it("returns 400 for invalid JSON body (brief: validation/unhappy path)", async () => {
@@ -281,5 +316,173 @@ describe("POST /api/orders", () => {
       "[customer/orders] rate limiter unavailable; degrading open",
       expect.objectContaining({ route: "/api/orders" })
     );
+  });
+
+  it("returns 503 when CAPTCHA is required but Turnstile keys are missing (brief: deterministic setup failure)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    delete process.env.TURNSTILE_SECRET_KEY;
+
+    const response = await postOrders(BASE_ORDER_BODY);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when CAPTCHA keys are blank strings (hardening: trimmed key validation)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "   ";
+    process.env.TURNSTILE_SECRET_KEY = "\n";
+
+    const response = await postOrders(BASE_ORDER_BODY);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when CAPTCHA is required and token is missing (brief: token required)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const response = await postOrders(BASE_ORDER_BODY);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("verifies Turnstile token before submit when CAPTCHA is required (brief: server-side verify gate)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
+      ok: true,
+      orderReference: "PED-CAPTCHA1",
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const body = {
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    };
+
+    const response = await postOrders(body);
+
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(
+      {
+        ...BASE_ORDER_BODY,
+      },
+      {}
+    );
+    expect(response.status).toBe(201);
+    fetchSpy.mockRestore();
+  });
+
+  it("enforces CAPTCHA in production even when toggle is false (brief: production override)", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.ORDERS_CAPTCHA_ENABLED = "false";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const response = await postOrders(BASE_ORDER_BODY);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when Turnstile verify service fails (brief: fail closed on upstream errors)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("upstream unavailable", { status: 503 })
+    );
+
+    const response = await postOrders({
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("returns 503 when Turnstile verify request aborts (hardening: timeout fail closed)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("The operation was aborted."));
+
+    const response = await postOrders({
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "setup",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("returns 400 when Turnstile verification rejects token (brief: invalid token path)", async () => {
+    process.env.ORDERS_CAPTCHA_ENABLED = "true";
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
+    process.env.TURNSTILE_SECRET_KEY = "secret-key";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ success: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const response = await postOrders({
+      ...BASE_ORDER_BODY,
+      turnstileToken: "token-123",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "validation",
+    });
+    expect(submitCustomerOrderWithClient).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });
