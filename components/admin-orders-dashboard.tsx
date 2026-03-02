@@ -458,6 +458,12 @@ function OrderDetailsContent({
                       {item.extras.map((extra) => extra.name).join(", ")}
                     </div>
                   ) : null}
+                  {item.removedIngredients && item.removedIngredients.length > 0 ? (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <span className="font-medium">Sem:</span>{" "}
+                      {item.removedIngredients.map((ingredient) => ingredient.name).join(", ")}
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

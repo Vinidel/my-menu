@@ -8,6 +8,10 @@
     "extras": [
       { "id": "queijo-extra", "name": "Queijo extra", "priceCents": 300 },
       { "id": "bacon-extra", "name": "Bacon extra", "priceCents": 500 }
+    ],
+    "removableIngredients": [
+      { "id": "alface", "name": "Alface" },
+      { "id": "tomate", "name": "Tomate" }
     ]
   },
   {
@@ -19,6 +23,11 @@
     "extras": [
       { "id": "ovo", "name": "Ovo", "priceCents": 250 },
       { "id": "cheddar", "name": "Cheddar", "priceCents": 400 }
+    ],
+    "removableIngredients": [
+      { "id": "alface", "name": "Alface" },
+      { "id": "tomate", "name": "Tomate" },
+      { "id": "maionese", "name": "Maionese da casa" }
     ]
   },
   {

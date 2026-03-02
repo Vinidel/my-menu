@@ -7,12 +7,18 @@ export type MenuItem = {
   description?: string;
   priceCents?: number;
   extras?: MenuExtra[];
+  removableIngredients?: MenuRemovableIngredient[];
 };
 
 export type MenuExtra = {
   id: string;
   name: string;
   priceCents?: number;
+};
+
+export type MenuRemovableIngredient = {
+  id: string;
+  name: string;
 };
 
 type JsonMenuRow = Record<string, unknown>;
@@ -42,6 +48,9 @@ function parseMenuItem(value: unknown): MenuItem | null {
   const category = stringFrom(row.category) ?? stringFrom(row.categoria) ?? undefined;
   const priceCents = numberFrom(row.priceCents ?? row.price_cents) ?? undefined;
   const extras = parseMenuExtras(row.extras);
+  const removableIngredients = parseRemovableIngredients(
+    row.removableIngredients ?? row.removable_ingredients
+  );
 
   return {
     id,
@@ -50,6 +59,7 @@ function parseMenuItem(value: unknown): MenuItem | null {
     ...(description ? { description } : {}),
     ...(typeof priceCents === "number" && priceCents >= 0 ? { priceCents } : {}),
     ...(extras.length > 0 ? { extras } : {}),
+    ...(removableIngredients.length > 0 ? { removableIngredients } : {}),
   };
 }
 
@@ -72,6 +82,21 @@ function parseMenuExtras(value: unknown): MenuExtra[] {
       };
     })
     .filter((extra): extra is MenuExtra => extra !== null);
+}
+
+function parseRemovableIngredients(value: unknown): MenuRemovableIngredient[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((ingredient) => {
+      if (!ingredient || typeof ingredient !== "object") return null;
+      const row = ingredient as JsonMenuRow;
+      const id = stringFrom(row.id);
+      const name = stringFrom(row.name);
+      if (!id || !name) return null;
+      return { id, name };
+    })
+    .filter((ingredient): ingredient is MenuRemovableIngredient => ingredient !== null);
 }
 
 function stringFrom(value: unknown): string | null {
