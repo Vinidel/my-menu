@@ -58,6 +58,12 @@ type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
 type CustomerInsert = Database["public"]["Tables"]["customers"]["Insert"];
 type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 type OrderStatus = Database["public"]["Tables"]["orders"]["Row"]["status"];
+type CustomerIdRow = Pick<CustomerRow, "id">;
+type SupabaseTableError = { message: string; code?: string | null } | null;
+type CustomerMaybeSingleResult = Promise<{
+  data: CustomerIdRow | null;
+  error: SupabaseTableError;
+}>;
 type OrdersTablesClient = {
   from: (table: "customers" | "orders") => unknown;
 };
@@ -204,34 +210,22 @@ type CustomersSelectChain = {
           column: "email_normalized",
           value: null
         ) => {
-          maybeSingle: () => Promise<{
-            data: Pick<CustomerRow, "id"> | null;
-            error: { message: string; code?: string | null } | null;
-          }>;
+          maybeSingle: () => CustomerMaybeSingleResult;
         };
-        maybeSingle: () => Promise<{
-          data: Pick<CustomerRow, "id"> | null;
-          error: { message: string; code?: string | null } | null;
-        }>;
+        maybeSingle: () => CustomerMaybeSingleResult;
       };
       is: (
         column: "email_normalized",
         value: null
       ) => {
-        maybeSingle: () => Promise<{
-          data: Pick<CustomerRow, "id"> | null;
-          error: { message: string; code?: string | null } | null;
-        }>;
+        maybeSingle: () => CustomerMaybeSingleResult;
       };
     };
     is: (
       column: "email_normalized",
       value: null
     ) => {
-      maybeSingle: () => Promise<{
-        data: Pick<CustomerRow, "id"> | null;
-        error: { message: string; code?: string | null } | null;
-      }>;
+      maybeSingle: () => CustomerMaybeSingleResult;
     };
   };
 };
@@ -240,8 +234,8 @@ type CustomersInsertChain = {
   insert: (values: CustomerInsert) => {
     select: (columns: "id") => {
       single: () => Promise<{
-        data: Pick<CustomerRow, "id"> | null;
-        error: { message: string; code?: string | null } | null;
+        data: CustomerIdRow | null;
+        error: SupabaseTableError;
       }>;
     };
   };
@@ -255,10 +249,7 @@ type CustomersUpdateChain = {
         value: null
       ) => {
         select: (columns: "id") => {
-          maybeSingle: () => Promise<{
-            data: Pick<CustomerRow, "id"> | null;
-            error: { message: string; code?: string | null } | null;
-          }>;
+          maybeSingle: () => CustomerMaybeSingleResult;
         };
       };
     };
@@ -270,7 +261,7 @@ type OrdersInsertChain = {
     select: (columns: "reference") => {
       single: () => Promise<{
         data: { reference: string } | null;
-        error: { message: string; code?: string | null } | null;
+        error: SupabaseTableError;
       }>;
     };
   };
