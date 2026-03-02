@@ -4,6 +4,44 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 
 ---
 
+## Customer E-mail Optional — Stage 4
+
+### Security
+
+- **Tampered payload-shape rejection:** Server submission now explicitly rejects non-string `customerEmail` payload values with validation error (`Informe um e-mail válido.`), preventing silent coercion of unexpected JSON shapes to “missing e-mail”. **Improved in Stage 4.**
+- **Canonical missing-value storage:** Migration enforces `NULL`-based storage for absent e-mail in `orders.customer_email`, `customers.email`, and `customers.email_normalized` (no empty-string ambiguity). **Improved in Stage 4.**
+- **Identity consistency constraints:** `customers` now enforces paired-null consistency (`email` and `email_normalized` both null or both non-null), reducing partial/invalid identity states from manual writes. **Improved in Stage 4.**
+
+### Dependencies
+
+- **No new dependencies:** Hardening relies on existing validation logic and SQL constraints/indexes only. **No change.**
+
+### Performance
+
+- **Dedupe paths remain indexed:** Partial unique indexes cover both dedupe modes (`email+phone` when e-mail exists, `phone` when e-mail is missing), keeping lookup/conflict paths efficient at current scale. **Improved in Stage 4.**
+
+### Observability
+
+- **Operational visibility unchanged:** Existing error logs cover customer lookup/insert/upgrade failures, but there are no dedicated counters for optional-email validation rejects or dedupe conflict retries. **Deferred.**
+
+### Resilience
+
+- **Concurrent phone-only submits:** Insert conflict (`23505`) retry path is covered for no-email flow, aligning with partial unique index behavior and preventing duplicate-customer divergence under race conditions. **Improved in Stage 4.**
+- **Phone-only to e-mail upgrade safety:** Upgrade keeps deterministic single-customer identity by updating only rows that are still phone-only (`email_normalized is null`) and re-querying on race/conflict outcomes. **Improved in Stage 4.**
+- **Deferred:** No explicit transactional wrapper around “lookup -> optional upgrade -> insert” flow; current behavior relies on unique constraints + retry, which is acceptable for current single-tenant small scale. **Deferred.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Added non-string e-mail rejection + NULL consistency constraints |
+| Dependencies  | OK        | No dependency changes |
+| Performance   | Improved  | Partial unique indexes for both dedupe modes |
+| Observability | Gap       | Logs only; no dedicated optional-email metrics |
+| Resilience    | Improved  | Conflict retry + deterministic phone-only upgrade behavior |
+
+---
+
 ## Order Standard Ingredients Removal — Stage 4
 
 ### Security
