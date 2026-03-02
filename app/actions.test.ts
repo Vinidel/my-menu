@@ -281,6 +281,46 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
     });
   });
 
+  it("rejects item when customization id exceeds max supported length (hardening: id length bounds)", async () => {
+    const longId = "a".repeat(81);
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+            removableIngredients: [{ id: longId, name: "Ingrediente longo" }],
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "pix",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            removedIngredientIds: [longId],
+          },
+        ],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Selecione itens válidos do cardápio para enviar o pedido.",
+    });
+  });
+
   it("rejects order when base item is missing priceCents (brief: fail closed pricing snapshots)", async () => {
     vi.mocked(getMenuItemMap).mockReturnValue(
       new Map([

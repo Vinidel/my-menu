@@ -1243,9 +1243,7 @@ function lineMergeKey(
   extraIds: string[],
   removedIngredientIds: string[]
 ) {
-  return `${menuItemId}::extras:${normalizeIdSet(extraIds).join("|")}::removed:${normalizeIdSet(
-    removedIngredientIds
-  ).join("|")}`;
+  return JSON.stringify([menuItemId, normalizeIdSet(extraIds), normalizeIdSet(removedIngredientIds)]);
 }
 
 function lineMatchesMergeKey(line: SelectedOrderLine, key: string): boolean {

@@ -30,6 +30,7 @@ const MAX_NOTES_LENGTH = 1000;
 const MAX_ORDER_LINE_ITEMS = 50;
 const MAX_EXTRAS_PER_ITEM = 20;
 const MAX_REMOVED_INGREDIENTS_PER_ITEM = 20;
+const MAX_CUSTOMIZATION_ID_LENGTH = 80;
 
 export type SubmitCustomerOrderInput = {
   customerName: string;
@@ -406,6 +407,7 @@ function normalizeStringIdList(value: unknown): string[] | null {
   for (const raw of value) {
     const id = sanitizeText(typeof raw === "string" ? raw : "");
     if (!id) return null;
+    if (id.length > MAX_CUSTOMIZATION_ID_LENGTH) return null;
     unique.add(id);
   }
 
@@ -417,7 +419,7 @@ function buildOrderItemAggregationKey(
   extraIds: string[],
   removedIngredientIds: string[]
 ) {
-  return `${menuItemId}::extras:${extraIds.join("|")}::removed:${removedIngredientIds.join("|")}`;
+  return JSON.stringify([menuItemId, extraIds, removedIngredientIds]);
 }
 
 class MissingPriceSnapshotError extends Error {}
