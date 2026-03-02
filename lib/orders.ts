@@ -29,6 +29,10 @@ export type AdminOrderItem = {
     name: string;
     priceCents?: number;
   }>;
+  removedIngredients?: Array<{
+    id?: string;
+    name: string;
+  }>;
 };
 
 export type AdminOrder = {
@@ -53,9 +57,13 @@ export type AdminOrder = {
 type RowLike = Record<string, unknown>;
 type OrdersRow = Database["public"]["Tables"]["orders"]["Row"];
 type ParsedOrderItemExtra = { id?: string; name: string; priceCents?: number };
+type ParsedOrderItemRemovedIngredient = { id?: string; name: string };
 const MAX_PARSED_ITEM_EXTRAS = 20;
+const MAX_PARSED_ITEM_REMOVED_INGREDIENTS = 20;
 const MAX_PARSED_EXTRA_NAME_LENGTH = 120;
 const MAX_PARSED_EXTRA_ID_LENGTH = 80;
+const MAX_PARSED_REMOVED_INGREDIENT_NAME_LENGTH = 120;
+const MAX_PARSED_REMOVED_INGREDIENT_ID_LENGTH = 80;
 const MAX_PARSED_UNIT_PRICE_CENTS = 1_000_000; // R$ 10.000,00 por unidade
 const MAX_PARSED_EXTRA_PRICE_CENTS = 200_000; // R$ 2.000,00 por extra
 const MAX_PARSED_LINE_TOTAL_CENTS = 5_000_000; // R$ 50.000,00 por linha
@@ -219,6 +227,9 @@ function parseOrderItemsWithTotal(
 
       const quantity = numberFrom(row.quantity) ?? numberFrom(row.qty) ?? numberFrom(row.qtd) ?? 1;
       const extras = parseOrderItemExtras(row.extras);
+      const removedIngredients = parseOrderItemRemovedIngredients(
+        row.removedIngredients ?? row.removed_ingredients
+      );
       const normalizedQuantity =
         Number.isFinite(quantity) && quantity > 0 ? Math.trunc(quantity) : 1;
       const unitPriceCents = parseNonNegativeCents(
@@ -253,6 +264,7 @@ function parseOrderItemsWithTotal(
         ...(parsedUnitPriceCents !== null ? { unitPriceCents: parsedUnitPriceCents } : {}),
         ...(parsedLineTotalCents !== null ? { lineTotalCents: parsedLineTotalCents } : {}),
         ...(extras.length > 0 ? { extras } : {}),
+        ...(removedIngredients.length > 0 ? { removedIngredients } : {}),
       };
     })
     .filter((item): item is AdminOrderItem => item !== null);
@@ -293,6 +305,37 @@ function parseOrderItemExtras(
       };
     })
     .filter((extra): extra is ParsedOrderItemExtra => extra !== null);
+}
+
+function parseOrderItemRemovedIngredients(
+  value: unknown
+): ParsedOrderItemRemovedIngredient[] {
+  const parsed = parseUnknownItemsValue(value);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .slice(0, MAX_PARSED_ITEM_REMOVED_INGREDIENTS)
+    .map((ingredient) => {
+      if (!ingredient || typeof ingredient !== "object") return null;
+      const row = ingredient as RowLike;
+      const name =
+        stringFromMax(row.name, MAX_PARSED_REMOVED_INGREDIENT_NAME_LENGTH) ??
+        stringFromMax(row.nome, MAX_PARSED_REMOVED_INGREDIENT_NAME_LENGTH) ??
+        stringFromMax(row.label, MAX_PARSED_REMOVED_INGREDIENT_NAME_LENGTH) ??
+        stringFromMax(row.title, MAX_PARSED_REMOVED_INGREDIENT_NAME_LENGTH);
+      if (!name) return null;
+
+      const id =
+        stringFromMax(row.id, MAX_PARSED_REMOVED_INGREDIENT_ID_LENGTH) ?? undefined;
+
+      return {
+        ...(id ? { id } : {}),
+        name,
+      };
+    })
+    .filter(
+      (ingredient): ingredient is ParsedOrderItemRemovedIngredient => ingredient !== null
+    );
 }
 
 function computeItemTotalCents(input: {

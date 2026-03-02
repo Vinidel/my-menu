@@ -4,6 +4,42 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 
 ---
 
+## Order Standard Ingredients Removal — Stage 4
+
+### Security
+
+- **Customization ID bounds:** Server normalization now rejects oversized `extraIds` / `removedIngredientIds` values (> `80` chars) in `submitCustomerOrderWithClient`, reducing risk of oversized attacker-controlled IDs in public submit payloads. **Improved in Stage 4.**
+- **Server authority unchanged:** `removedIngredientIds` are still validated against `menuItem.removableIngredients[].id`; unknown/tampered values fail validation and do not create orders. **No change.**
+
+### Dependencies
+
+- **No new dependencies:** Hardening uses existing server logic only; no package/runtime changes. **No change.**
+
+### Performance
+
+- **No material runtime cost increase:** Added length checks are O(n) over existing ID normalization loops and negligible at current payload limits. **No change.**
+
+### Observability
+
+- **Validation-path behavior:** Oversized customization IDs return the existing validation response path (`validation` code + pt-BR message). No new logging added to avoid noisy PII-adjacent payload traces. **Accepted for current scope.**
+
+### Resilience
+
+- **Merge-key collision hardening:** Cart/server aggregation keys for customization combinations now use structured serialization (`JSON.stringify([menuItemId, extraIds, removedIngredientIds])`) instead of delimiter-joined strings, avoiding edge-case collisions when IDs contain delimiter-like characters. **Improved in Stage 4.**
+- **Deferred:** No dedicated telemetry for “rejected by customization bounds” rates yet; if needed, add coarse counters in a future observability pass. **Deferred.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Added max-length bounds for customization IDs |
+| Dependencies  | OK        | No dependency changes |
+| Performance   | OK        | Constant-time/linear checks only |
+| Observability | Gap       | Uses existing validation path; no new counters/log metrics |
+| Resilience    | Improved  | Structured merge keys remove delimiter collision edge cases |
+
+---
+
 ## API Orders Turnstile CAPTCHA — Stage 4
 
 ### Security

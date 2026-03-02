@@ -1,9 +1,9 @@
 ---
 # Critique
 
-Date: 2026-02-27
+Date: 2026-03-02
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Invisible Turnstile CAPTCHA on `/api/orders` (`docs/briefs/api-orders-turnstile-captcha.md`)
+Scope: Stage 4 hardening review — Order Standard Ingredients Removal
 Verdict: APPROVE
 
 ## Findings
@@ -12,21 +12,17 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add one UI-level assertion that a successful CAPTCHA callback path includes `turnstileToken` in the `/api/orders` payload body (current coverage validates API behavior when token is present, but not the final client request shape end-to-end).
+- Consider mirroring the server-side customization ID max-length bound in client normalization (`components/customer-order-page.tsx`) for earlier UX feedback (server validation already enforces correctness).
 
 ### Risks / Assumptions
-- Current Stage 2 coverage is strong for server-side enforcement and config gating.
-- Turnstile widget lifecycle behavior is partially mocked in component tests; browser/runtime integration details still depend on manual or e2e validation.
+- Hardening changes are coherent and low-risk: ID-length bounds reduce oversized payload risk, and structured merge keys remove delimiter-collision edge cases.
+- Existing validation/error messaging path is reused; no new telemetry was added, so observability of bound rejections remains limited to existing request outcomes.
 
-## Acceptance Criteria (Stage 2 spot-check)
-- [x] Non-production CAPTCHA toggle behavior is covered.
-- [x] Production override (`NODE_ENV=production`) is covered.
-- [x] Missing Turnstile keys when required returns deterministic `503`.
-- [x] Missing token returns `400` and no order write.
-- [x] Invalid verification result returns `400` and no order write.
-- [x] Verify upstream failure returns `503` (fail closed).
-- [x] Valid token verification path succeeds and strips `turnstileToken` before submit action call.
-- [x] Customer UI blocks submit when CAPTCHA is required but site key is missing.
-- [x] Customer UI shows info-state feedback for `Verificando segurança...`.
+## Stage 4 Spot-check
+- [x] Security: oversized customization IDs are rejected server-side.
+- [x] Resilience: merge-key generation no longer depends on delimiter-safe IDs.
+- [x] Dependencies: no new package/runtime dependency introduced.
+- [x] Performance: added checks are linear and bounded under existing payload caps.
+- [x] Documentation: hardening sweep and deferred observability gap captured in `docs/hardening-notes.md`.
 
 ---

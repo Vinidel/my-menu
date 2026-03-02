@@ -14,7 +14,7 @@ import { submitCustomerOrderWithClient } from "./actions";
 
 type FakeError = { message: string; code?: string | null } | null;
 
-describe("submitCustomerOrderWithClient (extras customization)", () => {
+describe("submitCustomerOrderWithClient (item customization)", () => {
   beforeEach(() => {
     vi.mocked(revalidatePath).mockReset();
     vi.mocked(getMenuItemMap).mockReset();
@@ -46,6 +46,45 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
             menuItemId: "x-burger",
             quantity: 1,
             extraIds: ["bacon-extra"],
+          },
+        ],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Selecione itens válidos do cardápio para enviar o pedido.",
+    });
+  });
+
+  it("rejects invalid removed ingredient ids for a menu item (brief: tampered removals payload)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+            removableIngredients: [{ id: "cebola", name: "Cebola" }],
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "pix",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            removedIngredientIds: ["tomate"],
           },
         ],
       },
@@ -125,6 +164,161 @@ describe("submitCustomerOrderWithClient (extras customization)", () => {
     ]);
 
     expect(revalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("persists normalized removed ingredients snapshots and keeps lines separate when removals differ (brief: removals merge key + snapshot source)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+            removableIngredients: [
+              { id: "cebola", name: "Cebola" },
+              { id: "tomate", name: "Tomate" },
+            ],
+          },
+        ],
+      ])
+    );
+
+    const supabase = makeFakeSupabase();
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "(11) 99999-9999",
+        paymentMethod: "pix",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            removedIngredientIds: ["tomate", "cebola", "tomate"],
+          },
+          {
+            menuItemId: "x-burger",
+            quantity: 2,
+            removedIngredientIds: ["cebola", "tomate"],
+          },
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            removedIngredientIds: ["cebola"],
+          },
+        ],
+      },
+      supabase
+    );
+
+    expect(result).toEqual({ ok: true, orderReference: "PED-TESTE123" });
+    expect(supabase.state.orderInsertPayload?.items).toEqual([
+      {
+        menuItemId: "x-burger",
+        name: "X-Burger",
+        quantity: 3,
+        unitPriceCents: 2500,
+        lineTotalCents: 7500,
+        removedIngredients: [
+          { id: "cebola", name: "Cebola" },
+          { id: "tomate", name: "Tomate" },
+        ],
+      },
+      {
+        menuItemId: "x-burger",
+        name: "X-Burger",
+        quantity: 1,
+        unitPriceCents: 2500,
+        lineTotalCents: 2500,
+        removedIngredients: [{ id: "cebola", name: "Cebola" }],
+      },
+    ]);
+  });
+
+  it("rejects item when removed ingredients exceed max allowed count (brief: max removals per item)", async () => {
+    const removableIngredients = Array.from({ length: 21 }, (_, index) => ({
+      id: `ing-${index + 1}`,
+      name: `Ingrediente ${index + 1}`,
+    }));
+
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+            removableIngredients,
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "pix",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            removedIngredientIds: removableIngredients.map((ingredient) => ingredient.id),
+          },
+        ],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Selecione itens válidos do cardápio para enviar o pedido.",
+    });
+  });
+
+  it("rejects item when customization id exceeds max supported length (hardening: id length bounds)", async () => {
+    const longId = "a".repeat(81);
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+            removableIngredients: [{ id: longId, name: "Ingrediente longo" }],
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "pix",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+            removedIngredientIds: [longId],
+          },
+        ],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Selecione itens válidos do cardápio para enviar o pedido.",
+    });
   });
 
   it("rejects order when base item is missing priceCents (brief: fail closed pricing snapshots)", async () => {

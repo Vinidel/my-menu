@@ -29,6 +29,8 @@ const MAX_CUSTOMER_PHONE_LENGTH = 32;
 const MAX_NOTES_LENGTH = 1000;
 const MAX_ORDER_LINE_ITEMS = 50;
 const MAX_EXTRAS_PER_ITEM = 20;
+const MAX_REMOVED_INGREDIENTS_PER_ITEM = 20;
+const MAX_CUSTOMIZATION_ID_LENGTH = 80;
 
 export type SubmitCustomerOrderInput = {
   customerName: string;
@@ -40,6 +42,7 @@ export type SubmitCustomerOrderInput = {
     menuItemId: string;
     quantity: number;
     extraIds?: string[];
+    removedIngredientIds?: string[];
   }>;
 };
 
@@ -59,6 +62,7 @@ type OrdersTablesClient = {
   from: (table: "customers" | "orders") => unknown;
 };
 type OrderItemExtraSnapshot = { id: string; name: string; priceCents: number };
+type OrderItemRemovedIngredientSnapshot = { id: string; name: string };
 type OrderItemSnapshot = {
   name: string;
   quantity: number;
@@ -66,6 +70,7 @@ type OrderItemSnapshot = {
   unitPriceCents: number;
   lineTotalCents: number;
   extras?: OrderItemExtraSnapshot[];
+  removedIngredients?: OrderItemRemovedIngredientSnapshot[];
 };
 
 export async function submitCustomerOrder(
@@ -306,6 +311,7 @@ function normalizeSelectedItems(
       quantity: number;
       unitPriceCents: number;
       extras: OrderItemExtraSnapshot[];
+      removedIngredients: OrderItemRemovedIngredientSnapshot[];
     }
   >();
 
@@ -322,6 +328,9 @@ function normalizeSelectedItems(
     const normalizedExtraIds = normalizeExtraIds(item.extraIds);
     if (!normalizedExtraIds) return null;
     if (normalizedExtraIds.length > MAX_EXTRAS_PER_ITEM) return null;
+    const normalizedRemovedIngredientIds = normalizeRemovedIngredientIds(item.removedIngredientIds);
+    if (!normalizedRemovedIngredientIds) return null;
+    if (normalizedRemovedIngredientIds.length > MAX_REMOVED_INGREDIENTS_PER_ITEM) return null;
 
     const extrasById = new Map((menuItem.extras ?? []).map((extra) => [extra.id, extra]));
     const extras = normalizedExtraIds.map((extraId) => {
@@ -332,7 +341,21 @@ function normalizeSelectedItems(
     });
     if (extras.some((extra) => extra === null)) return null;
 
-    const comparisonKey = buildOrderItemAggregationKey(menuItemId, normalizedExtraIds);
+    const removableIngredientsById = new Map(
+      (menuItem.removableIngredients ?? []).map((ingredient) => [ingredient.id, ingredient])
+    );
+    const removedIngredients = normalizedRemovedIngredientIds.map((ingredientId) => {
+      const ingredient = removableIngredientsById.get(ingredientId);
+      if (!ingredient) return null;
+      return { id: ingredient.id, name: ingredient.name };
+    });
+    if (removedIngredients.some((ingredient) => ingredient === null)) return null;
+
+    const comparisonKey = buildOrderItemAggregationKey(
+      menuItemId,
+      normalizedExtraIds,
+      normalizedRemovedIngredientIds
+    );
     const existing = aggregated.get(comparisonKey);
 
     if (existing) {
@@ -345,6 +368,7 @@ function normalizeSelectedItems(
       quantity,
       unitPriceCents: menuItem.priceCents,
       extras: extras as OrderItemExtraSnapshot[],
+      removedIngredients: removedIngredients as OrderItemRemovedIngredientSnapshot[],
     });
   }
 
@@ -360,26 +384,42 @@ function normalizeSelectedItems(
       unitPriceCents: entry.unitPriceCents,
       lineTotalCents,
       ...(entry.extras.length > 0 ? { extras: entry.extras } : {}),
+      ...(entry.removedIngredients.length > 0
+        ? { removedIngredients: entry.removedIngredients }
+        : {}),
     };
   });
 }
 
 function normalizeExtraIds(value: unknown): string[] | null {
+  return normalizeStringIdList(value);
+}
+
+function normalizeRemovedIngredientIds(value: unknown): string[] | null {
+  return normalizeStringIdList(value);
+}
+
+function normalizeStringIdList(value: unknown): string[] | null {
   if (typeof value === "undefined") return [];
   if (!Array.isArray(value)) return null;
 
   const unique = new Set<string>();
   for (const raw of value) {
-    const extraId = sanitizeText(typeof raw === "string" ? raw : "");
-    if (!extraId) return null;
-    unique.add(extraId);
+    const id = sanitizeText(typeof raw === "string" ? raw : "");
+    if (!id) return null;
+    if (id.length > MAX_CUSTOMIZATION_ID_LENGTH) return null;
+    unique.add(id);
   }
 
   return Array.from(unique).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
-function buildOrderItemAggregationKey(menuItemId: string, extraIds: string[]) {
-  return `${menuItemId}::${extraIds.join("|")}`;
+function buildOrderItemAggregationKey(
+  menuItemId: string,
+  extraIds: string[],
+  removedIngredientIds: string[]
+) {
+  return JSON.stringify([menuItemId, extraIds, removedIngredientIds]);
 }
 
 class MissingPriceSnapshotError extends Error {}

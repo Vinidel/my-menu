@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import type { MenuExtra, MenuItem } from "@/lib/menu";
+import type { MenuExtra, MenuItem, MenuRemovableIngredient } from "@/lib/menu";
 import {
   PAYMENT_METHOD_OPTIONS,
   type PaymentMethod,
@@ -35,6 +35,7 @@ type SelectedOrderLine = {
   menuItemId: string;
   quantity: number;
   extraIds: string[];
+  removedIngredientIds: string[];
 };
 
 type SelectedEntry = {
@@ -42,7 +43,9 @@ type SelectedEntry = {
   item: MenuItem;
   quantity: number;
   extraIds: string[];
+  removedIngredientIds: string[];
   selectedExtras: MenuExtra[];
+  selectedRemovedIngredients: MenuRemovableIngredient[];
 };
 
 const REQUIRED_ITEMS_MESSAGE = "Selecione pelo menos um item para enviar seu pedido.";
@@ -104,8 +107,13 @@ export function CustomerOrderPage({
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [customizingMenuItemId, setCustomizingMenuItemId] = useState<string | null>(null);
   const [draftExtrasByMenuItemId, setDraftExtrasByMenuItemId] = useState<Record<string, string[]>>({});
+  const [draftRemovedIngredientsByMenuItemId, setDraftRemovedIngredientsByMenuItemId] =
+    useState<Record<string, string[]>>({});
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingLineExtraIds, setEditingLineExtraIds] = useState<string[]>([]);
+  const [editingLineRemovedIngredientIds, setEditingLineRemovedIngredientIds] = useState<string[]>(
+    []
+  );
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -133,13 +141,21 @@ export function CustomerOrderPage({
       const selectedExtras = line.extraIds
         .map((extraId) => extrasById.get(extraId))
         .filter((extra): extra is MenuExtra => Boolean(extra));
+      const removableIngredientsById = new Map(
+        (item.removableIngredients ?? []).map((ingredient) => [ingredient.id, ingredient])
+      );
+      const selectedRemovedIngredients = line.removedIngredientIds
+        .map((ingredientId) => removableIngredientsById.get(ingredientId))
+        .filter((ingredient): ingredient is MenuRemovableIngredient => Boolean(ingredient));
 
       return {
         lineId: line.lineId,
         item,
         quantity: line.quantity,
         extraIds: line.extraIds,
+        removedIngredientIds: line.removedIngredientIds,
         selectedExtras,
+        selectedRemovedIngredients,
       };
     })
     .filter((entry): entry is SelectedEntry => entry !== null);
@@ -166,9 +182,15 @@ export function CustomerOrderPage({
   const isCaptchaConfigured = !isCaptchaRequired || Boolean(turnstileSiteKey);
   const canSubmit = isSupabaseConfigured && isCaptchaConfigured && !isPending && !isCaptchaPending;
 
-  function addItem(menuItemId: string, extraIds: string[] = []) {
+  function addItem(
+    menuItemId: string,
+    extraIds: string[] = [],
+    removedIngredientIds: string[] = []
+  ) {
     setFeedback(null);
-    setSelectedLines((current) => addOrMergeOrderLine(current, menuItemId, 1, extraIds));
+    setSelectedLines((current) =>
+      addOrMergeOrderLine(current, menuItemId, 1, extraIds, removedIngredientIds)
+    );
     triggerCartFeedback();
   }
 
@@ -200,6 +222,7 @@ export function CustomerOrderPage({
     if (editingLineId === lineId && nextQuantity <= 0) {
       setEditingLineId(null);
       setEditingLineExtraIds([]);
+      setEditingLineRemovedIngredientIds([]);
     }
   }
 
@@ -207,8 +230,10 @@ export function CustomerOrderPage({
     setSelectedLines([]);
     setCustomizingMenuItemId(null);
     setDraftExtrasByMenuItemId({});
+    setDraftRemovedIngredientsByMenuItemId({});
     setEditingLineId(null);
     setEditingLineExtraIds([]);
+    setEditingLineRemovedIngredientIds([]);
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
@@ -313,28 +338,59 @@ export function CustomerOrderPage({
         ? currentDraft.filter((id) => id !== extraId)
         : [...currentDraft, extraId];
 
-      return { ...current, [menuItemId]: normalizeExtraIds(nextDraft) };
+      return { ...current, [menuItemId]: normalizeIdSet(nextDraft) };
+    });
+    setFeedback(null);
+  }
+
+  function toggleDraftRemovedIngredient(menuItemId: string, ingredientId: string) {
+    setDraftRemovedIngredientsByMenuItemId((current) => {
+      const currentDraft = current[menuItemId] ?? [];
+      const nextDraft = currentDraft.includes(ingredientId)
+        ? currentDraft.filter((id) => id !== ingredientId)
+        : [...currentDraft, ingredientId];
+
+      return { ...current, [menuItemId]: normalizeIdSet(nextDraft) };
     });
     setFeedback(null);
   }
 
   function handleAddCustomizedItem(item: MenuItem) {
-    addItem(item.id, draftExtrasByMenuItemId[item.id] ?? []);
+    addItem(
+      item.id,
+      draftExtrasByMenuItemId[item.id] ?? [],
+      draftRemovedIngredientsByMenuItemId[item.id] ?? []
+    );
     setCustomizingMenuItemId(null);
     setDraftExtrasByMenuItemId((current) => ({ ...current, [item.id]: [] }));
+    setDraftRemovedIngredientsByMenuItemId((current) => ({ ...current, [item.id]: [] }));
   }
 
-  function startEditingLineExtras(lineId: string) {
+  function handleAddFromMenuCard(item: MenuItem) {
+    const hasCustomization =
+      Boolean(item.extras && item.extras.length > 0) ||
+      Boolean(item.removableIngredients && item.removableIngredients.length > 0);
+
+    if (!hasCustomization) {
+      addItem(item.id);
+      return;
+    }
+
+    handleAddCustomizedItem(item);
+  }
+
+  function startEditingLineCustomization(lineId: string) {
     const line = selectedLines.find((entry) => entry.lineId === lineId);
     if (!line) return;
     setEditingLineId(lineId);
     setEditingLineExtraIds(line.extraIds);
+    setEditingLineRemovedIngredientIds(line.removedIngredientIds);
     setFeedback(null);
   }
 
-  function toggleEditingLineExtra(extraId: string) {
+  function toggleEditingLineExtraId(extraId: string) {
     setEditingLineExtraIds((current) =>
-      normalizeExtraIds(
+      normalizeIdSet(
         current.includes(extraId)
           ? current.filter((id) => id !== extraId)
           : [...current, extraId]
@@ -343,11 +399,30 @@ export function CustomerOrderPage({
     setFeedback(null);
   }
 
-  function saveEditedLineExtras() {
+  function toggleEditingLineRemovedIngredient(ingredientId: string) {
+    setEditingLineRemovedIngredientIds((current) =>
+      normalizeIdSet(
+        current.includes(ingredientId)
+          ? current.filter((id) => id !== ingredientId)
+          : [...current, ingredientId]
+      )
+    );
+    setFeedback(null);
+  }
+
+  function saveEditedLineCustomization() {
     if (!editingLineId) return;
-    setSelectedLines((current) => updateOrderLineExtras(current, editingLineId, editingLineExtraIds));
+    setSelectedLines((current) =>
+      updateOrderLineCustomization(
+        current,
+        editingLineId,
+        editingLineExtraIds,
+        editingLineRemovedIngredientIds
+      )
+    );
     setEditingLineId(null);
     setEditingLineExtraIds([]);
+    setEditingLineRemovedIngredientIds([]);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -388,10 +463,11 @@ export function CustomerOrderPage({
       customerPhone,
       paymentMethod: selectedPaymentMethod,
       notes: customerNotes,
-      items: selectedEntries.map(({ item, quantity, extraIds }) => ({
+      items: selectedEntries.map(({ item, quantity, extraIds, removedIngredientIds }) => ({
         menuItemId: item.id,
         quantity,
         ...(extraIds.length > 0 ? { extraIds } : {}),
+        ...(removedIngredientIds.length > 0 ? { removedIngredientIds } : {}),
       })),
     };
 
@@ -570,6 +646,10 @@ export function CustomerOrderPage({
                   .filter((entry) => entry.item.id === item.id)
                   .reduce((acc, entry) => acc + entry.quantity, 0);
                 const hasExtras = Boolean(item.extras && item.extras.length > 0);
+                const hasRemovableIngredients = Boolean(
+                  item.removableIngredients && item.removableIngredients.length > 0
+                );
+                const hasCustomization = hasExtras || hasRemovableIngredients;
                 const isCustomizing = customizingMenuItemId === item.id;
 
                 return (
@@ -589,31 +669,35 @@ export function CustomerOrderPage({
                         {quantity > 0 ? `${quantity} no pedido` : "Ainda não selecionado"}
                       </span>
                       <div className={MENU_CARD_ACTION_BUTTONS_ROW_CLASS}>
-                        {hasExtras ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                              setCustomizingMenuItemId((current) => (current === item.id ? null : item.id))
+                        {hasCustomization ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setCustomizingMenuItemId((current) => (current === item.id ? null : item.id))
                             }
                           >
                             Personalizar
                           </Button>
                         ) : null}
-                        <Button type="button" onClick={() => addItem(item.id)}>
+                        <Button type="button" onClick={() => handleAddFromMenuCard(item)}>
                           Adicionar
                         </Button>
                       </div>
                     </div>
 
-                    {hasExtras && isCustomizing ? (
+                    {hasCustomization && isCustomizing ? (
                       <MenuItemExtrasEditor
                         itemName={item.name}
                         extras={item.extras ?? []}
                         selectedExtraIds={draftExtrasByMenuItemId[item.id] ?? []}
+                        removableIngredients={item.removableIngredients ?? []}
+                        selectedRemovedIngredientIds={draftRemovedIngredientsByMenuItemId[item.id] ?? []}
                         onToggleExtra={(extraId) => toggleDraftExtra(item.id, extraId)}
+                        onToggleRemovedIngredient={(ingredientId) =>
+                          toggleDraftRemovedIngredient(item.id, ingredientId)
+                        }
                         onCancel={() => setCustomizingMenuItemId(null)}
-                        onConfirm={() => handleAddCustomizedItem(item)}
                       />
                     ) : null}
                   </article>
@@ -659,14 +743,17 @@ export function CustomerOrderPage({
               setPaymentMethod(value);
               clearFieldError("paymentMethod");
             }}
-            onStartEditLineExtras={startEditingLineExtras}
+            onStartEditLineCustomization={startEditingLineCustomization}
             editingLineId={editingLineId}
             editingLineExtraIds={editingLineExtraIds}
-            onToggleEditingLineExtra={toggleEditingLineExtra}
-            onSaveEditingLineExtras={saveEditedLineExtras}
-            onCancelEditingLineExtras={() => {
+            editingLineRemovedIngredientIds={editingLineRemovedIngredientIds}
+            onToggleEditingLineExtraId={toggleEditingLineExtraId}
+            onToggleEditingLineRemovedIngredient={toggleEditingLineRemovedIngredient}
+            onSaveEditingLineCustomization={saveEditedLineCustomization}
+            onCancelEditingLineCustomization={() => {
               setEditingLineId(null);
               setEditingLineExtraIds([]);
+              setEditingLineRemovedIngredientIds([]);
             }}
             onBackToMenu={() => setActiveTab("cardapio")}
           />
@@ -722,12 +809,14 @@ type OrderSummaryTabProps = {
   onCustomerPhoneChange: (value: string) => void;
   onCustomerNotesChange: (value: string) => void;
   onPaymentMethodChange: (value: PaymentMethod) => void;
-  onStartEditLineExtras: (lineId: string) => void;
+  onStartEditLineCustomization: (lineId: string) => void;
   editingLineId: string | null;
   editingLineExtraIds: string[];
-  onToggleEditingLineExtra: (extraId: string) => void;
-  onSaveEditingLineExtras: () => void;
-  onCancelEditingLineExtras: () => void;
+  editingLineRemovedIngredientIds: string[];
+  onToggleEditingLineExtraId: (extraId: string) => void;
+  onToggleEditingLineRemovedIngredient: (ingredientId: string) => void;
+  onSaveEditingLineCustomization: () => void;
+  onCancelEditingLineCustomization: () => void;
   onBackToMenu: () => void;
 };
 
@@ -751,12 +840,14 @@ function OrderSummaryTab({
   onCustomerPhoneChange,
   onCustomerNotesChange,
   onPaymentMethodChange,
-  onStartEditLineExtras,
+  onStartEditLineCustomization,
   editingLineId,
   editingLineExtraIds,
-  onToggleEditingLineExtra,
-  onSaveEditingLineExtras,
-  onCancelEditingLineExtras,
+  editingLineRemovedIngredientIds,
+  onToggleEditingLineExtraId,
+  onToggleEditingLineRemovedIngredient,
+  onSaveEditingLineCustomization,
+  onCancelEditingLineCustomization,
   onBackToMenu,
 }: OrderSummaryTabProps) {
   const cartCountLabel = formatItemCountLabel(totalItems);
@@ -785,7 +876,7 @@ function OrderSummaryTab({
         </p>
       ) : (
         <ul className="space-y-3">
-          {selectedEntries.map(({ lineId, item, quantity, selectedExtras }) => (
+          {selectedEntries.map(({ lineId, item, quantity, selectedExtras, selectedRemovedIngredients }) => (
             <li key={lineId} className="rounded-lg border p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -797,6 +888,12 @@ function OrderSummaryTab({
                     <p className="mt-1 text-xs text-muted-foreground">
                       <span className="font-medium">Extras:</span>{" "}
                       {selectedExtras.map((extra) => extra.name).join(", ")}
+                    </p>
+                  ) : null}
+                  {selectedRemovedIngredients.length > 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      <span className="font-medium">Sem:</span>{" "}
+                      {selectedRemovedIngredients.map((ingredient) => ingredient.name).join(", ")}
                     </p>
                   ) : null}
                 </div>
@@ -823,26 +920,30 @@ function OrderSummaryTab({
                 </div>
               </div>
 
-              {item.extras && item.extras.length > 0 ? (
+              {(item.extras && item.extras.length > 0) ||
+              (item.removableIngredients && item.removableIngredients.length > 0) ? (
                 <div className="mt-3 border-t pt-3">
                   {editingLineId === lineId ? (
                     <MenuItemExtrasEditor
                       itemName={item.name}
-                      extras={item.extras}
+                      extras={item.extras ?? []}
                       selectedExtraIds={editingLineExtraIds}
-                      onToggleExtra={onToggleEditingLineExtra}
-                      onCancel={onCancelEditingLineExtras}
-                      onConfirm={onSaveEditingLineExtras}
-                      confirmLabel="Salvar extras"
+                      removableIngredients={item.removableIngredients ?? []}
+                      selectedRemovedIngredientIds={editingLineRemovedIngredientIds}
+                      onToggleExtra={onToggleEditingLineExtraId}
+                      onToggleRemovedIngredient={onToggleEditingLineRemovedIngredient}
+                      onCancel={onCancelEditingLineCustomization}
+                      onConfirm={onSaveEditingLineCustomization}
+                      confirmLabel="Salvar"
                     />
                   ) : (
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => onStartEditLineExtras(lineId)}
+                      onClick={() => onStartEditLineCustomization(lineId)}
                     >
-                      Editar extras
+                      Editar
                     </Button>
                   )}
                 </div>
@@ -985,43 +1086,75 @@ function MenuItemExtrasEditor({
   itemName,
   extras,
   selectedExtraIds,
+  removableIngredients,
+  selectedRemovedIngredientIds,
   onToggleExtra,
+  onToggleRemovedIngredient,
   onCancel,
   onConfirm,
-  confirmLabel = "Adicionar com extras",
+  confirmLabel,
 }: {
   itemName: string;
   extras: MenuExtra[];
   selectedExtraIds: string[];
+  removableIngredients: MenuRemovableIngredient[];
+  selectedRemovedIngredientIds: string[];
   onToggleExtra: (extraId: string) => void;
+  onToggleRemovedIngredient: (ingredientId: string) => void;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   confirmLabel?: string;
 }) {
+  const hasExtras = extras.length > 0;
+  const hasRemovableIngredients = removableIngredients.length > 0;
+
   return (
     <div className={MENU_EXTRAS_EDITOR_CLASS}>
       <p className="text-sm font-medium">Extras para {itemName}</p>
-      <div className="mt-2 space-y-2">
-        {extras.map((extra) => {
-          const checked = selectedExtraIds.includes(extra.id);
-          return (
-            <label key={extra.id} className={MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS}>
-              <input type="checkbox" checked={checked} onChange={() => onToggleExtra(extra.id)} />
-              <span className="break-words">{extra.name}</span>
-              {typeof extra.priceCents === "number" ? (
-                <span className="text-xs text-muted-foreground">(+{formatCurrency(extra.priceCents)})</span>
-              ) : null}
-            </label>
-          );
-        })}
-      </div>
+      {hasExtras ? (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Adicionar extras</p>
+          {extras.map((extra) => {
+            const checked = selectedExtraIds.includes(extra.id);
+            return (
+              <label key={extra.id} className={MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS}>
+                <input type="checkbox" checked={checked} onChange={() => onToggleExtra(extra.id)} />
+                <span className="break-words">{extra.name}</span>
+                {typeof extra.priceCents === "number" ? (
+                  <span className="text-xs text-muted-foreground">(+{formatCurrency(extra.priceCents)})</span>
+                ) : null}
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
+      {hasRemovableIngredients ? (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Remover ingredientes</p>
+          {removableIngredients.map((ingredient) => {
+            const checked = selectedRemovedIngredientIds.includes(ingredient.id);
+            return (
+              <label key={ingredient.id} className={MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggleRemovedIngredient(ingredient.id)}
+                />
+                <span className="break-words">Sem {ingredient.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="button" size="sm" onClick={onConfirm}>
-          {confirmLabel}
-        </Button>
+        {onConfirm ? (
+          <Button type="button" size="sm" onClick={onConfirm}>
+            {confirmLabel ?? "Salvar"}
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -1057,6 +1190,7 @@ type SubmitOrderRequestInput = {
     menuItemId: string;
     quantity: number;
     extraIds?: string[];
+    removedIngredientIds?: string[];
   }>;
 };
 
@@ -1098,28 +1232,34 @@ async function submitOrderRequest(
   }
 }
 
-function normalizeExtraIds(extraIds: string[]): string[] {
-  return Array.from(new Set(extraIds.map((id) => id.trim()).filter(Boolean))).sort((a, b) =>
+function normalizeIdSet(ids: string[]): string[] {
+  return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, "pt-BR")
   );
 }
 
-function lineMergeKey(menuItemId: string, extraIds: string[]) {
-  return `${menuItemId}::${normalizeExtraIds(extraIds).join("|")}`;
+function lineMergeKey(
+  menuItemId: string,
+  extraIds: string[],
+  removedIngredientIds: string[]
+) {
+  return JSON.stringify([menuItemId, normalizeIdSet(extraIds), normalizeIdSet(removedIngredientIds)]);
 }
 
 function lineMatchesMergeKey(line: SelectedOrderLine, key: string): boolean {
-  return lineMergeKey(line.menuItemId, line.extraIds) === key;
+  return lineMergeKey(line.menuItemId, line.extraIds, line.removedIngredientIds) === key;
 }
 
 function addOrMergeOrderLine(
   current: SelectedOrderLine[],
   menuItemId: string,
   quantity: number,
-  extraIds: string[]
+  extraIds: string[],
+  removedIngredientIds: string[]
 ) {
-  const normalizedExtraIds = normalizeExtraIds(extraIds);
-  const key = lineMergeKey(menuItemId, normalizedExtraIds);
+  const normalizedExtraIds = normalizeIdSet(extraIds);
+  const normalizedRemovedIngredientIds = normalizeIdSet(removedIngredientIds);
+  const key = lineMergeKey(menuItemId, normalizedExtraIds, normalizedRemovedIngredientIds);
   const existing = current.find((line) => lineMatchesMergeKey(line, key));
 
   if (existing) {
@@ -1135,20 +1275,27 @@ function addOrMergeOrderLine(
       menuItemId,
       quantity,
       extraIds: normalizedExtraIds,
+      removedIngredientIds: normalizedRemovedIngredientIds,
     },
   ];
 }
 
-function updateOrderLineExtras(
+function updateOrderLineCustomization(
   current: SelectedOrderLine[],
   lineId: string,
-  nextExtraIds: string[]
+  nextExtraIds: string[],
+  nextRemovedIngredientIds: string[]
 ) {
   const target = current.find((line) => line.lineId === lineId);
   if (!target) return current;
 
-  const normalizedExtraIds = normalizeExtraIds(nextExtraIds);
-  const targetKey = lineMergeKey(target.menuItemId, normalizedExtraIds);
+  const normalizedExtraIds = normalizeIdSet(nextExtraIds);
+  const normalizedRemovedIngredientIds = normalizeIdSet(nextRemovedIngredientIds);
+  const targetKey = lineMergeKey(
+    target.menuItemId,
+    normalizedExtraIds,
+    normalizedRemovedIngredientIds
+  );
   const mergeTarget = current.find(
     (line) => line.lineId !== lineId && lineMatchesMergeKey(line, targetKey)
   );
@@ -1164,7 +1311,13 @@ function updateOrderLineExtras(
   }
 
   return current.map((line) =>
-    line.lineId === lineId ? { ...line, extraIds: normalizedExtraIds } : line
+    line.lineId === lineId
+      ? {
+          ...line,
+          extraIds: normalizedExtraIds,
+          removedIngredientIds: normalizedRemovedIngredientIds,
+        }
+      : line
   );
 }
 
