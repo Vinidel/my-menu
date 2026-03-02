@@ -1,6 +1,6 @@
 # Feature Brief — Order Standard Ingredients Removal (Sem Ingredientes)
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-03-02
 Author: Orchestrator Agent
 
