@@ -150,6 +150,24 @@ describe("POST /api/orders", () => {
     });
   });
 
+  it("forwards empty optional e-mail to submit action (brief: optional e-mail route contract)", async () => {
+    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
+      ok: true,
+      orderReference: "PED-EMPTYEMAIL",
+    });
+
+    const body = {
+      ...BASE_ORDER_BODY,
+      customerEmail: "",
+    };
+
+    const response = await postOrders(body);
+
+    expect(response.status).toBe(201);
+    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(body, {});
+  });
+
   it("maps validation errors to 400 and unexpected errors to 500 (brief: status mapping)", async () => {
     vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
 

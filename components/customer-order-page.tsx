@@ -50,8 +50,9 @@ type SelectedEntry = {
 
 const REQUIRED_ITEMS_MESSAGE = "Selecione pelo menos um item para enviar seu pedido.";
 const REQUIRED_FIELDS_MESSAGE =
-  "Preencha nome, e-mail, telefone e selecione a forma de pagamento para continuar.";
+  "Preencha nome, telefone e selecione a forma de pagamento para continuar.";
 const REQUIRED_PAYMENT_METHOD_MESSAGE = "Selecione uma forma de pagamento.";
+const INVALID_EMAIL_MESSAGE = "Informe um e-mail válido.";
 const SETUP_UNAVAILABLE_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 const SETUP_BANNER_MESSAGE =
@@ -324,7 +325,9 @@ export function CustomerOrderPage({
     const nextErrors: FieldErrors = {};
 
     if (!customerName.trim()) nextErrors.customerName = "Informe seu nome.";
-    if (!customerEmail.trim()) nextErrors.customerEmail = "Informe seu e-mail.";
+    if (customerEmail.trim() && !isBasicEmail(customerEmail)) {
+      nextErrors.customerEmail = INVALID_EMAIL_MESSAGE;
+    }
     if (!customerPhone.trim()) nextErrors.customerPhone = "Informe seu telefone.";
     if (!paymentMethod) nextErrors.paymentMethod = REQUIRED_PAYMENT_METHOD_MESSAGE;
 
@@ -972,7 +975,7 @@ function OrderSummaryTab({
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="customer-email" className="text-sm font-medium">E-mail</label>
+          <label htmlFor="customer-email" className="text-sm font-medium">E-mail (opcional)</label>
           <Input
             id="customer-email"
             type="email"
@@ -983,7 +986,6 @@ function OrderSummaryTab({
             disabled={isPending}
             aria-invalid={Boolean(fieldErrors.customerEmail)}
             aria-describedby={fieldErrors.customerEmail ? "customer-email-error" : undefined}
-            required
           />
           {fieldErrors.customerEmail ? (
             <p id="customer-email-error" className="text-xs text-rose-700">{fieldErrors.customerEmail}</p>
@@ -1236,6 +1238,10 @@ function normalizeIdSet(ids: string[]): string[] {
   return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, "pt-BR")
   );
+}
+
+function isBasicEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function lineMergeKey(

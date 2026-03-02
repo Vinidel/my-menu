@@ -12,7 +12,7 @@ import type { Database } from "@/lib/supabase/database.types";
 const SETUP_ERROR_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
 const VALIDATION_REQUIRED_MESSAGE =
-  "Preencha nome, e-mail, telefone, forma de pagamento e selecione pelo menos um item.";
+  "Preencha nome, telefone, forma de pagamento e selecione pelo menos um item.";
 const VALIDATION_EMAIL_MESSAGE = "Informe um e-mail válido.";
 const VALIDATION_PHONE_MESSAGE = "Informe um telefone válido.";
 const VALIDATION_PAYMENT_METHOD_MESSAGE = "Selecione uma forma de pagamento válida.";
@@ -58,6 +58,12 @@ type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
 type CustomerInsert = Database["public"]["Tables"]["customers"]["Insert"];
 type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 type OrderStatus = Database["public"]["Tables"]["orders"]["Row"]["status"];
+type CustomerIdRow = Pick<CustomerRow, "id">;
+type SupabaseTableError = { message: string; code?: string | null } | null;
+type CustomerMaybeSingleResult = Promise<{
+  data: CustomerIdRow | null;
+  error: SupabaseTableError;
+}>;
 type OrdersTablesClient = {
   from: (table: "customers" | "orders") => unknown;
 };
@@ -88,30 +94,37 @@ export async function submitCustomerOrderWithClient(
   input: SubmitCustomerOrderInput,
   supabase: OrdersTablesClient
 ): Promise<SubmitCustomerOrderResult> {
+  const rawCustomerEmail = input.customerEmail as unknown;
+  if (typeof rawCustomerEmail !== "string" && typeof rawCustomerEmail !== "undefined") {
+    return submitErrorResult("validation", VALIDATION_EMAIL_MESSAGE);
+  }
+
   const customerName = sanitizeText(input.customerName);
-  const customerEmail = sanitizeText(input.customerEmail);
+  const customerEmail = sanitizeOptionalText(
+    typeof rawCustomerEmail === "string" ? rawCustomerEmail : undefined
+  );
   const customerPhone = sanitizeText(input.customerPhone);
   const paymentMethod = normalizePaymentMethod(input.paymentMethod);
   const notes = sanitizeOptionalText(input.notes);
 
   if (
     customerName.length > MAX_CUSTOMER_NAME_LENGTH ||
-    customerEmail.length > MAX_CUSTOMER_EMAIL_LENGTH ||
+    (customerEmail?.length ?? 0) > MAX_CUSTOMER_EMAIL_LENGTH ||
     customerPhone.length > MAX_CUSTOMER_PHONE_LENGTH ||
     (notes?.length ?? 0) > MAX_NOTES_LENGTH
   ) {
     return submitErrorResult("validation", VALIDATION_TOO_LARGE_MESSAGE);
   }
 
-  if (!customerName || !customerEmail || !customerPhone) {
+  if (!customerName || !customerPhone) {
     return submitErrorResult("validation", VALIDATION_REQUIRED_MESSAGE);
   }
 
-  if (!isBasicEmail(customerEmail)) {
+  if (customerEmail && !isBasicEmail(customerEmail)) {
     return submitErrorResult("validation", VALIDATION_EMAIL_MESSAGE);
   }
 
-  const normalizedEmail = normalizeEmail(customerEmail);
+  const normalizedEmail = normalizeOptionalEmail(customerEmail);
   const normalizedPhone = normalizePhone(customerPhone);
 
   if (!normalizedPhone) {
@@ -191,13 +204,28 @@ type FindOrCreateCustomerInput = CustomerInsert;
 
 type CustomersSelectChain = {
   select: (columns: "id") => {
-    eq: (column: "email_normalized", value: string) => {
-      eq: (column: "phone_normalized", value: string) => {
-        maybeSingle: () => Promise<{
-          data: Pick<CustomerRow, "id"> | null;
-          error: { message: string; code?: string | null } | null;
-        }>;
+    eq: (column: "email_normalized" | "phone_normalized" | "id", value: string) => {
+      eq: (column: "phone_normalized" | "id", value: string) => {
+        is: (
+          column: "email_normalized",
+          value: null
+        ) => {
+          maybeSingle: () => CustomerMaybeSingleResult;
+        };
+        maybeSingle: () => CustomerMaybeSingleResult;
       };
+      is: (
+        column: "email_normalized",
+        value: null
+      ) => {
+        maybeSingle: () => CustomerMaybeSingleResult;
+      };
+    };
+    is: (
+      column: "email_normalized",
+      value: null
+    ) => {
+      maybeSingle: () => CustomerMaybeSingleResult;
     };
   };
 };
@@ -206,9 +234,24 @@ type CustomersInsertChain = {
   insert: (values: CustomerInsert) => {
     select: (columns: "id") => {
       single: () => Promise<{
-        data: Pick<CustomerRow, "id"> | null;
-        error: { message: string; code?: string | null } | null;
+        data: CustomerIdRow | null;
+        error: SupabaseTableError;
       }>;
+    };
+  };
+};
+
+type CustomersUpdateChain = {
+  update: (values: Database["public"]["Tables"]["customers"]["Update"]) => {
+    eq: (column: "id", value: string) => {
+      is: (
+        column: "email_normalized",
+        value: null
+      ) => {
+        select: (columns: "id") => {
+          maybeSingle: () => CustomerMaybeSingleResult;
+        };
+      };
     };
   };
 };
@@ -218,7 +261,7 @@ type OrdersInsertChain = {
     select: (columns: "reference") => {
       single: () => Promise<{
         data: { reference: string } | null;
-        error: { message: string; code?: string | null } | null;
+        error: SupabaseTableError;
       }>;
     };
   };
@@ -228,22 +271,78 @@ async function findOrCreateCustomer(
   supabase: OrdersTablesClient,
   input: FindOrCreateCustomerInput
 ): Promise<string | null> {
-  const { data: existingCustomer, error: selectError } = await findCustomerByNormalizedContact(
-    supabase,
-    input.email_normalized,
-    input.phone_normalized
-  );
+  const hasEmail = Boolean(input.email_normalized);
 
-  if (selectError) {
-    console.error("[customer/orders] failed to query customers for dedupe", {
-      message: selectError.message,
-      code: selectError.code,
-    });
-    return null;
-  }
+  if (hasEmail && input.email_normalized) {
+    const { data: customerByEmailAndPhone, error: byEmailError } =
+      await findCustomerByNormalizedContact(
+        supabase,
+        input.email_normalized,
+        input.phone_normalized
+      );
+    if (byEmailError) {
+      console.error("[customer/orders] failed to query customers by email+phone", {
+        message: byEmailError.message,
+        code: byEmailError.code,
+      });
+      return null;
+    }
+    if (customerByEmailAndPhone?.id) {
+      return customerByEmailAndPhone.id;
+    }
 
-  if (existingCustomer?.id) {
-    return existingCustomer.id;
+    const { data: phoneOnlyCustomer, error: phoneOnlyError } =
+      await findCustomerByPhoneWithoutEmail(supabase, input.phone_normalized);
+    if (phoneOnlyError) {
+      console.error("[customer/orders] failed to query phone-only customer for upgrade", {
+        message: phoneOnlyError.message,
+        code: phoneOnlyError.code,
+      });
+      return null;
+    }
+
+    if (phoneOnlyCustomer?.id && input.email && input.email_normalized) {
+      const upgradedCustomer = await upgradePhoneOnlyCustomerWithEmail(
+        supabase,
+        phoneOnlyCustomer.id,
+        input.email,
+        input.email_normalized
+      );
+      if (upgradedCustomer?.id) {
+        return upgradedCustomer.id;
+      }
+
+      const { data: retriedByEmail, error: retriedByEmailError } =
+        await findCustomerByNormalizedContact(
+          supabase,
+          input.email_normalized,
+          input.phone_normalized
+        );
+      if (retriedByEmailError) {
+        console.error("[customer/orders] failed to retry customer query after upgrade", {
+          message: retriedByEmailError.message,
+          code: retriedByEmailError.code,
+        });
+        return null;
+      }
+      if (retriedByEmail?.id) {
+        return retriedByEmail.id;
+      }
+    }
+  } else {
+    const { data: phoneOnlyCustomer, error: phoneOnlyError } =
+      await findCustomerByPhoneWithoutEmail(supabase, input.phone_normalized);
+    if (phoneOnlyError) {
+      console.error("[customer/orders] failed to query phone-only customer", {
+        message: phoneOnlyError.message,
+        code: phoneOnlyError.code,
+      });
+      return null;
+    }
+
+    if (phoneOnlyCustomer?.id) {
+      return phoneOnlyCustomer.id;
+    }
   }
 
   const customersInsert = asCustomersInsertChain(supabase.from("customers"));
@@ -257,21 +356,38 @@ async function findOrCreateCustomer(
   }
 
   if (insertError?.code === "23505") {
-    // Another request inserted the same normalized customer between select and insert.
-    const { data: retriedCustomer, error: retryError } = await findCustomerByNormalizedContact(
-      supabase,
-      input.email_normalized,
-      input.phone_normalized
-    );
+    // Another request inserted/updated the same customer between select and insert.
+    if (hasEmail && input.email_normalized) {
+      const { data: retriedByEmailAndPhone, error: retryByEmailError } =
+        await findCustomerByNormalizedContact(
+          supabase,
+          input.email_normalized,
+          input.phone_normalized
+        );
 
-    if (!retryError && retriedCustomer?.id) {
-      return retriedCustomer.id;
+      if (!retryByEmailError && retriedByEmailAndPhone?.id) {
+        return retriedByEmailAndPhone.id;
+      }
+
+      console.error("[customer/orders] duplicate customer insert retry failed", {
+        insertCode: insertError.code,
+        retryCode: retryByEmailError?.code,
+        retryMessage: retryByEmailError?.message,
+      });
+      return null;
+    }
+
+    const { data: retriedByPhoneOnly, error: retryByPhoneError } =
+      await findCustomerByPhoneWithoutEmail(supabase, input.phone_normalized);
+
+    if (!retryByPhoneError && retriedByPhoneOnly?.id) {
+      return retriedByPhoneOnly.id;
     }
 
     console.error("[customer/orders] duplicate customer insert retry failed", {
       insertCode: insertError.code,
-      retryCode: retryError?.code,
-      retryMessage: retryError?.message,
+      retryCode: retryByPhoneError?.code,
+      retryMessage: retryByPhoneError?.message,
     });
     return null;
   }
@@ -295,6 +411,50 @@ function findCustomerByNormalizedContact(
     .eq("email_normalized", emailNormalized)
     .eq("phone_normalized", phoneNormalized)
     .maybeSingle();
+}
+
+function findCustomerByPhoneWithoutEmail(
+  supabase: OrdersTablesClient,
+  phoneNormalized: string
+) {
+  const customersSelect = asCustomersSelectChain(supabase.from("customers"));
+
+  return customersSelect
+    .select("id")
+    .eq("phone_normalized", phoneNormalized)
+    .is("email_normalized", null)
+    .maybeSingle();
+}
+
+async function upgradePhoneOnlyCustomerWithEmail(
+  supabase: OrdersTablesClient,
+  customerId: string,
+  email: string,
+  emailNormalized: string
+) {
+  const customersUpdate = asCustomersUpdateChain(supabase.from("customers"));
+  const { data: upgradedCustomer, error: upgradeError } = await customersUpdate
+    .update({
+      email,
+      email_normalized: emailNormalized,
+    })
+    .eq("id", customerId)
+    .is("email_normalized", null)
+    .select("id")
+    .maybeSingle();
+
+  if (upgradeError) {
+    if (upgradeError.code === "23505") {
+      return null;
+    }
+    console.error("[customer/orders] failed to upgrade phone-only customer with email", {
+      message: upgradeError.message,
+      code: upgradeError.code,
+    });
+    return null;
+  }
+
+  return upgradedCustomer;
 }
 
 function normalizeSelectedItems(
@@ -443,7 +603,8 @@ function sanitizeOptionalText(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function normalizeEmail(value: string): string {
+function normalizeOptionalEmail(value: string | null): string | null {
+  if (!value) return null;
   return value.trim().toLowerCase();
 }
 
@@ -467,6 +628,10 @@ function asCustomersSelectChain(value: unknown): CustomersSelectChain {
 
 function asCustomersInsertChain(value: unknown): CustomersInsertChain {
   return value as CustomersInsertChain;
+}
+
+function asCustomersUpdateChain(value: unknown): CustomersUpdateChain {
+  return value as CustomersUpdateChain;
 }
 
 function asOrdersInsertChain(value: unknown): OrdersInsertChain {

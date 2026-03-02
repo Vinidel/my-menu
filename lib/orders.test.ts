@@ -54,6 +54,21 @@ describe("parseAdminOrder extras hardening", () => {
 });
 
 describe("parseAdminOrder total amount display", () => {
+  it("falls back to 'Não informado' when order e-mail is null", () => {
+    const order = parseAdminOrder({
+      id: "email-null",
+      reference: "PED-EMAILNULL",
+      customer_name: "Ana",
+      customer_email: null,
+      customer_phone: "11999999999",
+      status: "aguardando_confirmacao",
+      items: [{ name: "X-Burger", quantity: 1 }],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.customerEmail).toBe("Não informado");
+  });
+
   it("computes total from persisted item/extras pricing snapshots and formats pt-BR currency", () => {
     const order = parseAdminOrder({
       id: "3",
