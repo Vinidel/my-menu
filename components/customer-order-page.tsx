@@ -379,7 +379,7 @@ export function CustomerOrderPage({
     handleAddCustomizedItem(item);
   }
 
-  function startEditingLineExtras(lineId: string) {
+  function startEditingLineCustomization(lineId: string) {
     const line = selectedLines.find((entry) => entry.lineId === lineId);
     if (!line) return;
     setEditingLineId(lineId);
@@ -388,7 +388,7 @@ export function CustomerOrderPage({
     setFeedback(null);
   }
 
-  function toggleEditingLineExtra(extraId: string) {
+  function toggleEditingLineExtraId(extraId: string) {
     setEditingLineExtraIds((current) =>
       normalizeIdSet(
         current.includes(extraId)
@@ -410,7 +410,7 @@ export function CustomerOrderPage({
     setFeedback(null);
   }
 
-  function saveEditedLineExtras() {
+  function saveEditedLineCustomization() {
     if (!editingLineId) return;
     setSelectedLines((current) =>
       updateOrderLineCustomization(
@@ -743,14 +743,14 @@ export function CustomerOrderPage({
               setPaymentMethod(value);
               clearFieldError("paymentMethod");
             }}
-            onStartEditLineExtras={startEditingLineExtras}
+            onStartEditLineCustomization={startEditingLineCustomization}
             editingLineId={editingLineId}
             editingLineExtraIds={editingLineExtraIds}
             editingLineRemovedIngredientIds={editingLineRemovedIngredientIds}
-            onToggleEditingLineExtra={toggleEditingLineExtra}
+            onToggleEditingLineExtraId={toggleEditingLineExtraId}
             onToggleEditingLineRemovedIngredient={toggleEditingLineRemovedIngredient}
-            onSaveEditingLineExtras={saveEditedLineExtras}
-            onCancelEditingLineExtras={() => {
+            onSaveEditingLineCustomization={saveEditedLineCustomization}
+            onCancelEditingLineCustomization={() => {
               setEditingLineId(null);
               setEditingLineExtraIds([]);
               setEditingLineRemovedIngredientIds([]);
@@ -809,14 +809,14 @@ type OrderSummaryTabProps = {
   onCustomerPhoneChange: (value: string) => void;
   onCustomerNotesChange: (value: string) => void;
   onPaymentMethodChange: (value: PaymentMethod) => void;
-  onStartEditLineExtras: (lineId: string) => void;
+  onStartEditLineCustomization: (lineId: string) => void;
   editingLineId: string | null;
   editingLineExtraIds: string[];
   editingLineRemovedIngredientIds: string[];
-  onToggleEditingLineExtra: (extraId: string) => void;
+  onToggleEditingLineExtraId: (extraId: string) => void;
   onToggleEditingLineRemovedIngredient: (ingredientId: string) => void;
-  onSaveEditingLineExtras: () => void;
-  onCancelEditingLineExtras: () => void;
+  onSaveEditingLineCustomization: () => void;
+  onCancelEditingLineCustomization: () => void;
   onBackToMenu: () => void;
 };
 
@@ -840,14 +840,14 @@ function OrderSummaryTab({
   onCustomerPhoneChange,
   onCustomerNotesChange,
   onPaymentMethodChange,
-  onStartEditLineExtras,
+  onStartEditLineCustomization,
   editingLineId,
   editingLineExtraIds,
   editingLineRemovedIngredientIds,
-  onToggleEditingLineExtra,
+  onToggleEditingLineExtraId,
   onToggleEditingLineRemovedIngredient,
-  onSaveEditingLineExtras,
-  onCancelEditingLineExtras,
+  onSaveEditingLineCustomization,
+  onCancelEditingLineCustomization,
   onBackToMenu,
 }: OrderSummaryTabProps) {
   const cartCountLabel = formatItemCountLabel(totalItems);
@@ -930,10 +930,10 @@ function OrderSummaryTab({
                       selectedExtraIds={editingLineExtraIds}
                       removableIngredients={item.removableIngredients ?? []}
                       selectedRemovedIngredientIds={editingLineRemovedIngredientIds}
-                      onToggleExtra={onToggleEditingLineExtra}
+                      onToggleExtra={onToggleEditingLineExtraId}
                       onToggleRemovedIngredient={onToggleEditingLineRemovedIngredient}
-                      onCancel={onCancelEditingLineExtras}
-                      onConfirm={onSaveEditingLineExtras}
+                      onCancel={onCancelEditingLineCustomization}
+                      onConfirm={onSaveEditingLineCustomization}
                       confirmLabel="Salvar"
                     />
                   ) : (
@@ -941,7 +941,7 @@ function OrderSummaryTab({
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => onStartEditLineExtras(lineId)}
+                      onClick={() => onStartEditLineCustomization(lineId)}
                     >
                       Editar
                     </Button>

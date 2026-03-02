@@ -391,28 +391,22 @@ function normalizeSelectedItems(
 }
 
 function normalizeExtraIds(value: unknown): string[] | null {
-  if (typeof value === "undefined") return [];
-  if (!Array.isArray(value)) return null;
-
-  const unique = new Set<string>();
-  for (const raw of value) {
-    const extraId = sanitizeText(typeof raw === "string" ? raw : "");
-    if (!extraId) return null;
-    unique.add(extraId);
-  }
-
-  return Array.from(unique).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return normalizeStringIdList(value);
 }
 
 function normalizeRemovedIngredientIds(value: unknown): string[] | null {
+  return normalizeStringIdList(value);
+}
+
+function normalizeStringIdList(value: unknown): string[] | null {
   if (typeof value === "undefined") return [];
   if (!Array.isArray(value)) return null;
 
   const unique = new Set<string>();
   for (const raw of value) {
-    const ingredientId = sanitizeText(typeof raw === "string" ? raw : "");
-    if (!ingredientId) return null;
-    unique.add(ingredientId);
+    const id = sanitizeText(typeof raw === "string" ? raw : "");
+    if (!id) return null;
+    unique.add(id);
   }
 
   return Array.from(unique).sort((a, b) => a.localeCompare(b, "pt-BR"));
