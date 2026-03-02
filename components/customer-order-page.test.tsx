@@ -138,7 +138,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
     fireEvent.click(screen.getByLabelText(/Bacon extra/));
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
 
     expect(screen.getByRole("tab", { name: "Carrinho (1 item)" })).toHaveAttribute(
       "data-cart-feedback-state",
@@ -418,7 +418,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
     fireEvent.click(screen.getByLabelText(/Bacon extra/));
     fireEvent.click(screen.getByLabelText(/Queijo extra/));
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
     fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
@@ -449,6 +449,66 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     ]);
   });
 
+  it("submits removed ingredients and renders 'Sem:' in cart summary (brief: removals payload shape + summary display)", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        orderReference: "PED-REM1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const menuWithRemovables: MenuItem[] = [
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        category: "Hambúrgueres",
+        priceCents: 2500,
+        removableIngredients: [
+          { id: "cebola", name: "Cebola" },
+          { id: "tomate", name: "Tomate" },
+        ],
+      },
+    ];
+
+    render(<CustomerOrderPage menuItems={menuWithRemovables} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+    fireEvent.click(screen.getByLabelText("Sem Cebola"));
+    fireEvent.click(screen.getByLabelText("Sem Tomate"));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+
+    expect(
+      screen.getByText((_, element) => element?.textContent === "Sem: Cebola, Tomate")
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
+    fireEvent.change(screen.getByLabelText("E-mail"), {
+      target: { value: "ana@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Telefone"), {
+      target: { value: "11999999999" },
+    });
+    fireEvent.click(screen.getByLabelText("Pix"));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(requestInit.body)) as {
+      items: Array<{ menuItemId: string; quantity: number; removedIngredientIds?: string[] }>;
+    };
+
+    expect(payload.items).toEqual([
+      {
+        menuItemId: "x-burger",
+        quantity: 1,
+        removedIngredientIds: ["cebola", "tomate"],
+      },
+    ]);
+  });
+
   it("edits extras for an existing line in the order summary (brief: edit/remove extras)", () => {
     const menuWithExtras: MenuItem[] = [
       {
@@ -467,28 +527,62 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
     fireEvent.click(screen.getByLabelText(/Bacon extra/));
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
     fireEvent.click(screen.getByLabelText(/Queijo extra/));
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar com extras" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (2 itens)" }));
 
     expect(screen.getAllByText("X-Burger")).toHaveLength(2);
 
-    const editButtons = screen.getAllByRole("button", { name: "Editar extras" });
+    const editButtons = screen.getAllByRole("button", { name: "Editar" });
     fireEvent.click(editButtons[1]);
     fireEvent.click(screen.getByLabelText(/Bacon extra/));
-    fireEvent.click(screen.getByRole("button", { name: "Salvar extras" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
-    expect(screen.getAllByRole("button", { name: "Editar extras" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Editar" })).toHaveLength(2);
     expect(screen.getByText("2 itens")).toBeInTheDocument();
     expect(
       screen.getByText((_, element) => element?.textContent === "Extras: Bacon extra")
     ).toBeInTheDocument();
     expect(
       screen.getByText((_, element) => element?.textContent === "Extras: Bacon extra, Queijo extra")
+    ).toBeInTheDocument();
+  });
+
+  it("edits removed ingredients for an existing line in the order summary (brief: edit/remove removals)", () => {
+    const menuWithRemovables: MenuItem[] = [
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        category: "Hambúrgueres",
+        priceCents: 2500,
+        removableIngredients: [
+          { id: "cebola", name: "Cebola" },
+          { id: "tomate", name: "Tomate" },
+        ],
+      },
+    ];
+
+    render(<CustomerOrderPage menuItems={menuWithRemovables} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar" }));
+    fireEvent.click(screen.getByLabelText("Sem Cebola"));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+
+    expect(
+      screen.getByText((_, element) => element?.textContent === "Sem: Cebola")
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByLabelText("Sem Tomate"));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      screen.getByText((_, element) => element?.textContent === "Sem: Cebola, Tomate")
     ).toBeInTheDocument();
   });
 });

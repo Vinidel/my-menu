@@ -249,6 +249,33 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(screen.getByText(/Bacon extra, Queijo extra/)).toBeInTheDocument();
   });
 
+  it("renders removed ingredients in order details when present (brief: admin removals display)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            items: [
+              {
+                name: "X-Burger",
+                quantity: 1,
+                removedIngredients: [
+                  { id: "alface", name: "Alface" },
+                  { id: "tomate", name: "Tomate" },
+                ],
+              },
+            ],
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("X-Burger")).toBeInTheDocument();
+    expect(screen.getByText(/Sem:/)).toBeInTheDocument();
+    expect(screen.getByText(/Alface, Tomate/)).toBeInTheDocument();
+  });
+
   it("renders payment method label in admin order details for new orders (brief: payment method display)", () => {
     render(
       <AdminOrdersDashboard

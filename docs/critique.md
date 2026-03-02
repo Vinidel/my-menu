@@ -1,9 +1,9 @@
 ---
 # Critique
 
-Date: 2026-02-27
+Date: 2026-03-02
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — Invisible Turnstile CAPTCHA on `/api/orders` (`docs/briefs/api-orders-turnstile-captcha.md`)
+Scope: Stage 2 test coverage review — Order Standard Ingredients Removal (`docs/briefs/order-standard-items-removal.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -12,21 +12,19 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add one UI-level assertion that a successful CAPTCHA callback path includes `turnstileToken` in the `/api/orders` payload body (current coverage validates API behavior when token is present, but not the final client request shape end-to-end).
+- Consider adding one `lib/orders` parser-focused test for malformed historical `removedIngredients` entries to strengthen defensive rendering coverage independent of dashboard component tests.
 
 ### Risks / Assumptions
-- Current Stage 2 coverage is strong for server-side enforcement and config gating.
-- Turnstile widget lifecycle behavior is partially mocked in component tests; browser/runtime integration details still depend on manual or e2e validation.
+- Stage 2 now covers the previously missing contract points: edit-removals flow and max-20 `removedIngredientIds` validation.
+- Coverage is strong on submit payload shape, tampered ID rejection, normalization/snapshot persistence, and `Sem:` rendering across customer/admin views.
 
 ## Acceptance Criteria (Stage 2 spot-check)
-- [x] Non-production CAPTCHA toggle behavior is covered.
-- [x] Production override (`NODE_ENV=production`) is covered.
-- [x] Missing Turnstile keys when required returns deterministic `503`.
-- [x] Missing token returns `400` and no order write.
-- [x] Invalid verification result returns `400` and no order write.
-- [x] Verify upstream failure returns `503` (fail closed).
-- [x] Valid token verification path succeeds and strips `turnstileToken` before submit action call.
-- [x] Customer UI blocks submit when CAPTCHA is required but site key is missing.
-- [x] Customer UI shows info-state feedback for `Verificando segurança...`.
+- [x] `removedIngredientIds` payload shape is covered from customer submit path
+- [x] Tampered removal IDs are rejected server-side
+- [x] Max `20` `removedIngredientIds` per item validation is explicitly covered
+- [x] Removed-ingredients snapshots persistence/normalization is covered
+- [x] Customer edit-removals flow on existing cart line is explicitly covered
+- [x] Customer summary renders removed ingredients (`Sem:`)
+- [x] Admin details render removed ingredients (`Sem:`)
 
 ---
