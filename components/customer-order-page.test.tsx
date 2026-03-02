@@ -26,7 +26,7 @@ function addFirstMenuItemAndOpenCart() {
 
 function fillRequiredCheckoutFields() {
   fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
-  fireEvent.change(screen.getByLabelText("E-mail"), {
+  fireEvent.change(screen.getByLabelText("E-mail (opcional)"), {
     target: { value: "ana@example.com" },
   });
   fireEvent.change(screen.getByLabelText("Telefone"), {
@@ -199,7 +199,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(extraLabel?.className).toContain("flex-wrap");
   });
 
-  it("shows inline required-field messages when submitting without nome/email/telefone (brief: in-field validation)", async () => {
+  it("shows inline required-field messages when submitting without nome/telefone (brief: in-field validation)", async () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
@@ -207,14 +207,30 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
 
     expect(screen.getByText("Informe seu nome.")).toBeInTheDocument();
-    expect(screen.getByText("Informe seu e-mail.")).toBeInTheDocument();
     expect(screen.getByText("Informe seu telefone.")).toBeInTheDocument();
     expect(screen.getByText("Selecione uma forma de pagamento.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Preencha nome, e-mail, telefone e selecione a forma de pagamento para continuar."
+        "Preencha nome, telefone e selecione a forma de pagamento para continuar."
       )
     ).toBeInTheDocument();
+  });
+
+  it("shows e-mail format error only when a non-empty e-mail is invalid (brief: optional + format validation)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    addFirstMenuItemAndOpenCart();
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
+    fireEvent.change(screen.getByLabelText("E-mail (opcional)"), {
+      target: { value: "email-invalido" },
+    });
+    fireEvent.change(screen.getByLabelText("Telefone"), {
+      target: { value: "11999999999" },
+    });
+    fireEvent.click(screen.getByLabelText("Pix"));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    expect(screen.getByText("Informe um e-mail válido.")).toBeInTheDocument();
   });
 
   it("renders payment method radio options in the checkout form (brief: payment method radio group)", () => {
@@ -291,7 +307,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
-    fireEvent.change(screen.getByLabelText("E-mail"), {
+    fireEvent.change(screen.getByLabelText("E-mail (opcional)"), {
       target: { value: "ana@example.com" },
     });
     fireEvent.change(screen.getByLabelText("Telefone"), {
@@ -318,9 +334,39 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       expect(screen.getByText("Pedido PED-ABCD1234 enviado com sucesso! Entraremos em contato em breve para confirmar seu pedido.")).toBeInTheDocument();
     });
     expect(screen.getByLabelText("Nome")).toHaveValue("");
-    expect(screen.getByLabelText("E-mail")).toHaveValue("");
+    expect(screen.getByLabelText("E-mail (opcional)")).toHaveValue("");
     expect(screen.getByLabelText("Telefone")).toHaveValue("");
     expect(screen.getByLabelText("Observações (opcional)")).toHaveValue("");
+  });
+
+  it("submits successfully without e-mail in payload (brief: optional e-mail contract)", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        orderReference: "PED-NOEMAIL1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    addFirstMenuItemAndOpenCart();
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
+    fireEvent.change(screen.getByLabelText("Telefone"), {
+      target: { value: "11999999999" },
+    });
+    fireEvent.click(screen.getByLabelText("Dinheiro"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(requestInit.body)) as {
+      customerEmail: string;
+    };
+
+    expect(payload.customerEmail).toBe("");
   });
 
   it("shows API error message when /api/orders returns non-OK (brief: submit failure)", async () => {
@@ -338,7 +384,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
-    fireEvent.change(screen.getByLabelText("E-mail"), {
+    fireEvent.change(screen.getByLabelText("E-mail (opcional)"), {
       target: { value: "ana@example.com" },
     });
     fireEvent.change(screen.getByLabelText("Telefone"), {
@@ -355,7 +401,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     });
 
     expect(screen.getByLabelText("Nome")).toHaveValue("Ana");
-    expect(screen.getByLabelText("E-mail")).toHaveValue("ana@example.com");
+    expect(screen.getByLabelText("E-mail (opcional)")).toHaveValue("ana@example.com");
     expect(screen.getByLabelText("Telefone")).toHaveValue("11999999999");
     expect(screen.getByText("X-Burger")).toBeInTheDocument();
     expect(screen.getByText("1 item")).toBeInTheDocument();
@@ -422,7 +468,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
-    fireEvent.change(screen.getByLabelText("E-mail"), {
+    fireEvent.change(screen.getByLabelText("E-mail (opcional)"), {
       target: { value: "ana@example.com" },
     });
     fireEvent.change(screen.getByLabelText("Telefone"), {
@@ -485,7 +531,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana" } });
-    fireEvent.change(screen.getByLabelText("E-mail"), {
+    fireEvent.change(screen.getByLabelText("E-mail (opcional)"), {
       target: { value: "ana@example.com" },
     });
     fireEvent.change(screen.getByLabelText("Telefone"), {

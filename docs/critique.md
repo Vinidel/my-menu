@@ -3,7 +3,7 @@
 
 Date: 2026-03-02
 Reviewed by: Critic Agent
-Scope: Stage 4 hardening review — Order Standard Ingredients Removal
+Scope: Stage 2 test coverage review — E-mail Opcional no Pedido
 Verdict: APPROVE
 
 ## Findings
@@ -12,17 +12,17 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider mirroring the server-side customization ID max-length bound in client normalization (`components/customer-order-page.tsx`) for earlier UX feedback (server validation already enforces correctness).
+- Consider adding one additional route-level negative test for `customerEmail` as non-string (e.g. object) to lock 400 behavior through `/api/orders` and prevent regression if server coercion changes.
 
 ### Risks / Assumptions
-- Hardening changes are coherent and low-risk: ID-length bounds reduce oversized payload risk, and structured merge keys remove delimiter-collision edge cases.
-- Existing validation/error messaging path is reused; no new telemetry was added, so observability of bound rejections remains limited to existing request outcomes.
+- Stage 2 now covers the previously missing risk points: tampered e-mail shape rejection, phone-only conflict retry behavior, and route-level optional e-mail contract pass-through.
+- Assumes migration-level uniqueness constraints are applied in deployed environments to match tested conflict semantics.
 
-## Stage 4 Spot-check
-- [x] Security: oversized customization IDs are rejected server-side.
-- [x] Resilience: merge-key generation no longer depends on delimiter-safe IDs.
-- [x] Dependencies: no new package/runtime dependency introduced.
-- [x] Performance: added checks are linear and bounded under existing payload caps.
-- [x] Documentation: hardening sweep and deferred observability gap captured in `docs/hardening-notes.md`.
+## Stage 2 Spot-check
+- [x] Client optional-e-mail UX coverage exists (required-fields + invalid-format + submit without e-mail).
+- [x] Server unit coverage exists for phone-only reuse and phone-only-to-email upgrade.
+- [x] Tampered payload-shape rejection for e-mail is explicitly covered.
+- [x] Concurrent phone-only conflict-retry behavior is explicitly covered.
+- [x] Route-level optional-e-mail contract is explicitly covered.
 
 ---

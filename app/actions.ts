@@ -88,8 +88,15 @@ export async function submitCustomerOrderWithClient(
   input: SubmitCustomerOrderInput,
   supabase: OrdersTablesClient
 ): Promise<SubmitCustomerOrderResult> {
+  const rawCustomerEmail = input.customerEmail as unknown;
+  if (typeof rawCustomerEmail !== "string" && typeof rawCustomerEmail !== "undefined") {
+    return submitErrorResult("validation", VALIDATION_EMAIL_MESSAGE);
+  }
+
   const customerName = sanitizeText(input.customerName);
-  const customerEmail = sanitizeOptionalText(input.customerEmail);
+  const customerEmail = sanitizeOptionalText(
+    typeof rawCustomerEmail === "string" ? rawCustomerEmail : undefined
+  );
   const customerPhone = sanitizeText(input.customerPhone);
   const paymentMethod = normalizePaymentMethod(input.paymentMethod);
   const notes = sanitizeOptionalText(input.notes);
