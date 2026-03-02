@@ -1,6 +1,6 @@
 # Feature Brief — E-mail Opcional no Pedido
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-03-02
 Author: Orchestrator Agent
 
@@ -45,7 +45,7 @@ Success = customer can submit an order with only `nome + telefone + forma de pag
   - Accept empty e-mail.
   - Keep format validation for non-empty e-mail values.
 - **Persistence schema (Supabase):**
-  - Allow nullable/empty-safe e-mail storage for new orders/customers.
+  - Allow nullable e-mail storage for new orders/customers using canonical `NULL` for missing values.
   - Keep legacy rows compatible.
   - Add/adjust uniqueness strategy for `public.customers` to safely support both dedupe modes under concurrency.
 - **Customer dedupe behavior:**

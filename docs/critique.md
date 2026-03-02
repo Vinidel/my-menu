@@ -3,7 +3,7 @@
 
 Date: 2026-03-02
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage review — E-mail Opcional no Pedido
+Scope: Stage 5 documentation review — E-mail Opcional no Pedido
 Verdict: APPROVE
 
 ## Findings
@@ -12,17 +12,16 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding one additional route-level negative test for `customerEmail` as non-string (e.g. object) to lock 400 behavior through `/api/orders` and prevent regression if server coercion changes.
+- In `docs/briefs/customer-email-optional.md`, consider marking the Stage 0 “Critic has approved this brief” checkbox as checked now that later-stage approvals exist, to keep brief status metadata internally consistent.
 
 ### Risks / Assumptions
-- Stage 2 now covers the previously missing risk points: tampered e-mail shape rejection, phone-only conflict retry behavior, and route-level optional e-mail contract pass-through.
-- Assumes migration-level uniqueness constraints are applied in deployed environments to match tested conflict semantics.
+- Main feature doc (`docs/customer-email-optional.md`) and migration notes are coherent and implementation-aligned.
+- Residual risk is primarily documentation drift in project-level source-of-truth if the `Auth scope` inconsistency remains.
 
-## Stage 2 Spot-check
-- [x] Client optional-e-mail UX coverage exists (required-fields + invalid-format + submit without e-mail).
-- [x] Server unit coverage exists for phone-only reuse and phone-only-to-email upgrade.
-- [x] Tampered payload-shape rejection for e-mail is explicitly covered.
-- [x] Concurrent phone-only conflict-retry behavior is explicitly covered.
-- [x] Route-level optional-e-mail contract is explicitly covered.
+## Stage 5 Spot-check
+- [x] Feature document exists with decisions, migration notes, and operational checks (`docs/customer-email-optional.md`).
+- [x] Hardening/deferred items are captured in `docs/hardening-notes.md`.
+- [x] `PROJECT.md` delivered/docs/architecture/error-handling sections were updated for optional e-mail.
+- [x] Project-level wording is fully internally consistent.
 
 ---
