@@ -13,9 +13,9 @@ export type Database = {
         Row: {
           id: string;
           name: string;
-          email: string;
+          email: string | null;
           phone: string;
-          email_normalized: string;
+          email_normalized: string | null;
           phone_normalized: string;
           created_at: string;
           updated_at: string;
@@ -23,9 +23,9 @@ export type Database = {
         Insert: {
           id?: string;
           name: string;
-          email: string;
+          email?: string | null;
           phone: string;
-          email_normalized: string;
+          email_normalized?: string | null;
           phone_normalized: string;
           created_at?: string;
           updated_at?: string;
@@ -33,9 +33,9 @@ export type Database = {
         Update: {
           id?: string;
           name?: string;
-          email?: string;
+          email?: string | null;
           phone?: string;
-          email_normalized?: string;
+          email_normalized?: string | null;
           phone_normalized?: string;
           created_at?: string;
           updated_at?: string;
@@ -48,7 +48,7 @@ export type Database = {
           reference: string;
           customer_id: string | null;
           customer_name: string;
-          customer_email: string;
+          customer_email: string | null;
           customer_phone: string;
           payment_method: string | null;
           items: Json;
@@ -62,7 +62,7 @@ export type Database = {
           reference?: string;
           customer_id?: string | null;
           customer_name: string;
-          customer_email: string;
+          customer_email?: string | null;
           customer_phone: string;
           payment_method?: string | null;
           items?: Json;
@@ -76,7 +76,7 @@ export type Database = {
           reference?: string;
           customer_id?: string | null;
           customer_name?: string;
-          customer_email?: string;
+          customer_email?: string | null;
           customer_phone?: string;
           payment_method?: string | null;
           items?: Json;
