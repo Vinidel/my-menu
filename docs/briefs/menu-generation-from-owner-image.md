@@ -1,4 +1,4 @@
-# Feature Brief — Gerar Cardápio a Partir de Imagem do Dono
+# Feature Brief — Generate Menu from Owner Image
 
 Status: Stage 0 — Framing
 Date: 2026-03-02
@@ -8,76 +8,76 @@ Author: Orchestrator Agent
 
 ## Alternative Name
 
-Importar cardápio por imagem / OCR+IA para menu JSON / Rascunho de cardápio via foto
+Import menu from image / OCR+AI to menu JSON / Draft menu from photo
 
 ---
 
 ## Problem
 
-Hoje o cardápio é mantido manualmente em `data/menu.json`. Para simular o fluxo real com o dono da hamburgueria, precisamos aceitar uma imagem (foto/print/PDF convertido) e transformar isso em estrutura de menu utilizável no app.
+Today the menu is maintained manually in `data/menu.json`. To match the real owner workflow, we need to accept an uploaded menu image (photo/screenshot/PDF-converted image) and transform it into a structured menu draft.
 
-Sem isso, atualizar cardápio continua lento e técnico, dependente de edição manual de JSON.
+Without this, menu updates remain slow and technical, requiring manual JSON edits.
 
 ---
 
 ## Goal
 
-Permitir que um usuário autenticado no admin envie imagem do cardápio, gere um **rascunho estruturado** de itens/categorias/preços e confirme antes de publicar.
+Allow an authenticated admin user to upload a menu image, generate a **structured draft** of categories/items/prices, review it, and publish it.
 
-Success = imagem -> rascunho estruturado -> revisão humana -> publicação no menu ativo sem editar JSON manualmente.
+Success = image upload -> structured draft -> human review -> publish to active menu, without manual JSON editing.
 
 ---
 
 ## Who
 
-- **Burger owner / staff (logado):** Quer atualizar cardápio a partir de imagem.
-- **Customers:** Devem ver apenas menu publicado e consistente.
-- **Developers/operators:** Precisam de fluxo seguro/auditável com fallback quando extração falha.
+- **Burger owner / staff (authenticated):** Wants to update the menu from an image.
+- **Customers:** Should only see the published, consistent menu.
+- **Developers/operators:** Need a safe, auditable workflow with clear failure behavior.
 
 ---
 
 ## What We Capture / Change
 
 - **Admin UI (`/admin`):**
-  - Nova seção para upload de imagem do cardápio.
-  - Tela de revisão com diff entre menu atual e rascunho extraído.
-  - Ações: `Descartar`, `Editar`, `Publicar`.
-- **Pipeline server-side:**
-  - Recebe imagem, chama extrator (OCR/vision), normaliza para schema interno do menu.
-  - Retorna rascunho com confiança/avisos por item.
-- **Armazenamento de imagem (locked):**
-  - Upload vai para **Supabase Storage** em bucket privado dedicado (ex.: `menu-imports`).
-  - Banco persiste referência do arquivo (`bucket`, `path`, `size`, `mime`, `uploaded_by`).
-- **Persistência:**
-  - Armazenar rascunho (DB) separado do menu ativo.
-  - Publicação aplica versão aprovada ao menu ativo.
-- **Auditoria mínima:**
-  - Quem enviou, quando, status do processamento, quem publicou.
+  - New section for menu image upload.
+  - Review screen with diff between current menu and extracted draft.
+  - Actions: `Discard`, `Edit`, `Publish`.
+- **Server-side pipeline:**
+  - Receives image, calls extractor (OCR/vision), normalizes to internal menu schema.
+  - Returns draft with confidence/issues per item.
+- **Image storage (locked):**
+  - Upload goes to **Supabase Storage** in a dedicated private bucket (e.g., `menu-imports`).
+  - DB stores file reference metadata (`bucket`, `path`, `size`, `mime`, `uploaded_by`).
+- **Persistence:**
+  - Store draft menu separately from active menu.
+  - Publishing promotes approved draft to active menu.
+- **Minimum auditability:**
+  - Who uploaded, when, processing status, who published.
 
 ---
 
 ## Success Criteria
 
-- [ ] Apenas usuários autenticados acessam upload/geração/publicação.
-- [ ] Upload de imagem gera rascunho estruturado com categorias, itens e preço quando possível.
-- [ ] Fluxo não publica automaticamente: revisão humana é obrigatória antes de ativar.
-- [ ] Rascunho suporta edição manual de campos inválidos/incertos.
-- [ ] Publicação atualiza menu ativo usado pelo `/`.
-- [ ] Falhas de extração retornam mensagens claras em pt-BR sem expor detalhes internos.
-- [ ] Fluxo mantém histórico mínimo de tentativas/publicações.
-- [ ] Não quebra comportamento atual de pedidos/customização.
-- [ ] Upload valida formato/tamanho com limites explícitos e retorna erro pt-BR quando inválido.
-- [ ] Fonte de verdade do menu ativo fica explicitamente definida e usada de forma consistente.
+- [ ] Only authenticated users can access upload/generation/publish flow.
+- [ ] Valid image upload generates structured draft with categories, items, and prices when possible.
+- [ ] No auto-publish: human review is required before activation.
+- [ ] Draft supports manual edits for invalid/uncertain fields.
+- [ ] Publish updates active menu used by `/`.
+- [ ] Extraction failures return clear pt-BR user messages without exposing internals.
+- [ ] Flow keeps minimum attempt/publication history.
+- [ ] Existing order/customization behavior is not broken.
+- [ ] Upload validates file type/size with explicit limits and returns pt-BR errors when invalid.
+- [ ] Source of truth for active menu is explicitly defined and used consistently.
 
 ---
 
 ## Non-Goals (Out of Scope)
 
-- Publicação automática sem revisão humana.
-- Extração perfeita de layouts complexos/logo/fotos ruins.
-- Suporte multilíngue.
-- Controle avançado de versionamento com rollback por clique.
-- Treinamento de modelo próprio nesta fase.
+- Auto-publish without human review.
+- Perfect extraction for complex layouts/logos/low-quality photos.
+- Multi-language support.
+- Advanced menu versioning with one-click rollback.
+- Training a custom model in this phase.
 
 ---
 
@@ -85,70 +85,70 @@ Success = imagem -> rascunho estruturado -> revisão humana -> publicação no m
 
 ### Happy Paths
 
-1. **Upload válido:** Funcionário envia imagem legível e recebe rascunho com itens/preços.
-2. **Revisão e publicação:** Funcionário ajusta 1-2 campos e publica; `/` passa a exibir novo menu.
-3. **Múltiplas categorias:** Extração reconhece categorias e associa itens corretamente.
+1. **Valid upload:** Staff uploads readable image and receives draft with items/prices.
+2. **Review and publish:** Staff adjusts a few fields and publishes; `/` shows new menu.
+3. **Multiple categories:** Extraction recognizes categories and maps items correctly.
 
 ### Unhappy Paths
 
-1. **Imagem ilegível/baixa qualidade:** Sistema retorna erro orientando novo upload.
-2. **Preço ambíguo:** Campo vem como pendente e exige edição manual antes de publicar.
-3. **Falha de provedor OCR/vision:** Rascunho não é publicado; erro em pt-BR + log interno.
-4. **Usuário não autenticado:** Acesso negado ao fluxo de importação/publicação.
-5. **Arquivo inválido:** Upload com tipo não suportado ou tamanho acima do limite é rejeitado antes da extração.
-6. **Carrinho com menu desatualizado:** Após publicação de novo menu, submit com item/modificador inexistente no menu ativo é rejeitado com validação pt-BR.
+1. **Unreadable image:** System returns error prompting re-upload.
+2. **Ambiguous price:** Field is flagged and requires manual edit before publish.
+3. **OCR/vision provider failure:** No publish; pt-BR error shown + internal log.
+4. **Unauthenticated user:** Access denied to import/publish flow.
+5. **Invalid file:** Unsupported type or size above limit is rejected before extraction.
+6. **Stale cart against new menu:** After publish, submit with item/modifier missing from active menu is rejected with pt-BR validation.
 
 ---
 
 ## Edge Cases
 
-- Preço com vírgula/ponto (`25,90` vs `25.90`) e símbolo `R$`.
-- Item duplicado em duas categorias.
-- Texto com acentuação/abreviações (`X-Burguer`, `X Burguer`).
-- Itens sem preço explícito na imagem.
-- Imagem muito grande (limite de tamanho) ou formato não suportado.
-- Publicações quase simultâneas de dois funcionários.
-- Falha entre upload em Storage e criação do rascunho no banco (consistência).
+- Price formatting differences (`25,90` vs `25.90`) and `R$` symbol.
+- Duplicate item names across categories.
+- Accented text/abbreviations (`X-Burguer`, `X Burguer`).
+- Items without explicit price in image.
+- Very large image or unsupported format.
+- Near-simultaneous publishes by two staff users.
+- Failure between Storage upload and DB draft creation (consistency gap).
 
 ---
 
 ## Approach (High-Level Rationale)
 
-1. Criar fluxo admin com upload + processamento assíncrono.
-2. Salvar imagem no Supabase Storage (privado) e registrar metadados + status inicial do rascunho.
-3. Extrair texto/estrutura via serviço de visão/OCR e converter para schema de menu.
-4. Salvar como rascunho (não ativo) para revisão humana.
-5. Publicar apenas após confirmação explícita, promovendo rascunho a versão ativa.
-6. Manter logs de processamento e erros para diagnóstico.
+1. Build admin upload + async processing flow.
+2. Save image to private Supabase Storage and persist metadata/status.
+3. Extract text/structure with OCR/vision and convert to menu schema.
+4. Save as non-active draft for human review.
+5. Publish only after explicit approval by staff.
+6. Keep processing/error logs for diagnosis.
 
 ---
 
 ## Decisions (Locked)
 
-- **Revisão humana obrigatória** antes de qualquer publicação.
-- **Escopo admin-only** (sem endpoint público).
-- **Armazenamento de imagem (locked):** usar Supabase Storage (bucket privado) para os uploads do dono/funcionário.
-- **Fonte de verdade do menu ativo (locked):** menu ativo passa a ser lido de versão publicada no banco (não de edição manual direta em `data/menu.json` no fluxo admin).
-- **Compatibilidade local:** `data/menu.json` pode permanecer como fallback de desenvolvimento/semente, mas publicação oficial do fluxo de imagem atualiza a versão ativa no banco.
-- **MVP com rascunho persistido** (sem publicação automática).
-- **Formato de preço canônico:** `priceCents` no resultado final.
-- **Boundary do extrator (locked):** MVP usa uma implementação única de extração (um provedor de visão/OCR) atrás de interface de aplicação; sem múltiplos provedores nesta fase.
-- **Contrato de falha do extrator (locked):**
-  - timeout/controlado -> rascunho fica `failed`, sem afetar menu ativo
-  - erro de parsing -> rascunho `ready_with_issues` para revisão manual
+- **Human review required** before any publish.
+- **Admin-only scope** (no public import endpoint).
+- **Image storage (locked):** Supabase Storage private bucket for owner/staff uploads.
+- **Active menu source of truth (locked):** Active menu is read from published DB version (not direct manual edits in `data/menu.json` through admin flow).
+- **Local/dev compatibility:** `data/menu.json` may remain as dev seed/fallback, but official image-flow publish updates DB active menu.
+- **MVP uses persisted draft** (no auto-publish).
+- **Canonical price format:** `priceCents` in final structure.
+- **Extractor boundary (locked):** MVP uses one OCR/vision provider behind an app interface; no multi-provider strategy in this phase.
+- **Extractor failure contract (locked):**
+  - timeout/controlled failure -> draft becomes `failed`, active menu unchanged
+  - parsing error -> draft becomes `ready_with_issues` for manual review
 - **Upload constraints (locked):**
-  - formatos aceitos: `image/jpeg`, `image/png`, `image/webp`
-  - tamanho máximo por arquivo: `10MB`
-  - quantidade: `1` imagem por rascunho nesta fase
-- **Lifecycle mínimo de rascunho (locked):**
+  - accepted MIME types: `image/jpeg`, `image/png`, `image/webp`
+  - max file size: `10MB`
+  - quantity: `1` image per draft in this phase
+- **Minimum draft lifecycle (locked):**
   - `uploaded` -> `processing` -> `ready` | `ready_with_issues` | `failed` -> `published` | `discarded`
-- **Semântica de publicação (locked):**
-  - somente um menu ativo por vez
-  - publicação é troca explícita de ponteiro/versão ativa
-  - falha na publicação não altera menu ativo atual
-- **Impacto em carrinhos antigos (locked):** submits com `menuItemId`/modificadores não existentes no menu ativo devem falhar em validação pt-BR (fail closed), sem criar pedido.
-- **Idioma de UI/mensagens:** pt-BR.
-- **Falha segura:** em erro de extração, menu ativo permanece inalterado.
+- **Publish semantics (locked):**
+  - only one active menu at a time
+  - publish is explicit active-version pointer switch
+  - publish failure does not alter current active menu
+- **Impact on stale carts (locked):** submits containing `menuItemId`/modifiers not present in active menu must fail closed with pt-BR validation (no order creation).
+- **UI/message language:** pt-BR.
+- **Fail-safe requirement:** extraction errors must leave active menu unchanged.
 
 ---
 
