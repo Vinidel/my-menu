@@ -14,21 +14,15 @@ export function ProcessingPoller({ hasProcessingDrafts }: ProcessingPollerProps)
     if (!hasProcessingDrafts) return;
 
     let cancelled = false;
-    const tick = async () => {
-      try {
-        await fetch("/api/admin/menu-import/process-next", { method: "POST" });
-      } catch {
-        // Best-effort background processing trigger.
-      } finally {
-        if (!cancelled) {
-          router.refresh();
-        }
+    const tick = () => {
+      if (!cancelled) {
+        router.refresh();
       }
     };
 
-    void tick();
+    tick();
     const intervalId = window.setInterval(() => {
-      void tick();
+      tick();
     }, 5000);
 
     return () => {
@@ -39,4 +33,3 @@ export function ProcessingPoller({ hasProcessingDrafts }: ProcessingPollerProps)
 
   return null;
 }
-

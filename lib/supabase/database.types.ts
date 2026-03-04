@@ -242,7 +242,34 @@ export type Database = {
       };
     };
     Views: {};
-    Functions: {};
+    Functions: {
+      menu_import_queue_enqueue: {
+        Args: {
+          p_job_id: string;
+          p_version_id: string;
+        };
+        Returns: number;
+      };
+      menu_import_queue_read: {
+        Args: {
+          p_visibility_timeout_seconds?: number;
+          p_limit?: number;
+        };
+        Returns: {
+          msg_id: number;
+          read_ct: number;
+          enqueued_at: string;
+          vt: string;
+          message: Json;
+        }[];
+      };
+      menu_import_queue_delete: {
+        Args: {
+          p_msg_id: number;
+        };
+        Returns: boolean;
+      };
+    };
     Enums: {};
     CompositeTypes: {};
   };

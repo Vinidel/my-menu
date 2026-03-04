@@ -72,3 +72,12 @@ Issues or observations spotted during implementation that are **out of scope** f
 - **Locked polling behavior implemented:** `10s` polling cadence while visible, pause when tab is hidden, and one immediate refetch on visibility restore.
 - **Mutation conflict handling (locked):** While a status progression request is in flight for an order, polled data merges preserve that order’s local pending UI state and only update other orders.
 - **Background refresh UX:** Polling failures keep the last known data visible and show a non-destructive pt-BR error banner in the dashboard.
+
+---
+
+## Menu Import Server Worker (PGMQ) (Stage 1)
+
+- **Primary execution path moved to Supabase:** Browser-driven processing is no longer required for progress. Upload now enqueues queue messages and processing is executed by scheduler + worker.
+- **Fallback endpoint intentionally retained:** `POST /api/admin/menu-import/process-next` remains available as owner-only manual fallback during rollout (not primary path).
+- **Type generation dependency:** Queue RPC wrappers (`menu_import_queue_enqueue/read/delete`) depend on updated Supabase generated types; stale typegen can produce `never` inference in queue call sites until types are regenerated.
+- **Monorepo/runtime boundary:** Supabase Edge Function code is Deno-based and excluded from Next.js type-check/build (`tsconfig.json` exclude) to avoid Vercel build failures.
