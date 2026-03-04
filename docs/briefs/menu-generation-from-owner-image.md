@@ -1,6 +1,6 @@
 # Feature Brief — Generate Menu from Owner Image
 
-Status: Stage 0 — Framing
+Status: Stage 5 — Documentation Complete (pending Critic)
 Date: 2026-03-02
 Author: Orchestrator Agent
 
