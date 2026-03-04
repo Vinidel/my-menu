@@ -24,15 +24,19 @@ export type MenuRemovableIngredient = {
 type JsonMenuRow = Record<string, unknown>;
 
 export function getMenuItems(): MenuItem[] {
-  if (!Array.isArray(rawMenu)) return [];
-
-  return rawMenu
-    .map(parseMenuItem)
-    .filter((item): item is MenuItem => item !== null);
+  return parseMenuItemsFromUnknown(rawMenu);
 }
 
 export function getMenuItemMap(): Map<string, MenuItem> {
   return new Map(getMenuItems().map((item) => [item.id, item]));
+}
+
+export function parseMenuItemsFromUnknown(value: unknown): MenuItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map(parseMenuItem)
+    .filter((item): item is MenuItem => item !== null);
 }
 
 function parseMenuItem(value: unknown): MenuItem | null {

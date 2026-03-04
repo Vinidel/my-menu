@@ -5,6 +5,7 @@ import {
   type SubmitCustomerOrderInput,
 } from "@/app/actions";
 import { isOrdersCaptchaRequired } from "@/lib/anti-abuse/captcha-config";
+import { getRuntimeMenuItemMap } from "@/lib/menu-runtime";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
   consumeFixedWindowRateLimit,
@@ -119,9 +120,10 @@ export async function POST(request: Request) {
   if (!supabase) {
     return setupError(SETUP_UNAVAILABLE_MESSAGE, 503);
   }
+  const menuMap = await getRuntimeMenuItemMap();
 
   const { turnstileToken: _turnstileToken, ...orderBody } = body;
-  const result = await submitCustomerOrderWithClient(orderBody, supabase);
+  const result = await submitCustomerOrderWithClient(orderBody, supabase, menuMap);
 
   if (result.ok) {
     return NextResponse.json<SuccessBody>(result, {

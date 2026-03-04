@@ -142,7 +142,7 @@ describe("POST /api/orders", () => {
       })
     );
 
-    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(body, {});
+    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(body, {}, expect.any(Map));
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
       ok: true,
@@ -165,7 +165,7 @@ describe("POST /api/orders", () => {
     const response = await postOrders(body);
 
     expect(response.status).toBe(201);
-    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(body, {});
+    expect(submitCustomerOrderWithClient).toHaveBeenCalledWith(body, {}, expect.any(Map));
   });
 
   it("maps validation errors to 400 and unexpected errors to 500 (brief: status mapping)", async () => {
@@ -410,7 +410,8 @@ describe("POST /api/orders", () => {
       {
         ...BASE_ORDER_BODY,
       },
-      {}
+      {},
+      expect.any(Map)
     );
     expect(response.status).toBe(201);
     fetchSpy.mockRestore();

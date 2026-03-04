@@ -14,6 +14,12 @@ export default function AdminLayout({
         </Link>
         <div className="flex items-center gap-4">
           <Link
+            href="/admin/cardapio"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Importar cardápio
+          </Link>
+          <Link
             href="/"
             className="text-sm text-muted-foreground hover:text-foreground"
           >

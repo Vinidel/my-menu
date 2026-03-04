@@ -46,7 +46,7 @@ Success = image upload -> structured draft -> human review -> publish to active 
   - Receives image, calls extractor (OCR/vision), normalizes to internal menu schema.
   - Returns draft with confidence/issues per item.
 - **Image storage (locked):**
-  - Upload goes to **Supabase Storage** in a dedicated private bucket (e.g., `menu-imports`).
+- Upload goes to **Supabase Storage** in a dedicated private bucket (e.g., `menu-imports`), supporting multiple ordered pages per draft.
   - DB stores file reference metadata (`bucket`, `path`, `size`, `mime`, `uploaded_by`).
 - **Persistence:**
   - Store draft menu separately from active menu.
@@ -107,6 +107,7 @@ Success = image upload -> structured draft -> human review -> publish to active 
 - Accented text/abbreviations (`X-Burguer`, `X Burguer`).
 - Items without explicit price in image.
 - Very large image or unsupported format.
+- Multiple pages with inconsistent order or mixed quality.
 - Near-simultaneous publishes by two staff users.
 - Failure between Storage upload and DB draft creation (consistency gap).
 
@@ -138,8 +139,10 @@ Success = image upload -> structured draft -> human review -> publish to active 
   - parsing error -> draft becomes `ready_with_issues` for manual review
 - **Upload constraints (locked):**
   - accepted MIME types: `image/jpeg`, `image/png`, `image/webp`
-  - max file size: `10MB`
-  - quantity: `1` image per draft in this phase
+  - max file size: `10MB` per image
+  - max total upload size: `25MB` per draft
+  - quantity: `1..5` images per draft
+  - extraction uses page order from upload sequence
 - **Minimum draft lifecycle (locked):**
   - `uploaded` -> `processing` -> `ready` | `ready_with_issues` | `failed` -> `published` | `discarded`
 - **Publish semantics (locked):**
