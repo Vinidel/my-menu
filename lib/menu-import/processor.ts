@@ -14,7 +14,7 @@ type StoragePage = {
 export async function processMenuImportJob(
   serviceClient: ServiceClient,
   input: { jobId: string; versionId: string }
-): Promise<{ ok: true; status: "ready" | "ready_with_issues" | "failed" | "skipped" }> {
+): Promise<{ status: "ready" | "ready_with_issues" | "failed" | "skipped" }> {
   const { data: jobRow, error: jobError } = await serviceClient
     .from("menu_import_jobs")
     .select(
@@ -29,17 +29,17 @@ export async function processMenuImportJob(
       message: jobError?.message ?? "job not found",
       code: jobError?.code,
     });
-    return { ok: true, status: "skipped" };
+    return { status: "skipped" };
   }
 
   if (jobRow.status !== "processing") {
-    return { ok: true, status: "skipped" };
+    return { status: "skipped" };
   }
 
   const versionId = jobRow.menu_version_id ?? input.versionId;
   if (!versionId) {
     await failJob(serviceClient, jobRow.id, "Job sem rascunho vinculado.");
-    return { ok: true, status: "failed" };
+    return { status: "failed" };
   }
 
   const pages = normalizeStoragePages(jobRow.storage_pages, {
@@ -50,7 +50,7 @@ export async function processMenuImportJob(
   if (pages.length === 0) {
     await failJob(serviceClient, jobRow.id, "Job sem páginas válidas para extração.");
     await updateDraftFailure(serviceClient, versionId, "Nenhuma página válida encontrada.");
-    return { ok: true, status: "failed" };
+    return { status: "failed" };
   }
 
   try {
@@ -88,7 +88,7 @@ export async function processMenuImportJob(
 
     if (versionUpdateError) {
       await failJob(serviceClient, jobRow.id, "Falha ao salvar extração no rascunho.");
-      return { ok: true, status: "failed" };
+      return { status: "failed" };
     }
 
     await serviceClient
@@ -100,7 +100,7 @@ export async function processMenuImportJob(
       .eq("id", jobRow.id)
       .eq("status", "processing");
 
-    return { ok: true, status: finalStatus };
+    return { status: finalStatus };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Falha inesperada durante extração.";
     console.error("[admin/menu-import/processor] extraction failed", {
@@ -111,7 +111,7 @@ export async function processMenuImportJob(
     await updateDraftFailure(serviceClient, versionId, errorMessage);
     await failJob(serviceClient, jobRow.id, errorMessage);
 
-    return { ok: true, status: "failed" };
+    return { status: "failed" };
   }
 }
 
