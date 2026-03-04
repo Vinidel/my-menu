@@ -45,8 +45,9 @@ export async function extractMenuFromImageWithOpenAi(input: {
           type: "input_text",
           text:
             "Extraia o cardápio das imagens enviadas, respeitando a ordem de páginas, e devolva APENAS JSON válido com formato {\"items\": [...], \"issues\": [...]}. " +
-            "Cada item em items deve conter: name (string), category (string opcional), description (string opcional), price (string ou number), extras (array opcional). " +
+            "Cada item em items deve conter: name (string), category (string opcional), description (string opcional), price (string ou number), extras (array opcional), removableIngredients (array opcional). " +
             "Cada extra em extras deve conter: name (string) e price (string ou number opcional). " +
+            "Cada ingrediente em removableIngredients deve conter: name (string). " +
             "Se houver seção 'Adicionais' no cardápio, distribua esses adicionais nos itens aplicáveis em `extras` dos itens principais, em vez de criar itens soltos da categoria 'Adicionais'. " +
             "price pode vir como exemplo \"R$ 25,90\". Não invente itens. Se algo estiver incerto, inclua em issues.",
         },
@@ -155,6 +156,16 @@ function normalizeExtractedItems(payload: ExtractedMenuPayload): MenuItem[] {
       const description = stringFrom(row.description) ?? undefined;
       const priceCents = parsePriceToCents(row.price);
       const extras = normalizeExtractedExtras(row.extras ?? row.adicionais, name);
+      const isLanche = isLancheItem(name, category);
+      const removableIngredients = isLanche
+        ? normalizeRemovableIngredients(row.removableIngredients ?? row.removable_ingredients, name)
+        : [];
+      const inferredRemovableIngredients =
+        removableIngredients.length > 0
+          ? removableIngredients
+          : isLanche
+            ? inferRemovableIngredientsFromDescription(name, category, description)
+            : [];
 
       return {
         id: buildStableItemId(name, index),
@@ -163,6 +174,9 @@ function normalizeExtractedItems(payload: ExtractedMenuPayload): MenuItem[] {
         ...(description ? { description } : {}),
         ...(typeof priceCents === "number" ? { priceCents } : {}),
         ...(extras.length > 0 ? { extras } : {}),
+        ...(inferredRemovableIngredients.length > 0
+          ? { removableIngredients: inferredRemovableIngredients }
+          : {}),
       };
     })
     .filter((row): row is NormalizedExtractedItem => row !== null);
@@ -225,6 +239,85 @@ function normalizeExtractedExtras(value: unknown, parentItemName: string): Array
     .filter((extra): extra is { id: string; name: string; priceCents?: number } => extra !== null);
 
   return dedupeExtras(normalized).slice(0, 30);
+}
+
+function normalizeRemovableIngredients(
+  value: unknown,
+  parentItemName: string
+): Array<{ id: string; name: string }> {
+  if (!Array.isArray(value)) return [];
+
+  const normalized = value
+    .map((raw, index) => {
+      if (!raw || typeof raw !== "object") return null;
+      const row = raw as Record<string, unknown>;
+      const name = stringFrom(row.name);
+      if (!name) return null;
+      return {
+        id: buildStableRemovalId(parentItemName, name, index),
+        name,
+      };
+    })
+    .filter((ingredient): ingredient is { id: string; name: string } => ingredient !== null);
+
+  return dedupeRemovableIngredients(normalized).slice(0, 40);
+}
+
+function inferRemovableIngredientsFromDescription(
+  itemName: string,
+  category: string | undefined,
+  description: string | undefined
+): Array<{ id: string; name: string }> {
+  if (!description) return [];
+  if (!isLancheItem(itemName, category)) return [];
+
+  const ingredientText = extractIngredientListSegment(description);
+  if (!ingredientText) return [];
+
+  const rawTokens = ingredientText
+    .split(/\s*,\s*|\s+e\s+/i)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  if (rawTokens.length < 3) return [];
+
+  const normalized = rawTokens
+    .map(cleanIngredientToken)
+    .filter((token): token is string => Boolean(token))
+    .map((name, index) => ({
+      id: buildStableRemovalId(itemName, name, index),
+      name,
+    }));
+
+  return dedupeRemovableIngredients(normalized).slice(0, 40);
+}
+
+function extractIngredientListSegment(description: string): string {
+  const firstSentence = description
+    .split(/[.;]/)
+    .map((segment) => segment.trim())
+    .find(Boolean);
+  if (!firstSentence) return "";
+  return firstSentence.replace(/^ingredientes?\s*:\s*/i, "").trim();
+}
+
+function cleanIngredientToken(token: string): string | null {
+  const cleaned = token
+    .replace(/^\s*(com|de|do|da|dos|das)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+  if (/^(ml|g|kg|\d+)$/i.test(cleaned)) return null;
+  return capitalizeWords(cleaned);
+}
+
+function capitalizeWords(value: string): string {
+  return value
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function collectGlobalExtrasFromAdditionalRows(
@@ -309,6 +402,20 @@ function dedupeExtras(
   return Array.from(deduped.values());
 }
 
+function dedupeRemovableIngredients(
+  ingredients: Array<{ id: string; name: string }>
+): Array<{ id: string; name: string }> {
+  const deduped = new Map<string, { id: string; name: string }>();
+  for (const ingredient of ingredients) {
+    const key = normalizeLabel(ingredient.name);
+    if (!key) continue;
+    if (!deduped.has(key)) {
+      deduped.set(key, ingredient);
+    }
+  }
+  return Array.from(deduped.values());
+}
+
 function isAdditionalSectionItem(item: NormalizedExtractedItem): boolean {
   const source = `${item.name} ${item.category ?? ""}`.toLowerCase();
   return /adicion|acrescimo|extra|complemento/.test(source);
@@ -319,6 +426,13 @@ function isLikelyCustomizableItem(item: NormalizedExtractedItem): boolean {
   if (/bebida|refrigerante|suco|agua|cerveja/.test(source)) return false;
   if (/sobremesa|acai|milk[-\s]?shake/.test(source)) return false;
   return true;
+}
+
+function isLancheItem(name: string, category: string | undefined): boolean {
+  const source = `${name} ${category ?? ""}`.toLowerCase();
+  if (/lanche|hamburg|hamburguer|sanduich/.test(source)) return true;
+  if (/^x[\s-]/.test(name.trim().toLowerCase())) return true;
+  return false;
 }
 
 function normalizeLabel(value: string): string {
@@ -471,6 +585,12 @@ function buildStableExtraId(parentItemName: string, extraName: string, index: nu
   const parentBase = slugify(parentItemName).slice(0, 24);
   const extraBase = slugify(extraName).slice(0, 24);
   return `${parentBase || "item"}-${extraBase || "extra"}-${index + 1}`;
+}
+
+function buildStableRemovalId(parentItemName: string, ingredientName: string, index: number) {
+  const parentBase = slugify(parentItemName).slice(0, 24);
+  const ingredientBase = slugify(ingredientName).slice(0, 24);
+  return `${parentBase || "item"}-${ingredientBase || "removivel"}-${index + 1}`;
 }
 
 function slugify(value: string) {
