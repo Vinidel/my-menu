@@ -56,8 +56,16 @@ async function handleProcessNext(request: Request) {
     result.status === "skipped" ||
     message.readCount >= MAX_QUEUE_ATTEMPTS;
 
+  let acked = false;
   if (shouldAck) {
-    await deleteMenuImportQueueMessage(serviceClient, message.msgId);
+    acked = await deleteMenuImportQueueMessage(serviceClient, message.msgId);
+    if (!acked) {
+      console.error("[admin/menu-import/worker] failed to ack queue message", {
+        messageId: message.msgId,
+        status: result.status,
+        attempts: message.readCount,
+      });
+    }
   }
 
   return NextResponse.json(
@@ -66,7 +74,7 @@ async function handleProcessNext(request: Request) {
       processed: true,
       status: result.status,
       attempts: message.readCount,
-      acked: shouldAck,
+      acked,
     },
     { status: 200, headers: NO_STORE_HEADERS }
   );
@@ -76,8 +84,13 @@ async function authorizeRequest(
   request: Request
 ): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
   const workerSecret = (process.env.MENU_IMPORT_WORKER_SECRET ?? "").trim();
-  const bearer = bearerFromAuthHeader(request.headers.get("authorization"));
-  if (workerSecret && bearer && bearer === workerSecret) {
+  const bearerHeader = request.headers.get("authorization");
+  const bearer = bearerFromAuthHeader(bearerHeader);
+  if (workerSecret && bearerHeader) {
+    if (!bearer || bearer !== workerSecret) {
+      console.error("[admin/menu-import/worker] denied: invalid worker bearer token");
+      return { ok: false, status: 401, message: "Acesso não autorizado." };
+    }
     return { ok: true };
   }
 
@@ -92,9 +105,13 @@ async function authorizeRequest(
   } = await authClient.auth.getUser();
 
   if (authError || !user) {
+    console.error("[admin/menu-import/worker] denied: missing authenticated user");
     return { ok: false, status: 401, message: "Acesso não autorizado." };
   }
   if (!canUseMenuImport(user.email)) {
+    console.error("[admin/menu-import/worker] denied: user outside menu-import allowlist", {
+      userId: user.id,
+    });
     return { ok: false, status: 403, message: MENU_IMPORT_FORBIDDEN_MESSAGE };
   }
 
@@ -108,4 +125,3 @@ function bearerFromAuthHeader(value: string | null): string | null {
   const token = match[1]?.trim();
   return token || null;
 }
-

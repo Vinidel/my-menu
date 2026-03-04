@@ -82,6 +82,26 @@ describe("POST /api/admin/menu-import/process-next", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
+  it("denies when Authorization header is present but worker token is invalid", async () => {
+    process.env.MENU_IMPORT_WORKER_SECRET = "secret-123";
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/menu-import/process-next", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer wrong-token",
+        },
+      })
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      message: "Acesso não autorizado.",
+    });
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
   it("acks queue message when processor returns ready", async () => {
     process.env.MENU_IMPORT_WORKER_SECRET = "secret-123";
     vi.mocked(readMenuImportQueueMessages).mockResolvedValue([
@@ -109,6 +129,34 @@ describe("POST /api/admin/menu-import/process-next", () => {
       processed: true,
       status: "ready",
       acked: true,
+    });
+  });
+
+  it("returns acked=false when queue delete fails even if message should be acked", async () => {
+    process.env.MENU_IMPORT_WORKER_SECRET = "secret-123";
+    vi.mocked(readMenuImportQueueMessages).mockResolvedValue([
+      {
+        msgId: 13,
+        readCount: 1,
+        jobId: "job-4",
+        versionId: "ver-4",
+      },
+    ]);
+    vi.mocked(processMenuImportJob).mockResolvedValue({ status: "ready" });
+    vi.mocked(deleteMenuImportQueueMessage).mockResolvedValue(false);
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/menu-import/process-next", {
+        method: "POST",
+        headers: { Authorization: "Bearer secret-123" },
+      })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      processed: true,
+      status: "ready",
+      acked: false,
     });
   });
 
@@ -168,4 +216,3 @@ describe("POST /api/admin/menu-import/process-next", () => {
     });
   });
 });
-
