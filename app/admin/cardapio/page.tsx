@@ -21,14 +21,7 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
 
   const authClient = await createClient();
   if (!authClient) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-        <h1 className="text-2xl font-semibold">Importar cardápio por imagem</h1>
-        <p className="rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-          {MENU_IMPORT_FORBIDDEN_MESSAGE}
-        </p>
-      </div>
-    );
+    return renderForbiddenView();
   }
 
   const {
@@ -36,14 +29,7 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
     error: authError,
   } = await authClient.auth.getUser();
   if (authError || !user || !canUseMenuImport(user.email)) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-        <h1 className="text-2xl font-semibold">Importar cardápio por imagem</h1>
-        <p className="rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-          {MENU_IMPORT_FORBIDDEN_MESSAGE}
-        </p>
-      </div>
-    );
+    return renderForbiddenView();
   }
 
   const serviceClient = createServiceRoleClient();
@@ -222,19 +208,36 @@ function formatDateTimePtBr(value: string | null): string {
   }).format(date);
 }
 
+const IMPORT_STATUS_LABELS: Record<string, string> = {
+  processing: "Processando",
+  ready: "Pronto",
+  ready_with_issues: "Pronto com pendências",
+  failed: "Falhou",
+  published: "Publicado",
+  discarded: "Descartado",
+};
+
+const VERSION_STATUS_LABELS: Record<string, string> = {
+  active: "Publicado",
+  archived: "Arquivado/Descartado",
+};
+
 function labelFromImportStatus(status: string | null): string {
   if (!status) return "Rascunho";
-  if (status === "processing") return "Processando";
-  if (status === "ready") return "Pronto";
-  if (status === "ready_with_issues") return "Pronto com pendências";
-  if (status === "failed") return "Falhou";
-  if (status === "published") return "Publicado";
-  if (status === "discarded") return "Descartado";
-  return status;
+  return IMPORT_STATUS_LABELS[status] ?? status;
 }
 
 function labelFromVersionStatus(versionStatus: string, jobStatusLabel: string): string {
-  if (versionStatus === "active") return "Publicado";
-  if (versionStatus === "archived") return "Arquivado/Descartado";
-  return jobStatusLabel;
+  return VERSION_STATUS_LABELS[versionStatus] ?? jobStatusLabel;
+}
+
+function renderForbiddenView() {
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+      <h1 className="text-2xl font-semibold">Importar cardápio por imagem</h1>
+      <p className="rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        {MENU_IMPORT_FORBIDDEN_MESSAGE}
+      </p>
+    </div>
+  );
 }

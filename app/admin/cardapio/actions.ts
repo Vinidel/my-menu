@@ -15,6 +15,9 @@ const MAX_TOTAL_IMAGE_SIZE_BYTES = 25 * 1024 * 1024;
 
 const MESSAGE_PREFIX = "/admin/cardapio?message=";
 const ERROR_PREFIX = "/admin/cardapio?error=";
+type MenuImportAuthResult =
+  | { ok: true; user: { id: string; email: string | null } }
+  | { ok: false; message: string };
 
 export async function uploadMenuImageAction(formData: FormData) {
   const authClient = await createClient();
@@ -24,16 +27,11 @@ export async function uploadMenuImageAction(formData: FormData) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
-  if (authError || !user) {
-    return redirectWithError("Acesso não autorizado.");
+  const authResult = await requireMenuImportUser(authClient);
+  if (!authResult.ok) {
+    return redirectWithError(authResult.message);
   }
-  if (!canUseMenuImport(user.email)) {
-    return redirectWithError(MENU_IMPORT_FORBIDDEN_MESSAGE);
-  }
+  const user = authResult.user;
 
   const rawFiles = formData.getAll("menuImages");
   const files = rawFiles.filter((entry): entry is File => entry instanceof File && entry.size > 0);
@@ -204,16 +202,11 @@ export async function publishMenuVersionAction(formData: FormData) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
-  if (authError || !user) {
-    return redirectWithError("Acesso não autorizado.");
+  const authResult = await requireMenuImportUser(authClient);
+  if (!authResult.ok) {
+    return redirectWithError(authResult.message);
   }
-  if (!canUseMenuImport(user.email)) {
-    return redirectWithError(MENU_IMPORT_FORBIDDEN_MESSAGE);
-  }
+  const user = authResult.user;
 
   const versionId = stringFromForm(formData.get("versionId"));
   if (!versionId) {
@@ -281,15 +274,9 @@ export async function discardMenuVersionAction(formData: FormData) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await authClient.auth.getUser();
-  if (authError || !user) {
-    return redirectWithError("Acesso não autorizado.");
-  }
-  if (!canUseMenuImport(user.email)) {
-    return redirectWithError(MENU_IMPORT_FORBIDDEN_MESSAGE);
+  const authResult = await requireMenuImportUser(authClient);
+  if (!authResult.ok) {
+    return redirectWithError(authResult.message);
   }
 
   const versionId = stringFromForm(formData.get("versionId"));
@@ -348,4 +335,28 @@ function redirectWithMessage(message: string) {
 
 function redirectWithError(error: string) {
   return redirect(`${ERROR_PREFIX}${encodeURIComponent(error)}`);
+}
+
+async function requireMenuImportUser(
+  authClient: NonNullable<Awaited<ReturnType<typeof createClient>>>
+): Promise<MenuImportAuthResult> {
+  const {
+    data: { user },
+    error: authError,
+  } = await authClient.auth.getUser();
+
+  if (authError || !user) {
+    return { ok: false, message: "Acesso não autorizado." };
+  }
+  if (!canUseMenuImport(user.email)) {
+    return { ok: false, message: MENU_IMPORT_FORBIDDEN_MESSAGE };
+  }
+
+  return {
+    ok: true,
+    user: {
+      id: user.id,
+      email: user.email ?? null,
+    },
+  };
 }
