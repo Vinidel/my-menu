@@ -83,6 +83,45 @@ sequenceDiagram
     UI-->>Owner: Shows latest status and enables actions when not processing
 ```
 
+### Environment Integration Diagram (Vercel + Supabase)
+
+```mermaid
+flowchart LR
+    subgraph Vercel["Vercel (Next.js App)"]
+        UI["/admin/cardapio UI"]
+        SA["Server Action<br/>uploadMenuImageAction"]
+        Fallback["POST /api/admin/menu-import/process-next<br/>(manual fallback)"]
+    end
+
+    subgraph Supabase["Supabase Project"]
+        Auth["Auth (owner session)"]
+        DB["Postgres<br/>menu_import_jobs + menu_versions"]
+        Storage["Storage bucket<br/>menu-import-images"]
+        Queue["PGMQ<br/>menu-imports-queue"]
+        Cron["pg_cron + pg_net"]
+        Worker["Edge Function<br/>menu-import-worker"]
+    end
+
+    OpenAI["OpenAI Vision API"]
+
+    UI -->|"owner auth"| Auth
+    UI --> SA
+    SA --> Storage
+    SA --> DB
+    SA --> Queue
+
+    Cron -->|"POST + x-worker-secret"| Worker
+    Worker --> Queue
+    Worker --> Storage
+    Worker --> DB
+    Worker --> OpenAI
+    OpenAI --> Worker
+
+    UI -->|"status refresh (5s)"| DB
+    Fallback -->|"owner-only / emergency"| Queue
+    Fallback --> DB
+```
+
 ### State Rules
 
 - `menu_import_jobs.status` drives processing lifecycle:
@@ -117,6 +156,62 @@ sequenceDiagram
 - `MENU_IMPORT_BUCKET` (private bucket)
 - `MENU_IMPORT_ALLOWED_EMAILS` (comma-separated owner e-mails; default `vinidroid@gmail.com`)
 - `MENU_IMPORT_WORKER_SECRET` (required for scheduler/worker auth)
+
+---
+
+## Deployment Runbook (Queue Worker)
+
+### 1) Apply DB migrations
+
+Apply pending Supabase migrations, including queue RPC wrappers:
+
+- `supabase/migrations/20260304143000_add_menu_import_queue_rpc.sql`
+
+### 2) Set required secrets/env
+
+Set these values in the right runtime:
+
+- Supabase Edge Function secrets:
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `OPENAI_API_KEY`
+  - `OPENAI_MENU_VISION_MODEL`
+  - `OPENAI_MENU_VISION_TIMEOUT_MS`
+  - `MENU_IMPORT_BUCKET`
+  - `MENU_IMPORT_WORKER_SECRET`
+- App runtime (Next.js/Vercel):
+  - `MENU_IMPORT_ALLOWED_EMAILS`
+  - `MENU_IMPORT_WORKER_SECRET` (only if using `/api/admin/menu-import/process-next` manual fallback)
+
+### 3) Deploy worker function
+
+Deploy `supabase/functions/menu-import-worker` to the target Supabase project.
+
+### 4) Configure scheduler
+
+Configure `pg_cron` + `pg_net` to invoke the worker on interval (recommended: every 1 minute) with:
+
+- HTTP method: `POST`
+- Header: `x-worker-secret: <MENU_IMPORT_WORKER_SECRET>`
+
+### 5) Smoke test
+
+Upload a menu image from `/admin/cardapio` and verify:
+
+- queue receives message
+- worker consumes message
+- `menu_import_jobs.status` transitions from `processing` to `ready | ready_with_issues | failed`
+- recent drafts list reflects updated status
+
+---
+
+## Rollback Plan
+
+- Disable scheduler/cron first to stop new worker runs.
+- Keep uploaded drafts; they remain non-active until publish.
+- Re-enable manual fallback processing temporarily via `/api/admin/menu-import/process-next` (owner-only).
+- If needed, redeploy previous app version while keeping DB rows intact.
+- Do not delete queue messages blindly; inspect and drain intentionally after rollback decision.
 
 ---
 

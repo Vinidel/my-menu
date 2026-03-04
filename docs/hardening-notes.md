@@ -276,6 +276,45 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 
 ---
 
+## Menu Import Server Worker (PGMQ) — Stage 4
+
+### Security
+
+- **Worker auth hardened:** Primary worker (`supabase/functions/menu-import-worker`) requires `x-worker-secret` and denies unauthorized calls; fallback Next API worker path validates bearer token and returns `401` for invalid bearer when secret auth is configured. **Improved in Stage 4.**
+- **Owner-only fallback retained:** Manual fallback endpoint remains protected by existing owner allowlist/session checks when worker-secret auth is not used. **No change.**
+
+### Dependencies
+
+- **Supabase capability dependency:** Queue/scheduler flow depends on `pgmq`, `pg_cron`, and `pg_net` availability in Supabase project configuration. **Documented operational dependency.**
+- **No new npm packages:** Queue and worker changes rely on existing stack plus Supabase SQL/Edge runtime. **No change.**
+
+### Performance
+
+- **Bounded processing per invocation:** Worker processes a bounded message batch per run to keep execution time predictable and align with cron cadence. **Improved in Stage 4.**
+- **Browser polling decoupled from processing:** `ProcessingPoller` now refreshes UI only; it no longer triggers extraction work, preventing user-activity-driven throughput variance. **Improved in Stage 4.**
+
+### Observability
+
+- **Queue-processing logs expanded:** Processor and fallback route now log job IDs/status transitions and ack/delete outcomes, making stuck/failed messages diagnosable. **Improved in Stage 4.**
+- **Deferred:** No centralized metrics/alerts yet for queue depth, retry counts, or worker SLA. **Deferred.**
+
+### Resilience
+
+- **Retry + terminal-failure handling:** Failed processing is retried up to configured max attempts; terminal failures preserve active menu and mark draft/job failure metadata. **Improved in Stage 4.**
+- **Ack failure surfaced explicitly:** Fallback route returns `acked: false` when queue delete fails, preventing false “successfully consumed” assumptions in operations/debugging. **Improved in Stage 4.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Secret-based worker auth + stricter invalid bearer handling |
+| Dependencies  | Deferred  | Supabase queue/cron/net capabilities required |
+| Performance   | Improved  | Bounded worker batches + UI-only poller |
+| Observability | Improved  | Better queue/ack logging; metrics still deferred |
+| Resilience    | Improved  | Retry policy + explicit ack-failure surfacing |
+
+---
+
 ## Admin Orders Dashboard UX (Mobile Accordion + Status-First Sorting) — Stage 4
 
 ### Security
