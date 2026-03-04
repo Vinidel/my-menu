@@ -1,5 +1,11 @@
-import { publishMenuVersionAction, uploadMenuImageAction, discardMenuVersionAction } from "./actions";
+import { publishMenuVersionAction, discardMenuVersionAction } from "./actions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { UploadMenuForm } from "./upload-form";
+import { ProcessingPoller } from "./processing-poller";
+import { createClient } from "@/lib/supabase/server";
+import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
+
+export const dynamic = "force-dynamic";
 
 const SETUP_MESSAGE =
   "Configuração indisponível. Verifique SUPABASE_SERVICE_ROLE_KEY e OPENAI_API_KEY.";
@@ -12,6 +18,33 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
   const params = searchParams ?? {};
   const feedbackMessage = normalizeQueryParam(params.message);
   const feedbackError = normalizeQueryParam(params.error);
+
+  const authClient = await createClient();
+  if (!authClient) {
+    return (
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+        <h1 className="text-2xl font-semibold">Importar cardápio por imagem</h1>
+        <p className="rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          {MENU_IMPORT_FORBIDDEN_MESSAGE}
+        </p>
+      </div>
+    );
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await authClient.auth.getUser();
+  if (authError || !user || !canUseMenuImport(user.email)) {
+    return (
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+        <h1 className="text-2xl font-semibold">Importar cardápio por imagem</h1>
+        <p className="rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          {MENU_IMPORT_FORBIDDEN_MESSAGE}
+        </p>
+      </div>
+    );
+  }
 
   const serviceClient = createServiceRoleClient();
   if (!serviceClient) {
@@ -35,12 +68,14 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
     serviceClient
       .from("menu_versions")
       .select(
-        "id, status, created_at, extraction_issues, image_mime, image_size_bytes, image_pages, import_job_id, notes"
+        "id, status, created_at, extraction_issues, image_mime, image_size_bytes, image_pages, import_job_id, notes, import_job:menu_import_jobs!menu_versions_import_job_id_fkey(status, error_message)"
       )
-      .eq("status", "draft")
       .order("created_at", { ascending: false })
-      .limit(10),
+      .limit(20),
   ]);
+  const hasProcessingDrafts = Array.isArray(draftRows)
+    ? draftRows.some((draft) => draft.import_job?.status === "processing")
+    : false;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
@@ -67,22 +102,7 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
         <p className="mt-1 text-sm text-muted-foreground">
           Formatos aceitos: JPG, PNG, WEBP. Até 5 imagens por envio, 10MB por imagem.
         </p>
-        <form action={uploadMenuImageAction} className="mt-4 flex flex-col gap-3">
-          <input
-            type="file"
-            name="menuImages"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            required
-            className="block w-full text-sm"
-          />
-          <button
-            type="submit"
-            className="inline-flex h-10 w-fit items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Gerar rascunho
-          </button>
-        </form>
+        <UploadMenuForm />
       </section>
 
       <section className="rounded-lg border bg-background p-5">
@@ -99,18 +119,34 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
       </section>
 
       <section className="rounded-lg border bg-background p-5">
-        <h2 className="text-lg font-medium">3. Rascunhos recentes</h2>
+        <h2 className="text-lg font-medium">3. Versões recentes</h2>
         {Array.isArray(draftRows) && draftRows.length > 0 ? (
           <ul className="mt-4 space-y-3">
             {draftRows.map((draft) => {
               const issueCount = Array.isArray(draft.extraction_issues)
                 ? draft.extraction_issues.length
                 : 0;
+              const jobStatus = draft.import_job?.status ?? null;
+              const isProcessing = draft.status === "draft" && jobStatus === "processing";
+              const statusLabel = labelFromImportStatus(jobStatus);
+              const canAct = draft.status === "draft" && !isProcessing;
               return (
                 <li key={draft.id} className="rounded-md border p-3">
                   <p className="text-sm font-medium text-foreground">Rascunho {draft.id.slice(0, 8)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Criado em {formatDateTimePtBr(draft.created_at)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Status: {labelFromVersionStatus(draft.status, statusLabel)}{" "}
+                    {isProcessing ? (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                        <span
+                          aria-hidden
+                          className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-600 animate-pulse"
+                        />
+                        Processando...
+                      </span>
+                    ) : null}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Issues: {issueCount} | Páginas:{" "}
@@ -125,26 +161,28 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
                   {draft.notes ? (
                     <p className="mt-2 text-xs text-amber-700">{draft.notes}</p>
                   ) : null}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <form action={publishMenuVersionAction}>
-                      <input type="hidden" name="versionId" value={draft.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                      >
-                        Publicar
-                      </button>
-                    </form>
-                    <form action={discardMenuVersionAction}>
-                      <input type="hidden" name="versionId" value={draft.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex h-9 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
-                      >
-                        Descartar
-                      </button>
-                    </form>
-                  </div>
+                  {canAct ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <form action={publishMenuVersionAction}>
+                        <input type="hidden" name="versionId" value={draft.id} />
+                        <button
+                          type="submit"
+                          className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                        >
+                          Publicar
+                        </button>
+                      </form>
+                      <form action={discardMenuVersionAction}>
+                        <input type="hidden" name="versionId" value={draft.id} />
+                        <button
+                          type="submit"
+                          className="inline-flex h-9 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
+                        >
+                          Descartar
+                        </button>
+                      </form>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
@@ -155,6 +193,7 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
           </p>
         )}
       </section>
+      <ProcessingPoller hasProcessingDrafts={hasProcessingDrafts} />
     </div>
   );
 }
@@ -181,4 +220,21 @@ function formatDateTimePtBr(value: string | null): string {
     dateStyle: "short",
     timeStyle: "short",
   }).format(date);
+}
+
+function labelFromImportStatus(status: string | null): string {
+  if (!status) return "Rascunho";
+  if (status === "processing") return "Processando";
+  if (status === "ready") return "Pronto";
+  if (status === "ready_with_issues") return "Pronto com pendências";
+  if (status === "failed") return "Falhou";
+  if (status === "published") return "Publicado";
+  if (status === "discarded") return "Descartado";
+  return status;
+}
+
+function labelFromVersionStatus(versionStatus: string, jobStatusLabel: string): string {
+  if (versionStatus === "active") return "Publicado";
+  if (versionStatus === "archived") return "Arquivado/Descartado";
+  return jobStatusLabel;
 }

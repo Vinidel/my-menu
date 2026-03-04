@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { extractMenuFromImageWithOpenAi } from "@/lib/menu-import/extract-openai";
 import type { Json } from "@/lib/supabase/database.types";
+import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 
 const MENU_IMPORT_BUCKET = (process.env.MENU_IMPORT_BUCKET || "menu-imports").trim();
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -30,6 +30,9 @@ export async function uploadMenuImageAction(formData: FormData) {
   } = await authClient.auth.getUser();
   if (authError || !user) {
     return redirectWithError("Acesso não autorizado.");
+  }
+  if (!canUseMenuImport(user.email)) {
+    return redirectWithError(MENU_IMPORT_FORBIDDEN_MESSAGE);
   }
 
   const rawFiles = formData.getAll("menuImages");
@@ -76,7 +79,6 @@ export async function uploadMenuImageAction(formData: FormData) {
     path: string;
     mime: string;
     sizeBytes: number;
-    imageBase64: string;
   }> = [];
 
   for (const prepared of preparedFiles) {
@@ -105,7 +107,6 @@ export async function uploadMenuImageAction(formData: FormData) {
       path: storagePath,
       mime: prepared.mimeType,
       sizeBytes: prepared.file.size,
-      imageBase64: Buffer.from(bytes).toString("base64"),
     });
   }
 
@@ -139,43 +140,12 @@ export async function uploadMenuImageAction(formData: FormData) {
     return redirectWithError("Não foi possível iniciar a importação agora.");
   }
 
-  let extractedMenuItems: Json = [];
-  let extractionIssues: string[] = [];
-  let jobStatus: "ready" | "ready_with_issues" | "failed" = "failed";
-  let extractionErrorMessage: string | null = null;
-
-  try {
-    const extracted = await extractMenuFromImageWithOpenAi({
-      images: uploadedPages.map((page) => ({
-        mimeType: page.mime,
-        imageBase64: page.imageBase64,
-      })),
-    });
-    extractedMenuItems = extracted.menuItems as unknown as Json;
-    extractionIssues = extracted.issues;
-    jobStatus = extracted.menuItems.length > 0 ? "ready" : "ready_with_issues";
-    if (extracted.menuItems.length === 0) {
-      extractionIssues = [
-        ...extractionIssues,
-        "Nenhum item válido foi identificado automaticamente.",
-      ];
-    }
-  } catch (error) {
-    extractionErrorMessage =
-      error instanceof Error ? error.message : "Falha inesperada durante extração.";
-    console.error("[admin/menu-import] extraction failed", {
-      jobId: jobRow.id,
-      message: extractionErrorMessage,
-    });
-    jobStatus = "failed";
-  }
-
   const { data: versionRow, error: versionInsertError } = await serviceClient
     .from("menu_versions")
     .insert({
       source: "image_import",
       status: "draft",
-      data: extractedMenuItems,
+      data: [] as Json,
       created_by: user.id,
       import_job_id: jobRow.id,
       image_bucket: MENU_IMPORT_BUCKET,
@@ -190,8 +160,8 @@ export async function uploadMenuImageAction(formData: FormData) {
         sizeBytes: page.sizeBytes,
       })),
       extraction_provider: "openai_vision",
-      extraction_issues: extractionIssues,
-      notes: extractionErrorMessage,
+      extraction_issues: [],
+      notes: "Processando extração...",
     })
     .select("id")
     .single();
@@ -214,32 +184,17 @@ export async function uploadMenuImageAction(formData: FormData) {
     return redirectWithError("Não foi possível salvar o rascunho extraído.");
   }
 
-  const finalJobStatus = jobStatus === "failed" ? "failed" : jobStatus;
-  const jobErrorMessage =
-    finalJobStatus === "failed"
-      ? extractionErrorMessage ?? "Falha na extração."
-      : finalJobStatus === "ready_with_issues"
-        ? "Extração concluída com pendências."
-        : null;
-
   await serviceClient
     .from("menu_import_jobs")
     .update({
-      status: finalJobStatus,
+      status: "processing",
       menu_version_id: versionRow.id,
-      error_message: jobErrorMessage,
+      error_message: null,
     })
     .eq("id", jobRow.id);
 
   revalidatePath("/admin/cardapio");
-
-  if (finalJobStatus === "failed") {
-    return redirectWithError("Falha na extração. Revise a imagem e tente novamente.");
-  }
-  if (finalJobStatus === "ready_with_issues") {
-    return redirectWithMessage("Rascunho gerado com pendências. Revise antes de publicar.");
-  }
-  return redirectWithMessage("Rascunho gerado com sucesso. Revise e publique quando estiver pronto.");
+  return redirectWithMessage("Upload concluído. Processando rascunho...");
 }
 
 export async function publishMenuVersionAction(formData: FormData) {
@@ -255,6 +210,9 @@ export async function publishMenuVersionAction(formData: FormData) {
   } = await authClient.auth.getUser();
   if (authError || !user) {
     return redirectWithError("Acesso não autorizado.");
+  }
+  if (!canUseMenuImport(user.email)) {
+    return redirectWithError(MENU_IMPORT_FORBIDDEN_MESSAGE);
   }
 
   const versionId = stringFromForm(formData.get("versionId"));
@@ -329,6 +287,9 @@ export async function discardMenuVersionAction(formData: FormData) {
   } = await authClient.auth.getUser();
   if (authError || !user) {
     return redirectWithError("Acesso não autorizado.");
+  }
+  if (!canUseMenuImport(user.email)) {
+    return redirectWithError(MENU_IMPORT_FORBIDDEN_MESSAGE);
   }
 
   const versionId = stringFromForm(formData.get("versionId"));
