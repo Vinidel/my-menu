@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { Json } from "@/lib/supabase/database.types";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
+import { enqueueMenuImportJob } from "@/lib/menu-import/queue";
 
 const MENU_IMPORT_BUCKET = (process.env.MENU_IMPORT_BUCKET || "menu-imports").trim();
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -190,6 +191,36 @@ export async function uploadMenuImageAction(formData: FormData) {
       error_message: null,
     })
     .eq("id", jobRow.id);
+
+  const enqueueResult = await enqueueMenuImportJob(serviceClient, {
+    jobId: jobRow.id,
+    versionId: versionRow.id,
+  });
+  if (!enqueueResult.ok) {
+    console.error("[admin/menu-import] failed to enqueue job", {
+      jobId: jobRow.id,
+      versionId: versionRow.id,
+      message: enqueueResult.message,
+    });
+
+    await serviceClient
+      .from("menu_import_jobs")
+      .update({
+        status: "failed",
+        error_message: "Falha ao enfileirar processamento do rascunho.",
+      })
+      .eq("id", jobRow.id);
+
+    await serviceClient
+      .from("menu_versions")
+      .update({
+        notes: "Falha ao enfileirar processamento do rascunho.",
+      })
+      .eq("id", versionRow.id)
+      .eq("status", "draft");
+
+    return redirectWithError("Não foi possível iniciar o processamento em segundo plano.");
+  }
 
   revalidatePath("/admin/cardapio");
   return redirectWithMessage("Upload concluído. Processando rascunho...");
