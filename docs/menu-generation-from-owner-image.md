@@ -10,7 +10,7 @@ Summary for the next engineer: what was built, where it lives, and how the async
 
 - **Admin upload flow (`/admin/cardapio`):** authenticated owner uploads `1..5` images (JPG/PNG/WEBP).
 - **Draft-first workflow:** upload creates a `menu_import_jobs` row + `menu_versions` draft; no auto-publish.
-- **Background extraction:** image-to-menu extraction runs outside the upload request via polling-triggered processing endpoint.
+- **Background extraction (server-side):** image-to-menu extraction runs outside upload request via queue worker (`pgmq` + scheduled worker trigger).
 - **Live status UI:** recent versions show `Processando/Pronto/Falhou` and auto-refresh every `5s` while processing exists.
 - **Action gating:** `Publicar/Descartar` buttons are hidden while a draft is `processing`.
 - **DB source-of-truth:** published `menu_versions` (status=`active`) powers runtime menu; fallback to `data/menu.json` remains.
@@ -26,19 +26,23 @@ Summary for the next engineer: what was built, where it lives, and how the async
 | Upload form (loading state) | `app/admin/cardapio/upload-form.tsx` |
 | Processing poll trigger | `app/admin/cardapio/processing-poller.tsx` |
 | Server actions (upload/publish/discard) | `app/admin/cardapio/actions.ts` |
-| Background processor API | `app/api/admin/menu-import/process-next/route.ts` |
+| Vercel fallback processor API (manual/owner-only) | `app/api/admin/menu-import/process-next/route.ts` |
+| Queue helpers | `lib/menu-import/queue.ts` |
+| Shared processor logic | `lib/menu-import/processor.ts` |
+| Supabase primary worker | `supabase/functions/menu-import-worker/index.ts` |
 | Extractor (OpenAI vision + normalization) | `lib/menu-import/extract-openai.ts` |
 | Access guard | `lib/menu-import/access.ts` |
 | Runtime menu loader | `lib/menu-runtime.ts` |
 | DB migration (base tables) | `supabase/migrations/20260302150000_add_menu_import_tables.sql` |
 | DB migration (multi-page columns) | `supabase/migrations/20260304103000_add_menu_import_multi_page_columns.sql` |
+| DB migration (queue RPC wrappers) | `supabase/migrations/20260304143000_add_menu_import_queue_rpc.sql` |
 
 ---
 
 ## Background Updates (How It Works)
 
 The upload request is intentionally short and does not wait for OCR/vision extraction.  
-Processing is advanced in the background by a client-side poller that calls an authenticated processing endpoint.
+Processing is advanced server-side from queue messages (Supabase scheduler/worker path), independent of browser tabs.
 
 ### Sequence Diagram
 
@@ -50,8 +54,9 @@ sequenceDiagram
     participant Action as uploadMenuImageAction
     participant DB as Supabase (menu_import_jobs/menu_versions)
     participant Storage as Supabase Storage
-    participant Poller as ProcessingPoller (5s)
-    participant ProcAPI as POST /api/admin/menu-import/process-next
+    participant Queue as PGMQ menu-imports-queue
+    participant Cron as Scheduler (pg_cron)
+    participant Worker as Supabase Edge Function menu-import-worker
     participant Vision as OpenAI Vision
 
     Owner->>UI: Click "Gerar rascunho" (images)
@@ -59,21 +64,22 @@ sequenceDiagram
     Action->>Storage: Upload pages
     Action->>DB: Insert job(status=processing)
     Action->>DB: Insert draft version(status=draft, data=[])
+    Action->>Queue: Enqueue {jobId, versionId}
     Action-->>UI: Redirect with "Upload concluído. Processando rascunho..."
 
-    UI->>Poller: Render with processing draft present
-    loop Every 5s while processing exists
-        Poller->>ProcAPI: POST process-next
-        ProcAPI->>DB: Load oldest processing job
-        ProcAPI->>Storage: Download job pages
-        ProcAPI->>Vision: Extract structured menu
-        Vision-->>ProcAPI: items + issues
-        ProcAPI->>DB: Update draft data/issues/notes
-        ProcAPI->>DB: Update job status (ready|ready_with_issues|failed)
-        ProcAPI-->>Poller: 200
-        Poller->>UI: router.refresh()
+    loop Every 1 minute
+        Cron->>Worker: Trigger with worker secret
+        Worker->>Queue: Read next message
+        Worker->>DB: Load target job/version
+        Worker->>Storage: Download job pages
+        Worker->>Vision: Extract structured menu
+        Vision-->>Worker: items + issues
+        Worker->>DB: Update draft data/issues/notes
+        Worker->>DB: Update job status (ready|ready_with_issues|failed)
+        Worker->>Queue: Ack/delete message
     end
 
+    UI->>UI: ProcessingPoller refreshes UI every 5s
     UI-->>Owner: Shows latest status and enables actions when not processing
 ```
 
@@ -97,7 +103,8 @@ sequenceDiagram
 - Applied on:
   - page render (`/admin/cardapio`)
   - server actions (`upload/publish/discard`)
-  - processing endpoint (`/api/admin/menu-import/process-next`)
+  - fallback processing endpoint (`/api/admin/menu-import/process-next`)
+  - primary Supabase worker (`x-worker-secret` / secret match)
 - Header link visibility (`/admin` layout) follows same rule.
 
 ---
@@ -109,12 +116,13 @@ sequenceDiagram
 - `OPENAI_MENU_VISION_TIMEOUT_MS` (recommended `90000..120000` for multi-page imports)
 - `MENU_IMPORT_BUCKET` (private bucket)
 - `MENU_IMPORT_ALLOWED_EMAILS` (comma-separated owner e-mails; default `vinidroid@gmail.com`)
+- `MENU_IMPORT_WORKER_SECRET` (required for scheduler/worker auth)
 
 ---
 
 ## Known Gaps / Deferred
 
-- Polling trigger is best-effort and browser-driven; no dedicated server queue/worker yet.
+- Queue worker retry policy currently fixed (`max 5 attempts`, `60s` visibility/retry window).
 - No progressive per-page extraction status; status is job-level.
 - No automatic cleanup of old uploaded source images.
 
@@ -124,13 +132,16 @@ sequenceDiagram
 
 ### Draft stuck in `Processando`
 
-- Confirm the browser tab for `/admin/cardapio` is open (poller runs client-side every 5s).
-- Check network calls for `POST /api/admin/menu-import/process-next`:
-  - if `403`, your user e-mail is outside `MENU_IMPORT_ALLOWED_EMAILS`
-  - if `401`, auth session expired
+- Check scheduler/worker execution logs first (Supabase cron + edge function).
+- Confirm worker auth secret matches:
+  - scheduler header / secret
+  - `MENU_IMPORT_WORKER_SECRET` in function env
+- Validate queue state:
+  - message exists in `menu-imports-queue`
+  - retries/attempt count not exhausted unexpectedly
 - Check DB row:
   - `menu_import_jobs.status` should move from `processing` to `ready | ready_with_issues | failed`
-- If needed, refresh the page manually to force a new render cycle.
+- Use `/api/admin/menu-import/process-next` only as manual fallback during rollout.
 
 ### Extraction timeout
 
@@ -149,9 +160,9 @@ sequenceDiagram
 
 ### `Rascunhos` list appears stale
 
-- Page is dynamic and should refresh from poller, but verify:
-  - `/admin/cardapio` is the active tab
-  - processing endpoint returns `200`
+- Page is dynamic and refreshes from UI poller, but verify:
+  - `/admin/cardapio` is active for auto-refresh
+  - worker is actually progressing queue messages server-side
 - Hard refresh once if the browser cached UI state after a deploy.
 
 ### Non-owner cannot access menu import

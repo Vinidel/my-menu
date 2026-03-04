@@ -14,6 +14,10 @@ const MAX_QUEUE_ATTEMPTS = 5;
 const MENU_IMPORT_WORKER_SECRET = (process.env.MENU_IMPORT_WORKER_SECRET ?? "").trim();
 
 export async function POST(request: Request) {
+  return handleProcessNext(request);
+}
+
+async function handleProcessNext(request: Request) {
   const serviceClient = createServiceRoleClient();
   if (!serviceClient) {
     return NextResponse.json(
@@ -104,4 +108,5 @@ function bearerFromAuthHeader(value: string | null): string | null {
   const token = match[1]?.trim();
   return token || null;
 }
+
 
