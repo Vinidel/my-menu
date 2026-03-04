@@ -84,6 +84,7 @@ Success = upload creates queued work, server-side worker processes it asynchrono
 2. **Worker crash/restart mid-job:** message is retried and eventually completed or dead-lettered by policy.
 3. **Queue backend unavailable:** upload fails fast with pt-BR error and no partial active-menu impact.
 4. **Scheduler downtime and recovery:** scheduler is down temporarily, then resumes; queued jobs are drained and statuses progress without manual browser intervention.
+5. **Unauthorized worker trigger attempt:** non-authorized caller cannot invoke processing; request is denied and no queue consumption happens.
 
 ---
 
@@ -113,9 +114,17 @@ Success = upload creates queued work, server-side worker processes it asynchrono
 - **Primary execution path (locked):** Supabase-native scheduler:
   - `pg_cron` runs every 1 minute
   - cron triggers a Supabase Edge Function worker (via `pg_net` HTTP call)
+- **Scheduler -> worker auth (locked):**
+  - worker endpoint requires `Authorization: Bearer <MENU_IMPORT_WORKER_SECRET>`
+  - cron call includes this bearer token
+  - secret is stored in Supabase Edge Function secrets / project env, never in client code
 - **Worker run contract:** each invocation processes up to a bounded batch (e.g., max 5 messages) to keep request time predictable.
 - **Scheduler outage behavior:** messages remain queued; when cron resumes, backlog is drained in FIFO queue order (subject to retry visibility windows).
 - **No browser dependency:** `ProcessingPoller` is UX refresh-only and is not required for job progression.
+- **Legacy endpoint coexistence (locked):**
+  - `POST /api/admin/menu-import/process-next` is deprecated and must not be used as primary processor
+  - endpoint is retained only as manual admin fallback during rollout (owner-only)
+  - once queue worker is stable in production, endpoint is removed in a follow-up cleanup change
 
 ---
 
@@ -136,6 +145,7 @@ Success = upload creates queued work, server-side worker processes it asynchrono
   - consumer must claim one message atomically via queue visibility/lock semantics (or `SKIP LOCKED` fallback)
   - processing mutation runs with DB status guard (`status='processing'` for target job)
   - duplicate delivery after successful completion is treated as no-op (idempotent)
+- **Queue ordering semantics (locked):** FIFO is best-effort; retries/redelivery may reorder failed messages behind newer healthy jobs.
 - **Access control unchanged:** menu import remains owner-only (`MENU_IMPORT_ALLOWED_EMAILS`).
 - **No active-menu risk:** processing failures never modify active published menu.
 - **Language:** pt-BR for user-visible messages.
@@ -150,6 +160,8 @@ Success = upload creates queued work, server-side worker processes it asynchrono
   - `pg_cron`
   - `pg_net`
 - Edge Function deployed for queue processing and callable from cron schedule.
+- Worker secret configured for scheduler auth:
+  - `MENU_IMPORT_WORKER_SECRET`
 - Existing OpenAI and storage env vars remain required.
 
 ---
