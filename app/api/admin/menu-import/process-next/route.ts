@@ -11,7 +11,6 @@ const NO_STORE_HEADERS = {
 } as const;
 
 const MAX_QUEUE_ATTEMPTS = 5;
-const MENU_IMPORT_WORKER_SECRET = (process.env.MENU_IMPORT_WORKER_SECRET ?? "").trim();
 
 export async function POST(request: Request) {
   return handleProcessNext(request);
@@ -76,8 +75,9 @@ async function handleProcessNext(request: Request) {
 async function authorizeRequest(
   request: Request
 ): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  const workerSecret = (process.env.MENU_IMPORT_WORKER_SECRET ?? "").trim();
   const bearer = bearerFromAuthHeader(request.headers.get("authorization"));
-  if (MENU_IMPORT_WORKER_SECRET && bearer && bearer === MENU_IMPORT_WORKER_SECRET) {
+  if (workerSecret && bearer && bearer === workerSecret) {
     return { ok: true };
   }
 
@@ -108,5 +108,4 @@ function bearerFromAuthHeader(value: string | null): string | null {
   const token = match[1]?.trim();
   return token || null;
 }
-
 
