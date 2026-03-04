@@ -3,7 +3,7 @@
 
 Date: 2026-03-02
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — E-mail Opcional no Pedido
+Scope: Stage 0 brief review — Gerar Cardápio a Partir de Imagem do Dono
 Verdict: APPROVE
 
 ## Findings
@@ -12,16 +12,17 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In `docs/briefs/customer-email-optional.md`, consider marking the Stage 0 “Critic has approved this brief” checkbox as checked now that later-stage approvals exist, to keep brief status metadata internally consistent.
+- Add one non-goal clarifying that this feature does not attempt automatic extras/removable-ingredients inference in MVP unless explicitly edited during review.
 
 ### Risks / Assumptions
-- Main feature doc (`docs/customer-email-optional.md`) and migration notes are coherent and implementation-aligned.
-- Residual risk is primarily documentation drift in project-level source-of-truth if the `Auth scope` inconsistency remains.
+- Brief now locks the previously missing architecture-critical decisions: Supabase Storage upload target, DB-backed active menu source-of-truth, extraction provider boundary, upload limits, draft lifecycle states, and stale-cart fail-closed semantics.
+- Assumes Stage 1 will include schema/API decisions for active menu version reads to keep `/` and `/api/orders` on the same active version contract.
 
-## Stage 5 Spot-check
-- [x] Feature document exists with decisions, migration notes, and operational checks (`docs/customer-email-optional.md`).
-- [x] Hardening/deferred items are captured in `docs/hardening-notes.md`.
-- [x] `PROJECT.md` delivered/docs/architecture/error-handling sections were updated for optional e-mail.
-- [x] Project-level wording is fully internally consistent.
+## Stage 0 Spot-check
+- [x] Problem and user value are clear.
+- [x] Non-goals are present.
+- [x] Happy/unhappy paths are mostly defined.
+- [x] Key architecture decisions are sufficiently locked for implementation.
+- [x] Security/performance boundaries are locked.
 
 ---

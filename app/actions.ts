@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getMenuItemMap } from "@/lib/menu";
+import { getMenuItemMap, type MenuItem } from "@/lib/menu";
 import {
   normalizePaymentMethod,
   type PaymentMethod,
@@ -92,7 +92,8 @@ export async function submitCustomerOrder(
 
 export async function submitCustomerOrderWithClient(
   input: SubmitCustomerOrderInput,
-  supabase: OrdersTablesClient
+  supabase: OrdersTablesClient,
+  menuMapOverride?: Map<string, MenuItem>
 ): Promise<SubmitCustomerOrderResult> {
   const rawCustomerEmail = input.customerEmail as unknown;
   if (typeof rawCustomerEmail !== "string" && typeof rawCustomerEmail !== "undefined") {
@@ -135,7 +136,7 @@ export async function submitCustomerOrderWithClient(
     return submitErrorResult("validation", VALIDATION_PAYMENT_METHOD_MESSAGE);
   }
 
-  const menuMap = getMenuItemMap();
+  const menuMap = menuMapOverride ?? getMenuItemMap();
   let orderItems: ReturnType<typeof normalizeSelectedItems>;
   try {
     orderItems = normalizeSelectedItems(input.items, menuMap);
