@@ -611,3 +611,41 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | CSS-only responsive fixes |
 | Observability | Gap       | No layout telemetry |
 | Resilience    | Improved  | Added wrapping/stacking + long-text guards for mobile overflow prevention |
+
+---
+
+## Menu-Inspired Design Review and Implementation — Stage 4
+
+### Security
+
+- **No auth/permission boundary changes:** This feature is UI styling only for customer `/` and admin summary status cards; no API contracts, DB writes, or auth logic changed. **No change.**
+- **No user-input rendering risk increase:** New visual classes/tokens are static and not derived from user-provided values. **No change.**
+
+### Dependencies
+
+- **No new packages:** Hardening did not introduce third-party libraries (fonts, animation frameworks, CSS tooling, or runtime deps). **No change.**
+- **No runtime/provider coupling added:** Theme remains local CSS token + Tailwind classes; no external style service dependency. **No change.**
+
+### Performance
+
+- **UI-only class updates:** Rendering cost impact is negligible at current scale; no additional network calls or data fetch loops were introduced.
+- **Animation scope bounded:** Existing cart-feedback pulse remains `motion-safe`, avoiding reduced-motion regressions. **No behavior change.**
+
+### Observability
+
+- **No new telemetry:** This visual feature does not add UX event logging (e.g., theme usage/interaction metrics). This is acceptable for current scope and single-tenant usage. **Deferred.**
+
+### Resilience
+
+- **Style centralization improved:** Themed button/price classes were centralized in shared constants (`customer-order-page`) and status color mapping centralized in one map (`admin-orders-dashboard`), reducing style drift risk in future edits. **Improved in Stage 4 sweep.**
+- **Fallback behavior unchanged:** Existing flows remain functional if style classes fail to apply. **No change.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | UI-only scope; no trust-boundary changes |
+| Dependencies  | OK        | No new packages/providers |
+| Performance   | OK        | Minimal class-only overhead |
+| Observability | Gap       | No UX metrics; accepted for scope |
+| Resilience    | Improved  | Centralized style mappings reduce drift |

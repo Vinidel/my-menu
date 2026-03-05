@@ -2,7 +2,7 @@
 
 Date: 2026-03-05  
 Reviewed by: Critic Agent  
-Scope: Stage 2 test review — customer/admin UI styling updates (`components/customer-order-page.test.tsx`, `components/admin-orders-dashboard.test.tsx`)  
+Scope: Stage 4 hardening review — Menu-Inspired Design implementation (`docs/hardening-notes.md`, `components/customer-order-page.tsx`, `components/admin-orders-dashboard.tsx`)  
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Class-based styling assertions are valid here, but they are brittle to harmless class refactors. Consider adding stable test hooks (`data-testid` or semantic wrappers) for style-critical regions in a future pass.
-- For future visual features, consider adding one focused viewport test harness (e.g. `window.matchMedia` + mobile scenario) tied directly to the Stage 0 width matrix.
+- Consider adding an automated contrast check in CI for key themed surfaces (header, primary buttons, status cards) to guard future token changes.
+- If more themed pages are added, move shared menu/admin status visual tokens into a dedicated style module to avoid drift between component-local constants and global CSS variables.
 
 ### Risks / Assumptions
-- Tests now cover the new status-card color mapping and customer style hooks (radio accent + total price chip), but full visual QA still depends on manual browser/device verification.
-- The current test approach assumes key class names remain stable enough across refactors.
+- Hardening is intentionally lightweight because scope is UI-only; no new backend/runtime protections were needed.
+- Accessibility/visual quality still depends on manual cross-device QA for final polish (especially contrast in real mobile brightness conditions).
 
 ## Acceptance Criteria
-- [x] New style-related behaviors introduced in Stage 1 are covered by tests.
-- [x] Existing interaction/regression coverage remains intact.
-- [x] Stage 2 test suite passes for touched components.
+- [x] Stage 4 notes cover security, dependencies, performance, observability, and resilience for this feature.
+- [x] Deferred risks are documented without scope creep into unrelated fixes.
+- [x] No hardening blockers remain for moving to Stage 5.
