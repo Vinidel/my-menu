@@ -1,8 +1,8 @@
 # Critique
 
-Date: 2026-03-04  
+Date: 2026-03-05  
 Reviewed by: Critic Agent  
-Scope: Stage 0 brief review — Server-Side Menu Import Processing (PGMQ)  
+Scope: Stage 5 documentation review — Menu-Inspired Design implementation (`docs/menu-inspired-design-review-and-implementation.md`, `PROJECT.md`)  
 Verdict: APPROVE
 
 ## Findings
@@ -11,17 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In Stage 1, keep explicit logs for scheduler-trigger auth failures to simplify ops debugging (`403` path with coarse metadata only).
-- In Stage 1, decide and document the exact rollout condition for removing legacy `POST /api/admin/menu-import/process-next` fallback.
+- In a future docs pass, consider adding a short “verification evidence” table (automated tests + manual viewport smoke checks) for faster review traceability.
+- If more design features land, consider a centralized index page for UI/theme docs to keep discovery simple.
 
 ### Risks / Assumptions
-- Brief now adequately locks architecture-critical details: scheduler model (`pg_cron` + `pg_net` + Edge Function), worker auth contract, retry policy, idempotency claim strategy, queue name, fallback timing, and legacy endpoint coexistence.
-- Assumes Supabase project supports required extensions and secure secret management for worker invocation.
+- Visual quality acceptance still depends on manual device checks; current docs correctly call this out as deferred.
+- Class-based style tests remain sensitive to utility-class refactors; acceptable for current scope.
 
-## Stage 0 Spot-check
-- [x] Problem and value are clear.
-- [x] Scope and non-goals are explicit.
-- [x] Happy/unhappy paths are adequate for implementation.
-- [x] Security and operational boundaries are locked.
-- [x] Stage 1 can proceed without architectural ambiguity.
-
+## Acceptance Criteria
+- [x] `PROJECT.md` metadata date reflects current documentation state.
+- [x] Stage 5 docs and Stage 0 brief are scope-consistent regarding the admin summary color change.
+- [x] Documentation is clear enough for next-stage/archive without ambiguity on what was intentionally delivered.

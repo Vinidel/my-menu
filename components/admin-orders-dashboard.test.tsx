@@ -90,6 +90,44 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     ]);
   });
 
+  it("uses status-matching colors in summary cards (brief: status color alignment)", () => {
+    const orders = [
+      makeOrder({
+        id: "1",
+        status: "aguardando_confirmacao",
+        statusLabel: "Esperando confirmação",
+      }),
+      makeOrder({
+        id: "2",
+        status: "em_preparo",
+        statusLabel: "Em preparo",
+        createdAtIso: "2026-02-23T10:10:00.000Z",
+      }),
+      makeOrder({
+        id: "3",
+        status: "entregue",
+        statusLabel: "Entregue",
+        createdAtIso: "2026-02-23T10:20:00.000Z",
+      }),
+    ];
+
+    render(<AdminOrdersDashboard initialOrders={orders} />);
+
+    const summary = screen.getByRole("region", {
+      name: "Resumo de pedidos por status",
+    });
+    const aguardandoCard = within(summary).getByText("Esperando confirmação").closest("div");
+    const preparoCard = within(summary).getByText("Em preparo").closest("div");
+    const entregueCard = within(summary).getByText("Entregue").closest("div");
+
+    expect(aguardandoCard?.className).toContain("border-amber-300");
+    expect(aguardandoCard?.className).toContain("bg-amber-50/80");
+    expect(preparoCard?.className).toContain("border-blue-300");
+    expect(preparoCard?.className).toContain("bg-blue-50/80");
+    expect(entregueCard?.className).toContain("border-green-300");
+    expect(entregueCard?.className).toContain("bg-green-50/80");
+  });
+
   it("renders orders by status priority first and oldest first within each status (brief: status-first sorting)", () => {
     const orders = [
       makeOrder({

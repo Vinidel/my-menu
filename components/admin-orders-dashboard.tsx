@@ -36,6 +36,34 @@ const POLLING_REFRESH_ERROR_MESSAGE =
   "Não foi possível atualizar os pedidos automaticamente. Exibindo os últimos dados carregados.";
 const ORDER_LIST_BUTTON_BASE_CLASS =
   "w-full px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+const STATUS_VISUAL_STYLES: Record<
+  OrderStatus,
+  {
+    chip: string;
+    summaryContainer: string;
+    summaryLabel: string;
+    summaryValue: string;
+  }
+> = {
+  aguardando_confirmacao: {
+    chip: "bg-amber-500/15 text-amber-700",
+    summaryContainer: "border-amber-300 bg-amber-50/80",
+    summaryLabel: "text-amber-800",
+    summaryValue: "text-amber-900",
+  },
+  em_preparo: {
+    chip: "bg-blue-500/15 text-blue-700",
+    summaryContainer: "border-blue-300 bg-blue-50/80",
+    summaryLabel: "text-blue-800",
+    summaryValue: "text-blue-900",
+  },
+  entregue: {
+    chip: "bg-green-600/15 text-green-700",
+    summaryContainer: "border-green-300 bg-green-50/80",
+    summaryLabel: "text-green-800",
+    summaryValue: "text-green-900",
+  },
+};
 
 export function AdminOrdersDashboard({
   initialOrders,
@@ -393,17 +421,20 @@ function SummaryCards({ counts }: { counts: Record<OrderStatus, number> }) {
       className="grid gap-4 sm:grid-cols-3"
       aria-label="Resumo de pedidos por status"
     >
-      {ORDER_STATUS_SEQUENCE.map((status) => (
-        <div
-          key={status}
-          className="rounded-lg border border-border bg-background px-4 py-4"
-        >
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {getOrderStatusLabel(status)}
-          </p>
-          <p className="mt-2 text-3xl font-bold text-foreground">{counts[status]}</p>
-        </div>
-      ))}
+      {ORDER_STATUS_SEQUENCE.map((status) => {
+        const style = STATUS_VISUAL_STYLES[status];
+        return (
+          <div
+            key={status}
+            className={`rounded-lg border px-4 py-4 ${style.summaryContainer}`}
+          >
+            <p className={`text-xs font-semibold uppercase tracking-wide ${style.summaryLabel}`}>
+              {getOrderStatusLabel(status)}
+            </p>
+            <p className={`mt-2 text-3xl font-bold ${style.summaryValue}`}>{counts[status]}</p>
+          </div>
+        );
+      })}
     </section>
   );
 }
@@ -548,16 +579,8 @@ function FeedbackBanner({
 }
 
 function statusChipClass(status: OrderStatus | null) {
-  switch (status) {
-    case "aguardando_confirmacao":
-      return "bg-amber-500/15 text-amber-700";
-    case "em_preparo":
-      return "bg-blue-500/15 text-blue-700";
-    case "entregue":
-      return "bg-green-600/15 text-green-700";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
+  if (!status) return "bg-muted text-muted-foreground";
+  return STATUS_VISUAL_STYLES[status].chip;
 }
 
 function findOrderById(orders: AdminOrder[], orderId: string | null) {

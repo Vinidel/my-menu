@@ -240,9 +240,28 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
 
     expect(screen.getByText("Modo de pagamento")).toBeInTheDocument();
-    expect(screen.getByLabelText("Dinheiro")).toBeInTheDocument();
-    expect(screen.getByLabelText("Pix")).toBeInTheDocument();
-    expect(screen.getByLabelText("Cartão")).toBeInTheDocument();
+    const dinheiroRadio = screen.getByLabelText("Dinheiro");
+    const pixRadio = screen.getByLabelText("Pix");
+    const cartaoRadio = screen.getByLabelText("Cartão");
+    expect(dinheiroRadio).toBeInTheDocument();
+    expect(pixRadio).toBeInTheDocument();
+    expect(cartaoRadio).toBeInTheDocument();
+    expect(dinheiroRadio.className).toContain("accent-[hsl(var(--menu-brand))]");
+    expect(pixRadio.className).toContain("accent-[hsl(var(--menu-brand))]");
+    expect(cartaoRadio.className).toContain("accent-[hsl(var(--menu-brand))]");
+  });
+
+  it("renders total estimate with the same branded price chip style as menu prices (brief: total highlight style)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+
+    const totalLine = screen.getByText(/Total estimado:/).closest("p");
+    expect(totalLine).toBeTruthy();
+    const totalValue = within(totalLine as HTMLElement).getByText(/R\$\s*25,00/);
+    expect(totalValue.className).toContain("bg-[hsl(var(--menu-brand))]");
+    expect(totalValue.className).toContain("text-[hsl(var(--menu-brand-foreground))]");
   });
 
   it("shows CAPTCHA setup warning and disables submit when CAPTCHA is required but site key is missing", () => {

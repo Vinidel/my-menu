@@ -48,4 +48,17 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  .menu-theme {
+    --menu-brand: 1 69% 52%;
+    --menu-brand-dark: 1 73% 40%;
+    --menu-brand-highlight: 4 91% 69%;
+    --menu-brand-foreground: 0 0% 98%;
+    --menu-surface: 0 0% 100%;
+    --menu-surface-soft: 33 33% 97%;
+    --menu-border-soft: 11 20% 84%;
+    --menu-border-strong: 5 34% 68%;
+    --menu-ink: 8 24% 15%;
+    --menu-muted: 9 14% 36%;
+  }
 }

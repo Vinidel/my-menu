@@ -64,13 +64,21 @@ const CAPTCHA_VALIDATION_MESSAGE =
 const CAPTCHA_LOADING_MESSAGE = "Verificando segurança...";
 const CART_ADD_FEEDBACK_DURATION_MS = 1400;
 const MENU_CARD_CLASS =
-  "flex min-h-40 min-w-0 flex-col justify-between rounded-xl border bg-card p-4";
+  "flex min-h-40 min-w-0 flex-col justify-between rounded-2xl border border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] p-4 shadow-[0_10px_26px_-22px_hsl(var(--menu-ink)/0.95)]";
 const MENU_CARD_ACTION_ROW_CLASS =
   "mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
 const MENU_CARD_ACTION_BUTTONS_ROW_CLASS =
   "flex flex-wrap items-center gap-2 sm:justify-end";
-const MENU_EXTRAS_EDITOR_CLASS = "mt-3 min-w-0 rounded-md border border-dashed p-3";
+const MENU_EXTRAS_EDITOR_CLASS =
+  "mt-3 min-w-0 rounded-xl border border-dashed border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface-soft))] p-3";
 const MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS = "flex min-w-0 flex-wrap items-center gap-2 text-sm";
+const MENU_BRAND_BUTTON_CLASS =
+  "bg-[hsl(var(--menu-brand))] font-semibold text-[hsl(var(--menu-brand-foreground))] hover:bg-[hsl(var(--menu-brand-dark))]";
+const MENU_OUTLINE_BUTTON_CLASS =
+  "border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] text-[hsl(var(--menu-ink))] hover:bg-[hsl(var(--menu-surface-soft))]";
+const MENU_RADIO_ACCENT_CLASS = "accent-[hsl(var(--menu-brand))]";
+const MENU_PRICE_CHIP_CLASS =
+  "inline-flex rounded-full bg-[hsl(var(--menu-brand))] px-3 py-1 text-sm font-bold text-[hsl(var(--menu-brand-foreground))]";
 const TURNSTILE_SCRIPT_ID = "cloudflare-turnstile-script";
 const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
@@ -551,26 +559,37 @@ export function CustomerOrderPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
-      <header className="flex flex-col gap-3 rounded-xl border bg-background p-6">
+    <main className="menu-theme mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <header className="relative overflow-hidden rounded-3xl border border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-brand))] px-5 py-6 text-[hsl(var(--menu-brand-foreground))] shadow-[0_14px_36px_-20px_hsl(var(--menu-brand)/0.75)] sm:px-7 sm:py-7">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_22%,hsl(var(--menu-brand-highlight)/0.4),transparent_42%),radial-gradient(circle_at_84%_20%,hsl(var(--menu-brand-highlight)/0.25),transparent_34%)]"
+        />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Cardápio</h1>
-            <p className="text-sm text-muted-foreground">Monte seu pedido e envie para a cozinha.</p>
+          <div className="relative z-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[hsl(var(--menu-brand-foreground)/0.84)]">
+              Lanchonete Dioney
+            </p>
+            <h1 className="mt-1 text-3xl font-black leading-none tracking-tight sm:text-4xl">
+              Cardápio
+            </h1>
+            <p className="mt-2 text-sm text-[hsl(var(--menu-brand-foreground)/0.9)]">
+              Monte seu pedido e envie para a cozinha.
+            </p>
           </div>
         </div>
         {!isSupabaseConfigured ? (
-          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="relative z-10 mt-3 rounded-lg border border-amber-200/90 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             {SETUP_BANNER_MESSAGE}
           </p>
         ) : isCaptchaRequired && !isCaptchaConfigured ? (
-          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="relative z-10 mt-3 rounded-lg border border-amber-200/90 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             {CAPTCHA_SETUP_BANNER_MESSAGE}
           </p>
         ) : null}
       </header>
 
-      <section className="rounded-xl border bg-background p-5">
+      <section className="rounded-3xl border border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] p-4 shadow-[0_18px_38px_-28px_hsl(var(--menu-ink)/0.7)] sm:p-5">
         {isCaptchaRequired ? (
           <div ref={turnstileContainerRef} className="sr-only" aria-hidden="true" />
         ) : null}
@@ -581,8 +600,10 @@ export function CustomerOrderPage({
           role="tablist"
           aria-label="Navegação do pedido"
           className={[
-            "sticky top-2 z-20 mb-5 grid grid-cols-2 gap-2 rounded-lg bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:top-3 md:static md:top-auto md:z-auto md:flex md:flex-wrap md:justify-start md:bg-transparent md:p-0 md:backdrop-blur-none",
-            isPageScrolled ? "shadow-sm ring-1 ring-border/50 md:shadow-none md:ring-0" : "",
+            "sticky top-2 z-20 mb-5 grid grid-cols-2 gap-2 rounded-xl border border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface)/0.95)] p-2 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--menu-surface)/0.9)] sm:top-3 md:static md:top-auto md:z-auto md:flex md:flex-wrap md:justify-start md:border-transparent md:bg-transparent md:p-0 md:backdrop-blur-none",
+            isPageScrolled
+              ? "shadow-[0_10px_26px_-20px_hsl(var(--menu-ink)/0.8)] ring-1 ring-[hsl(var(--menu-border-strong))] md:shadow-none md:ring-0"
+              : "",
           ].join(" ")}
         >
           <button
@@ -609,15 +630,17 @@ export function CustomerOrderPage({
         {activeTab === "cardapio" ? (
           <section aria-labelledby="menu-heading" className="space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 id="menu-heading" className="text-xl font-semibold">Itens do cardápio</h2>
+              <h2 id="menu-heading" className="text-xl font-black tracking-tight text-[hsl(var(--menu-ink))]">
+                Itens do cardápio
+              </h2>
               <button
                 type="button"
                 onClick={() => setActiveTab("pedido")}
                 data-cart-feedback-state={cartFeedbackState}
                 className={[
-                  "text-sm text-primary underline underline-offset-4 hover:no-underline transition-colors",
+                  "text-sm font-semibold text-[hsl(var(--menu-brand))] underline underline-offset-4 transition-colors hover:text-[hsl(var(--menu-brand-dark))] hover:no-underline",
                   isCartFeedbackActive
-                    ? "font-semibold text-foreground motion-safe:animate-pulse"
+                    ? "text-[hsl(var(--menu-ink))] motion-safe:animate-pulse"
                     : "",
                 ].join(" ")}
               >
@@ -658,17 +681,23 @@ export function CustomerOrderPage({
                 return (
                   <article key={item.id} className={MENU_CARD_CLASS}>
                     <div className="min-w-0 space-y-2">
-                      <h3 className="break-words text-lg font-semibold">{item.name}</h3>
+                      <h3 className="break-words text-lg font-black tracking-tight text-[hsl(var(--menu-ink))]">
+                        {item.name}
+                      </h3>
                       {item.description ? (
-                        <p className="break-words text-sm text-muted-foreground">{item.description}</p>
+                        <p className="break-words text-sm text-[hsl(var(--menu-muted))]">
+                          {item.description}
+                        </p>
                       ) : null}
                       {typeof item.priceCents === "number" ? (
-                        <p className="text-sm font-medium">{formatCurrency(item.priceCents)}</p>
+                        <p className={`w-fit ${MENU_PRICE_CHIP_CLASS}`}>
+                          {formatCurrency(item.priceCents)}
+                        </p>
                       ) : null}
                     </div>
 
                     <div className={MENU_CARD_ACTION_ROW_CLASS}>
-                      <span className="min-w-0 text-sm text-muted-foreground">
+                      <span className="min-w-0 text-sm text-[hsl(var(--menu-muted))]">
                         {quantity > 0 ? `${quantity} no pedido` : "Ainda não selecionado"}
                       </span>
                       <div className={MENU_CARD_ACTION_BUTTONS_ROW_CLASS}>
@@ -676,6 +705,7 @@ export function CustomerOrderPage({
                         <Button
                           type="button"
                           variant="outline"
+                          className="border-[hsl(var(--menu-border-strong))] bg-transparent text-[hsl(var(--menu-ink))] hover:bg-[hsl(var(--menu-surface-soft))]"
                           onClick={() =>
                             setCustomizingMenuItemId((current) => (current === item.id ? null : item.id))
                             }
@@ -683,7 +713,11 @@ export function CustomerOrderPage({
                             Personalizar
                           </Button>
                         ) : null}
-                        <Button type="button" onClick={() => handleAddFromMenuCard(item)}>
+                        <Button
+                          type="button"
+                          className={MENU_BRAND_BUTTON_CLASS}
+                          onClick={() => handleAddFromMenuCard(item)}
+                        >
                           Adicionar
                         </Button>
                       </div>
@@ -708,7 +742,7 @@ export function CustomerOrderPage({
               })}
             </div>
             {visibleMenuItems.length === 0 ? (
-              <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              <p className="rounded-xl border border-dashed border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface-soft))] p-3 text-sm text-[hsl(var(--menu-muted))]">
                 Nenhum item nesta categoria.
               </p>
             ) : null}
@@ -778,12 +812,14 @@ function buildMenuCategories(menuItems: MenuItem[]): string[] {
 
 function tabTriggerClass(isActive: boolean, isHighlighted = false): string {
   return [
-    "rounded-full border px-3 py-1.5 text-sm transition-colors",
+    "rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-    isHighlighted ? "ring-2 ring-amber-300 ring-offset-1 motion-safe:animate-pulse" : "",
+    isHighlighted
+      ? "ring-2 ring-[hsl(var(--menu-brand))] ring-offset-1 motion-safe:animate-pulse"
+      : "",
     isActive
-      ? "border-primary bg-primary text-primary-foreground"
-      : "border-border bg-background text-foreground hover:bg-accent",
+      ? "border-[hsl(var(--menu-brand-dark))] bg-[hsl(var(--menu-brand))] text-[hsl(var(--menu-brand-foreground))]"
+      : "border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface-soft))] text-[hsl(var(--menu-ink))] hover:border-[hsl(var(--menu-border-strong))] hover:bg-[hsl(var(--menu-surface))]",
   ].join(" ");
 }
 
@@ -858,15 +894,15 @@ function OrderSummaryTab({
   return (
     <section aria-labelledby="checkout-heading" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="checkout-heading" className="text-xl font-semibold">
+        <h2 id="checkout-heading" className="text-xl font-black tracking-tight text-[hsl(var(--menu-ink))]">
           Carrinho
         </h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{cartCountLabel}</span>
+          <span className="text-sm text-[hsl(var(--menu-muted))]">{cartCountLabel}</span>
           <button
             type="button"
             onClick={onBackToMenu}
-            className="text-sm text-primary underline underline-offset-4 hover:no-underline"
+            className="text-sm font-semibold text-[hsl(var(--menu-brand))] underline underline-offset-4 hover:text-[hsl(var(--menu-brand-dark))] hover:no-underline"
           >
             Voltar ao cardápio
           </button>
@@ -874,27 +910,32 @@ function OrderSummaryTab({
       </div>
 
       {selectedEntries.length === 0 ? (
-        <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface-soft))] p-3 text-sm text-[hsl(var(--menu-muted))]">
           Nenhum item selecionado ainda.
         </p>
       ) : (
         <ul className="space-y-3">
           {selectedEntries.map(({ lineId, item, quantity, selectedExtras, selectedRemovedIngredients }) => (
-            <li key={lineId} className="rounded-lg border p-3">
+            <li
+              key={lineId}
+              className="rounded-xl border border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface-soft))] p-3"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium">{item.name}</p>
+                  <p className="font-semibold text-[hsl(var(--menu-ink))]">{item.name}</p>
                   {typeof item.priceCents === "number" ? (
-                    <p className="text-xs text-muted-foreground">{formatCurrency(item.priceCents)} cada</p>
+                    <p className="text-xs text-[hsl(var(--menu-muted))]">
+                      {formatCurrency(item.priceCents)} cada
+                    </p>
                   ) : null}
                   {selectedExtras.length > 0 ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-[hsl(var(--menu-muted))]">
                       <span className="font-medium">Extras:</span>{" "}
                       {selectedExtras.map((extra) => extra.name).join(", ")}
                     </p>
                   ) : null}
                   {selectedRemovedIngredients.length > 0 ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-[hsl(var(--menu-muted))]">
                       <span className="font-medium">Sem:</span>{" "}
                       {selectedRemovedIngredients.map((ingredient) => ingredient.name).join(", ")}
                     </p>
@@ -905,6 +946,7 @@ function OrderSummaryTab({
                     type="button"
                     variant="outline"
                     size="sm"
+                    className={MENU_OUTLINE_BUTTON_CLASS}
                     aria-label={`Diminuir quantidade de ${item.name}`}
                     onClick={() => onChangeQuantity(lineId, quantity - 1)}
                   >
@@ -915,6 +957,7 @@ function OrderSummaryTab({
                     type="button"
                     variant="outline"
                     size="sm"
+                    className={MENU_OUTLINE_BUTTON_CLASS}
                     aria-label={`Aumentar quantidade de ${item.name}`}
                     onClick={() => onChangeQuantity(lineId, quantity + 1)}
                   >
@@ -944,6 +987,7 @@ function OrderSummaryTab({
                       type="button"
                       size="sm"
                       variant="outline"
+                      className={MENU_OUTLINE_BUTTON_CLASS}
                       onClick={() => onStartEditLineCustomization(lineId)}
                     >
                       Editar
@@ -964,6 +1008,7 @@ function OrderSummaryTab({
             placeholder="Seu nome"
             value={customerName}
             onChange={(event) => onCustomerNameChange(event.target.value)}
+            className="border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface))]"
             disabled={isPending}
             aria-invalid={Boolean(fieldErrors.customerName)}
             aria-describedby={fieldErrors.customerName ? "customer-name-error" : undefined}
@@ -983,6 +1028,7 @@ function OrderSummaryTab({
             placeholder="voce@exemplo.com"
             value={customerEmail}
             onChange={(event) => onCustomerEmailChange(event.target.value)}
+            className="border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface))]"
             disabled={isPending}
             aria-invalid={Boolean(fieldErrors.customerEmail)}
             aria-describedby={fieldErrors.customerEmail ? "customer-email-error" : undefined}
@@ -1001,6 +1047,7 @@ function OrderSummaryTab({
             placeholder="(11) 99999-9999"
             value={customerPhone}
             onChange={(event) => onCustomerPhoneChange(event.target.value)}
+            className="border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface))]"
             disabled={isPending}
             aria-invalid={Boolean(fieldErrors.customerPhone)}
             aria-describedby={fieldErrors.customerPhone ? "customer-phone-error" : undefined}
@@ -1022,7 +1069,7 @@ function OrderSummaryTab({
               {PAYMENT_METHOD_OPTIONS.map((option) => (
                 <label
                   key={option.value}
-                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                  className="flex items-center gap-2 rounded-md border border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface-soft))] px-3 py-2 text-sm"
                 >
                   <input
                     type="radio"
@@ -1030,6 +1077,7 @@ function OrderSummaryTab({
                     value={option.value}
                     checked={paymentMethod === option.value}
                     onChange={() => onPaymentMethodChange(option.value)}
+                    className={MENU_RADIO_ACCENT_CLASS}
                     disabled={isPending}
                   />
                   <span>{option.label}</span>
@@ -1053,12 +1101,17 @@ function OrderSummaryTab({
             onChange={(event) => onCustomerNotesChange(event.target.value)}
             disabled={isPending}
             rows={3}
-            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full rounded-md border border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface))] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
         {selectedEntries.length > 0 ? (
-          <p className="text-sm font-medium">Total estimado: {formatCurrency(totalPriceCents)}</p>
+          <p className="text-sm font-semibold text-[hsl(var(--menu-ink))]">
+            Total estimado:{" "}
+            <span className={MENU_PRICE_CHIP_CLASS}>
+              {formatCurrency(totalPriceCents)}
+            </span>
+          </p>
         ) : null}
 
         {feedback ? (
@@ -1076,7 +1129,11 @@ function OrderSummaryTab({
           </p>
         ) : null}
 
-        <Button type="submit" className="w-full" disabled={!canSubmit}>
+        <Button
+          type="submit"
+          className={`w-full ${MENU_BRAND_BUTTON_CLASS}`}
+          disabled={!canSubmit}
+        >
           {isPending ? "Enviando pedido..." : "Enviar pedido"}
         </Button>
       </form>
@@ -1149,11 +1206,22 @@ function MenuItemExtrasEditor({
         </div>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className={MENU_OUTLINE_BUTTON_CLASS}
+          onClick={onCancel}
+        >
           Cancelar
         </Button>
         {onConfirm ? (
-          <Button type="button" size="sm" onClick={onConfirm}>
+          <Button
+            type="button"
+            size="sm"
+            className={MENU_BRAND_BUTTON_CLASS}
+            onClick={onConfirm}
+          >
             {confirmLabel ?? "Salvar"}
           </Button>
         ) : null}
