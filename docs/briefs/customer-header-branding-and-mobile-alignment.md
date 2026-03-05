@@ -17,6 +17,7 @@ Header copy cleanup / Mobile header alignment fix
 The customer page header currently uses mixed branding/copy that feels redundant (`Lanchonete Dioney` plus `Cardápio`) and has alignment issues on mobile.
 
 This causes:
+
 - unclear top-level brand hierarchy
 - avoidable visual noise in the hero header
 - inconsistent alignment on small screens
@@ -58,15 +59,15 @@ Use only `Lanchonete Dioney` as the main header identity on `/` and fix mobile a
 
 ## Success Criteria
 
-- [ ] Header no longer shows `Cardápio` title text.
-- [ ] Header shows `Lanchonete Dioney` branding and retains supporting sentence text.
-- [ ] No horizontal overflow or overlap in header at widths `320`, `360`, `390`, `430`.
-- [ ] Mobile layout contract is respected when phone block is present:
+- Header no longer shows `Cardápio` title text.
+- Header shows `Lanchonete Dioney` branding and retains supporting sentence text.
+- No horizontal overflow or overlap in header at widths `320`, `360`, `390`, `430`.
+- Mobile layout contract is respected when phone block is present:
   - brand block appears above phone block
   - both blocks align left on mobile
-- [ ] Mobile layout contract is respected when phone block is absent:
+- Mobile layout contract is respected when phone block is absent:
   - brand block remains left-aligned with unchanged vertical spacing rhythm.
-- [ ] No functional regressions in tabs/cart/checkout flow.
+- No functional regressions in tabs/cart/checkout flow.
 
 ---
 
@@ -128,11 +129,12 @@ Use only `Lanchonete Dioney` as the main header identity on `/` and fix mobile a
 
 ## Stage 0 Exit Gate
 
-- [x] Problem is clearly defined
-- [x] Goals are concrete and testable
-- [x] Non-goals are explicitly listed
-- [x] Happy and unhappy paths are documented
-- [x] Edge cases are surfaced
-- [x] Key decisions are locked
-- [x] Approach is outlined at a high level (no code)
-- [ ] Critic has approved this brief
+- Problem is clearly defined
+- Goals are concrete and testable
+- Non-goals are explicitly listed
+- Happy and unhappy paths are documented
+- Edge cases are surfaced
+- Key decisions are locked
+- Approach is outlined at a high level (no code)
+- Critic has approved this brief
+

@@ -70,6 +70,21 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(phoneLink).toHaveAttribute("href", "tel:+5548999585067");
   });
 
+  it("uses only brand title in header and removes 'Cardápio' title (brief: header copy cleanup)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Lanchonete Dioney" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Cardápio" })).not.toBeInTheDocument();
+  });
+
+  it("keeps supporting sentence in header (brief: header text scope lock)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    expect(
+      screen.getByText("Monte seu pedido e envie para a cozinha.")
+    ).toBeInTheDocument();
+  });
+
   it("highlights the cart entry point after clicking Adicionar (brief: cart feedback reaction)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
