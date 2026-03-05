@@ -2,7 +2,7 @@
 
 Date: 2026-03-05  
 Reviewed by: Critic Agent  
-Scope: Stage 0 brief review — `docs/briefs/customer-menu-phone-display-and-br-mask-validation.md`  
+Scope: Stage 5 documentation review — Customer menu phone display + BR mask/validation (`docs/customer-menu-phone-display-and-br-mask-validation.md`, `PROJECT.md`)  
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In Stage 1, add `NEXT_PUBLIC_STORE_PHONE` to `.env.example` with a BR-format example.
-- In Stage 2, include one focused test that verifies the store-phone block is hidden when `NEXT_PUBLIC_STORE_PHONE` is invalid/missing.
+- In a future docs pass, add a short “verification evidence” subsection with exact Stage 2 test commands/results for quicker PR review.
+- Consider documenting recommended formatting for `NEXT_PUBLIC_STORE_PHONE` in deployment runbooks (even though runtime validation already protects UI).
 
 ### Risks / Assumptions
-- Assumes the existing backend/order path can safely accept normalized digits-only phone values without downstream formatting dependencies.
-- Assumes product accepts hiding the store phone block when env value is missing/invalid (rather than showing fallback copy).
+- Assumes product acceptance of hidden phone contact block when env is missing/invalid remains unchanged.
+- Admin views may show digits-only phone values until a dedicated display-format pass is implemented.
 
 ## Acceptance Criteria
-- [x] Store phone source of truth and fallback behavior are explicitly locked.
-- [x] BR phone normalization + validation contract is explicit and testable.
-- [x] Success criteria include deterministic mask/paste/incomplete-input checks suitable for Stage 2 tests.
+- [x] Stage 5 docs capture decisions, deferred gaps, and operational notes.
+- [x] `PROJECT.md` reflects delivered feature and docs index updates.
+- [x] No Stage 5 documentation blockers remain.
