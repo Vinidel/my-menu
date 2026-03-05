@@ -1,11 +1,15 @@
 import { CustomerOrderPage } from "@/components/customer-order-page";
 import { isOrdersCaptchaRequired } from "@/lib/anti-abuse/captcha-config";
 import { getRuntimeMenuItems } from "@/lib/menu-runtime";
+import { formatBrazilPhoneDisplay, toBrazilPhoneTelHref } from "@/lib/phone";
 
 export default async function HomePage() {
   const menuItems = await getRuntimeMenuItems();
   const isCaptchaRequired = isOrdersCaptchaRequired();
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? null;
+  const rawStorePhone = process.env.NEXT_PUBLIC_STORE_PHONE ?? "";
+  const storePhoneDisplay = formatBrazilPhoneDisplay(rawStorePhone);
+  const storePhoneHref = toBrazilPhoneTelHref(rawStorePhone);
   const isSupabaseConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
@@ -18,6 +22,8 @@ export default async function HomePage() {
       isSupabaseConfigured={isSupabaseConfigured}
       isCaptchaRequired={isCaptchaRequired}
       turnstileSiteKey={turnstileSiteKey}
+      storePhoneDisplay={storePhoneDisplay}
+      storePhoneHref={storePhoneHref}
     />
   );
 }

@@ -55,6 +55,21 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByRole("button", { name: "Voltar ao cardápio" })).toBeInTheDocument();
   });
 
+  it("shows store phone contact link when provided (brief: menu phone display)", () => {
+    render(
+      <CustomerOrderPage
+        menuItems={MENU_ITEMS}
+        isSupabaseConfigured
+        storePhoneDisplay="(48) 99958-5067"
+        storePhoneHref="tel:+5548999585067"
+      />
+    );
+
+    const phoneLink = screen.getByRole("link", { name: "(48) 99958-5067" });
+    expect(phoneLink).toBeInTheDocument();
+    expect(phoneLink).toHaveAttribute("href", "tel:+5548999585067");
+  });
+
   it("highlights the cart entry point after clicking Adicionar (brief: cart feedback reaction)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
@@ -251,6 +266,24 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(cartaoRadio.className).toContain("accent-[hsl(var(--menu-brand))]");
   });
 
+  it("applies BR phone mask while typing and while pasting +55 values (brief: br mask + paste)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
+
+    const phoneInput = screen.getByLabelText("Telefone") as HTMLInputElement;
+
+    fireEvent.change(phoneInput, { target: { value: "1134567890" } });
+    expect(phoneInput.value).toBe("(11) 3456-7890");
+
+    fireEvent.change(phoneInput, { target: { value: "11987654321" } });
+    expect(phoneInput.value).toBe("(11) 98765-4321");
+
+    fireEvent.change(phoneInput, { target: { value: "+55 (11) 98765-4321" } });
+    expect(phoneInput.value).toBe("(11) 98765-4321");
+  });
+
   it("renders total estimate with the same branded price chip style as menu prices (brief: total highlight style)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 
@@ -421,7 +454,7 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
 
     expect(screen.getByLabelText("Nome")).toHaveValue("Ana");
     expect(screen.getByLabelText("E-mail (opcional)")).toHaveValue("ana@example.com");
-    expect(screen.getByLabelText("Telefone")).toHaveValue("11999999999");
+    expect(screen.getByLabelText("Telefone")).toHaveValue("(11) 99999-9999");
     expect(screen.getByText("X-Burger")).toBeInTheDocument();
     expect(screen.getByText("1 item")).toBeInTheDocument();
   });

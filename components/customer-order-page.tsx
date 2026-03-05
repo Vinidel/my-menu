@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { MenuExtra, MenuItem, MenuRemovableIngredient } from "@/lib/menu";
+import { formatBrazilPhoneMask } from "@/lib/phone";
 import {
   PAYMENT_METHOD_OPTIONS,
   type PaymentMethod,
@@ -14,6 +15,8 @@ type CustomerOrderPageProps = {
   isSupabaseConfigured: boolean;
   isCaptchaRequired?: boolean;
   turnstileSiteKey?: string | null;
+  storePhoneDisplay?: string | null;
+  storePhoneHref?: string | null;
 };
 
 type FeedbackState =
@@ -109,6 +112,8 @@ export function CustomerOrderPage({
   isSupabaseConfigured,
   isCaptchaRequired = false,
   turnstileSiteKey = null,
+  storePhoneDisplay = null,
+  storePhoneHref = null,
 }: CustomerOrderPageProps) {
   const menuCategories = buildMenuCategories(menuItems);
   const [selectedLines, setSelectedLines] = useState<SelectedOrderLine[]>([]);
@@ -577,6 +582,19 @@ export function CustomerOrderPage({
               Monte seu pedido e envie para a cozinha.
             </p>
           </div>
+          {storePhoneDisplay && storePhoneHref ? (
+            <div className="relative z-10 rounded-xl border border-[hsl(var(--menu-brand-foreground)/0.35)] bg-[hsl(var(--menu-brand-foreground)/0.08)] px-4 py-3 text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--menu-brand-foreground)/0.78)]">
+                Telefone
+              </p>
+              <a
+                href={storePhoneHref}
+                className="mt-1 inline-block text-lg font-black tracking-tight text-[hsl(var(--menu-brand-foreground))] underline-offset-4 hover:underline"
+              >
+                {storePhoneDisplay}
+              </a>
+            </div>
+          ) : null}
         </div>
         {!isSupabaseConfigured ? (
           <p className="relative z-10 mt-3 rounded-lg border border-amber-200/90 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -1046,7 +1064,7 @@ function OrderSummaryTab({
             inputMode="tel"
             placeholder="(11) 99999-9999"
             value={customerPhone}
-            onChange={(event) => onCustomerPhoneChange(event.target.value)}
+            onChange={(event) => onCustomerPhoneChange(formatBrazilPhoneMask(event.target.value))}
             className="border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface))]"
             disabled={isPending}
             aria-invalid={Boolean(fieldErrors.customerPhone)}

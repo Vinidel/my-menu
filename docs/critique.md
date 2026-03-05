@@ -11,8 +11,8 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In Stage 1, document the exact env var example in `.env.example` so setup remains explicit for local/staging/prod.
-- In Stage 2, include at least one server-side test for invalid `NEXT_PUBLIC_STORE_PHONE` fallback behavior (hidden block path).
+- In Stage 1, add `NEXT_PUBLIC_STORE_PHONE` to `.env.example` with a BR-format example.
+- In Stage 2, include one focused test that verifies the store-phone block is hidden when `NEXT_PUBLIC_STORE_PHONE` is invalid/missing.
 
 ### Risks / Assumptions
 - Assumes the existing backend/order path can safely accept normalized digits-only phone values without downstream formatting dependencies.
