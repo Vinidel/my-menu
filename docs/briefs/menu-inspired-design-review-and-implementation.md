@@ -71,11 +71,16 @@ Refresh the customer-facing cardápio/cart experience to match the visual langua
 
 ## Non-Goals (Out of Scope)
 
-- Rebranding admin pages (`/admin`) in this feature.
+- Full rebranding of admin pages (`/admin`) in this feature.
 - Changing business rules, order schema, or API contracts.
 - Adding new checkout fields or payment changes.
 - Replacing current menu data model/import behavior.
 - Introducing new icon/illustration asset pipeline.
+
+### Scope Adjustment (Recorded)
+
+- During implementation, a small admin UI extension was accepted: top `/admin` summary status cards were color-aligned to existing status chips (`Esperando confirmação`, `Em preparo`, `Entregue`).
+- This does not change admin flows, data, or behavior; it is presentation-only and narrower than a full admin redesign.
 
 ---
 
