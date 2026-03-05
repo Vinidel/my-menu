@@ -72,6 +72,13 @@ const MENU_CARD_ACTION_BUTTONS_ROW_CLASS =
 const MENU_EXTRAS_EDITOR_CLASS =
   "mt-3 min-w-0 rounded-xl border border-dashed border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface-soft))] p-3";
 const MENU_EXTRAS_EDITOR_OPTION_ROW_CLASS = "flex min-w-0 flex-wrap items-center gap-2 text-sm";
+const MENU_BRAND_BUTTON_CLASS =
+  "bg-[hsl(var(--menu-brand))] font-semibold text-[hsl(var(--menu-brand-foreground))] hover:bg-[hsl(var(--menu-brand-dark))]";
+const MENU_OUTLINE_BUTTON_CLASS =
+  "border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] text-[hsl(var(--menu-ink))] hover:bg-[hsl(var(--menu-surface-soft))]";
+const MENU_RADIO_ACCENT_CLASS = "accent-[hsl(var(--menu-brand))]";
+const MENU_PRICE_CHIP_CLASS =
+  "inline-flex rounded-full bg-[hsl(var(--menu-brand))] px-3 py-1 text-sm font-bold text-[hsl(var(--menu-brand-foreground))]";
 const TURNSTILE_SCRIPT_ID = "cloudflare-turnstile-script";
 const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
@@ -683,7 +690,7 @@ export function CustomerOrderPage({
                         </p>
                       ) : null}
                       {typeof item.priceCents === "number" ? (
-                        <p className="inline-flex w-fit rounded-full bg-[hsl(var(--menu-brand))] px-3 py-1 text-sm font-bold text-[hsl(var(--menu-brand-foreground))]">
+                        <p className={`w-fit ${MENU_PRICE_CHIP_CLASS}`}>
                           {formatCurrency(item.priceCents)}
                         </p>
                       ) : null}
@@ -708,7 +715,7 @@ export function CustomerOrderPage({
                         ) : null}
                         <Button
                           type="button"
-                          className="bg-[hsl(var(--menu-brand))] font-semibold text-[hsl(var(--menu-brand-foreground))] hover:bg-[hsl(var(--menu-brand-dark))]"
+                          className={MENU_BRAND_BUTTON_CLASS}
                           onClick={() => handleAddFromMenuCard(item)}
                         >
                           Adicionar
@@ -939,7 +946,7 @@ function OrderSummaryTab({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] hover:bg-[hsl(var(--menu-surface-soft))]"
+                    className={MENU_OUTLINE_BUTTON_CLASS}
                     aria-label={`Diminuir quantidade de ${item.name}`}
                     onClick={() => onChangeQuantity(lineId, quantity - 1)}
                   >
@@ -950,7 +957,7 @@ function OrderSummaryTab({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] hover:bg-[hsl(var(--menu-surface-soft))]"
+                    className={MENU_OUTLINE_BUTTON_CLASS}
                     aria-label={`Aumentar quantidade de ${item.name}`}
                     onClick={() => onChangeQuantity(lineId, quantity + 1)}
                   >
@@ -980,7 +987,7 @@ function OrderSummaryTab({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] text-[hsl(var(--menu-ink))] hover:bg-[hsl(var(--menu-surface-soft))]"
+                      className={MENU_OUTLINE_BUTTON_CLASS}
                       onClick={() => onStartEditLineCustomization(lineId)}
                     >
                       Editar
@@ -1070,7 +1077,7 @@ function OrderSummaryTab({
                     value={option.value}
                     checked={paymentMethod === option.value}
                     onChange={() => onPaymentMethodChange(option.value)}
-                    className="accent-[hsl(var(--menu-brand))]"
+                    className={MENU_RADIO_ACCENT_CLASS}
                     disabled={isPending}
                   />
                   <span>{option.label}</span>
@@ -1101,7 +1108,7 @@ function OrderSummaryTab({
         {selectedEntries.length > 0 ? (
           <p className="text-sm font-semibold text-[hsl(var(--menu-ink))]">
             Total estimado:{" "}
-            <span className="inline-flex rounded-full bg-[hsl(var(--menu-brand))] px-3 py-1 text-sm font-bold text-[hsl(var(--menu-brand-foreground))]">
+            <span className={MENU_PRICE_CHIP_CLASS}>
               {formatCurrency(totalPriceCents)}
             </span>
           </p>
@@ -1124,7 +1131,7 @@ function OrderSummaryTab({
 
         <Button
           type="submit"
-          className="w-full bg-[hsl(var(--menu-brand))] font-semibold text-[hsl(var(--menu-brand-foreground))] hover:bg-[hsl(var(--menu-brand-dark))]"
+          className={`w-full ${MENU_BRAND_BUTTON_CLASS}`}
           disabled={!canSubmit}
         >
           {isPending ? "Enviando pedido..." : "Enviar pedido"}
@@ -1203,7 +1210,7 @@ function MenuItemExtrasEditor({
           type="button"
           size="sm"
           variant="outline"
-          className="border-[hsl(var(--menu-border-strong))] bg-[hsl(var(--menu-surface))] text-[hsl(var(--menu-ink))] hover:bg-[hsl(var(--menu-surface-soft))]"
+          className={MENU_OUTLINE_BUTTON_CLASS}
           onClick={onCancel}
         >
           Cancelar
@@ -1212,7 +1219,7 @@ function MenuItemExtrasEditor({
           <Button
             type="button"
             size="sm"
-            className="bg-[hsl(var(--menu-brand))] font-semibold text-[hsl(var(--menu-brand-foreground))] hover:bg-[hsl(var(--menu-brand-dark))]"
+            className={MENU_BRAND_BUTTON_CLASS}
             onClick={onConfirm}
           >
             {confirmLabel ?? "Salvar"}
