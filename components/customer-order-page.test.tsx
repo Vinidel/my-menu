@@ -70,6 +70,29 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(phoneLink).toHaveAttribute("href", "tel:+5548999585067");
   });
 
+  it("keeps phone block aligned with mobile/desktop contract (brief: header mobile alignment)", () => {
+    render(
+      <CustomerOrderPage
+        menuItems={MENU_ITEMS}
+        isSupabaseConfigured
+        storePhoneDisplay="(48) 99958-5067"
+        storePhoneHref="tel:+5548999585067"
+      />
+    );
+
+    const phoneLink = screen.getByRole("link", { name: "(48) 99958-5067" });
+    const phoneWrapper = phoneLink.parentElement;
+    expect(phoneWrapper).toBeTruthy();
+    expect(phoneWrapper?.className).toContain("text-left");
+    expect(phoneWrapper?.className).toContain("sm:text-right");
+  });
+
+  it("does not render phone block when store phone is absent (brief: phone optional fallback)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    expect(screen.queryByText("Telefone")).not.toBeInTheDocument();
+  });
+
   it("uses only brand title in header and removes 'Cardápio' title (brief: header copy cleanup)", () => {
     render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
 

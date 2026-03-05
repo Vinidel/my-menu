@@ -3,7 +3,7 @@
 
 Date: 2026-03-05
 Reviewed by: Critic Agent
-Scope: Stage 0 brief review — docs/briefs/customer-header-branding-and-mobile-alignment.md
+Scope: Stage 2 test review — `components/customer-order-page.test.tsx` for `docs/briefs/customer-header-branding-and-mobile-alignment.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,13 +12,15 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding one explicit note in Stage 1 implementation PR checklist to capture viewport screenshots at 320/360/390/430 for easier visual regression review.
+- Add one viewport-level e2e/screenshot assertion for `320/360/390/430` widths to complement the current class/DOM contract checks for overlap/overflow.
 
 ### Risks / Assumptions
-- Assumes existing header semantics remain unchanged while adjusting copy/layout classes.
+- Current Stage 2 coverage validates DOM text and responsive class contracts; it assumes Tailwind responsive behavior is correctly compiled and applied in runtime.
 
 ## Acceptance Criteria
-- [x] Header text scope is explicitly locked (what is removed vs retained).
-- [x] Success criteria are testable and objective for Stage 2.
-- [x] Mobile alignment contract is explicitly locked for phone-block present/absent cases.
+- [x] Header identity change is covered (`Lanchonete Dioney` present as `h1`, `Cardápio` removed as header title).
+- [x] Supporting sentence retention is covered.
+- [x] Phone block presence/absence behavior is covered.
+- [x] Mobile/desktop alignment class contract for the phone block is covered.
+- [x] Existing customer flow tests remain green (no functional regression in this suite).
 ---
