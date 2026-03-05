@@ -81,3 +81,10 @@ Issues or observations spotted during implementation that are **out of scope** f
 - **Fallback endpoint intentionally retained:** `POST /api/admin/menu-import/process-next` remains available as owner-only manual fallback during rollout (not primary path).
 - **Type generation dependency:** Queue RPC wrappers (`menu_import_queue_enqueue/read/delete`) depend on updated Supabase generated types; stale typegen can produce `never` inference in queue call sites until types are regenerated.
 - **Monorepo/runtime boundary:** Supabase Edge Function code is Deno-based and excluded from Next.js type-check/build (`tsconfig.json` exclude) to avoid Vercel build failures.
+
+---
+
+## Customer Header Branding and Mobile Alignment (Stage 1)
+
+- **Repository-wide TS errors remain out of scope:** `npx tsc --noEmit` still reports existing test typing issues in admin/cardapio and anti-abuse test files unrelated to this header UI change. Stage 1 only validated the targeted customer page tests.
+- **ESLint script not yet non-interactive:** `npm run lint` prompts for first-time Next.js ESLint setup in this repo, so lint was not usable as a CI-style automated gate during this stage.

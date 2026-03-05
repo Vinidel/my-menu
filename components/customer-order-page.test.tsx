@@ -19,6 +19,11 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+const STORE_PHONE_PROPS = {
+  storePhoneDisplay: "(48) 99958-5067",
+  storePhoneHref: "tel:+5548999585067",
+} as const;
+
 function addFirstMenuItemAndOpenCart() {
   fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
   fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
@@ -60,14 +65,50 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       <CustomerOrderPage
         menuItems={MENU_ITEMS}
         isSupabaseConfigured
-        storePhoneDisplay="(48) 99958-5067"
-        storePhoneHref="tel:+5548999585067"
+        {...STORE_PHONE_PROPS}
       />
     );
 
-    const phoneLink = screen.getByRole("link", { name: "(48) 99958-5067" });
+    const phoneLink = screen.getByRole("link", { name: STORE_PHONE_PROPS.storePhoneDisplay });
     expect(phoneLink).toBeInTheDocument();
-    expect(phoneLink).toHaveAttribute("href", "tel:+5548999585067");
+    expect(phoneLink).toHaveAttribute("href", STORE_PHONE_PROPS.storePhoneHref);
+  });
+
+  it("keeps phone block aligned with mobile/desktop contract (brief: header mobile alignment)", () => {
+    render(
+      <CustomerOrderPage
+        menuItems={MENU_ITEMS}
+        isSupabaseConfigured
+        {...STORE_PHONE_PROPS}
+      />
+    );
+
+    const phoneLink = screen.getByRole("link", { name: STORE_PHONE_PROPS.storePhoneDisplay });
+    const phoneWrapper = phoneLink.parentElement;
+    expect(phoneWrapper).toBeTruthy();
+    expect(phoneWrapper?.className).toContain("text-left");
+    expect(phoneWrapper?.className).toContain("sm:text-right");
+  });
+
+  it("does not render phone block when store phone is absent (brief: phone optional fallback)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    expect(screen.queryByText("Telefone")).not.toBeInTheDocument();
+  });
+
+  it("uses only brand title in header and removes 'Cardápio' title (brief: header copy cleanup)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Lanchonete Dioney" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Cardápio" })).not.toBeInTheDocument();
+  });
+
+  it("keeps supporting sentence in header (brief: header text scope lock)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    expect(
+      screen.getByText("Monte seu pedido e envie para a cozinha.")
+    ).toBeInTheDocument();
   });
 
   it("highlights the cart entry point after clicking Adicionar (brief: cart feedback reaction)", () => {

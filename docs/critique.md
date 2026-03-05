@@ -1,8 +1,9 @@
+---
 # Critique
 
-Date: 2026-03-05  
-Reviewed by: Critic Agent  
-Scope: Stage 5 documentation review — Customer menu phone display + BR mask/validation (`docs/customer-menu-phone-display-and-br-mask-validation.md`, `PROJECT.md`)  
+Date: 2026-03-05
+Reviewed by: Critic Agent
+Scope: Stage 5 documentation review — `docs/customer-header-branding-and-mobile-alignment.md`
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +12,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In a future docs pass, add a short “verification evidence” subsection with exact Stage 2 test commands/results for quicker PR review.
-- Consider documenting recommended formatting for `NEXT_PUBLIC_STORE_PHONE` in deployment runbooks (even though runtime validation already protects UI).
+- Optionally add a short “PR checklist snippet” section in this doc to copy into PR descriptions (summary, risk, rollback) for faster review handoff.
 
 ### Risks / Assumptions
-- Assumes product acceptance of hidden phone contact block when env is missing/invalid remains unchanged.
-- Admin views may show digits-only phone values until a dedicated display-format pass is implemented.
+- The documentation assumes targeted component tests plus hardening notes are sufficient for this UI-only change; viewport screenshot validation remains intentionally deferred.
 
 ## Acceptance Criteria
-- [x] Stage 5 docs capture decisions, deferred gaps, and operational notes.
-- [x] `PROJECT.md` reflects delivered feature and docs index updates.
-- [x] No Stage 5 documentation blockers remain.
+- [x] Stage 5 doc links to the correct Stage 0 brief.
+- [x] Delivered scope, touched files, and locked decisions are clearly documented.
+- [x] Validation evidence and test command/results are recorded.
+- [x] Deferred risks/gaps and rollback path are explicit.
+---

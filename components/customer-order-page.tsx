@@ -572,18 +572,15 @@ export function CustomerOrderPage({
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[hsl(var(--menu-brand-foreground)/0.84)]">
+            <h1 className="text-3xl font-black leading-none tracking-tight sm:text-4xl">
               Lanchonete Dioney
-            </p>
-            <h1 className="mt-1 text-3xl font-black leading-none tracking-tight sm:text-4xl">
-              Cardápio
             </h1>
             <p className="mt-2 text-sm text-[hsl(var(--menu-brand-foreground)/0.9)]">
               Monte seu pedido e envie para a cozinha.
             </p>
           </div>
           {storePhoneDisplay && storePhoneHref ? (
-            <div className="relative z-10 rounded-xl border border-[hsl(var(--menu-brand-foreground)/0.35)] bg-[hsl(var(--menu-brand-foreground)/0.08)] px-4 py-3 text-right">
+            <div className="relative z-10 pt-1 text-left sm:text-right">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--menu-brand-foreground)/0.78)]">
                 Telefone
               </p>
