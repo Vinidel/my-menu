@@ -1,8 +1,9 @@
+---
 # Critique
 
-Date: 2026-03-05  
-Reviewed by: Critic Agent  
-Scope: Stage 5 documentation review — Customer menu phone display + BR mask/validation (`docs/customer-menu-phone-display-and-br-mask-validation.md`, `PROJECT.md`)  
+Date: 2026-03-05
+Reviewed by: Critic Agent
+Scope: Stage 0 brief review — docs/briefs/customer-header-branding-and-mobile-alignment.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +12,13 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In a future docs pass, add a short “verification evidence” subsection with exact Stage 2 test commands/results for quicker PR review.
-- Consider documenting recommended formatting for `NEXT_PUBLIC_STORE_PHONE` in deployment runbooks (even though runtime validation already protects UI).
+- Consider adding one explicit note in Stage 1 implementation PR checklist to capture viewport screenshots at 320/360/390/430 for easier visual regression review.
 
 ### Risks / Assumptions
-- Assumes product acceptance of hidden phone contact block when env is missing/invalid remains unchanged.
-- Admin views may show digits-only phone values until a dedicated display-format pass is implemented.
+- Assumes existing header semantics remain unchanged while adjusting copy/layout classes.
 
 ## Acceptance Criteria
-- [x] Stage 5 docs capture decisions, deferred gaps, and operational notes.
-- [x] `PROJECT.md` reflects delivered feature and docs index updates.
-- [x] No Stage 5 documentation blockers remain.
+- [x] Header text scope is explicitly locked (what is removed vs retained).
+- [x] Success criteria are testable and objective for Stage 2.
+- [x] Mobile alignment contract is explicitly locked for phone-block present/absent cases.
+---
