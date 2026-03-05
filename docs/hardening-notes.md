@@ -687,3 +687,39 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Minimal string-processing overhead |
 | Observability | Gap       | No phone-specific validation telemetry |
 | Resilience    | Improved  | Shared helper contract + safe hidden fallback on invalid config |
+
+---
+
+## Customer Header Branding and Mobile Alignment — Stage 4
+
+### Security
+
+- **No new input or auth surface:** Change is presentational in `components/customer-order-page.tsx` and does not alter request handling, auth checks, or data flow. **No change.**
+- **External link behavior unchanged:** Store phone link remains `tel:` from server-resolved trusted env normalization path (`app/page.tsx` + phone helper), so no new user-controlled URL injection path is introduced. **No change.**
+
+### Dependencies
+
+- **No dependency changes:** No new packages or runtime APIs introduced. **No change.**
+
+### Performance
+
+- **Render cost neutral/slightly lower:** Header now renders one less text node (`Cardápio` title removed) and removes decorative container classes around the phone block. No measurable runtime impact expected. **No change required.**
+
+### Observability
+
+- **No new telemetry needed for UI-only change:** Existing logs/telemetry remain sufficient; this feature does not add new failure domains. **No change.**
+
+### Resilience
+
+- **Phone-present/absent paths preserved:** Layout remains deterministic with and without phone block (`text-left` mobile, `sm:text-right` desktop for phone block) and existing tests cover both presence and fallback-absent behavior. **Improved confidence via tests.**
+- **Known gap (deferred):** Overflow/no-overlap requirements at widths `320/360/390/430` are still validated by contract/class tests rather than real viewport visual assertions. Consider Playwright screenshot checks in a future hardening pass. **Deferred.**
+
+### Summary
+
+| Area          | Status        | Action |
+|---------------|---------------|--------|
+| Security      | OK            | No new attack surface |
+| Dependencies  | OK            | No changes |
+| Performance   | OK            | No action needed |
+| Observability | OK            | No additional instrumentation required |
+| Resilience    | OK/Deferred   | Behavior stable; viewport screenshot coverage deferred |

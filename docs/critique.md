@@ -3,7 +3,7 @@
 
 Date: 2026-03-05
 Reviewed by: Critic Agent
-Scope: Stage 2 test review — `components/customer-order-page.test.tsx` for `docs/briefs/customer-header-branding-and-mobile-alignment.md`
+Scope: Stage 4 hardening review — `docs/hardening-notes.md` (section: Customer Header Branding and Mobile Alignment — Stage 4)
 Verdict: APPROVE
 
 ## Findings
@@ -12,15 +12,13 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add one viewport-level e2e/screenshot assertion for `320/360/390/430` widths to complement the current class/DOM contract checks for overlap/overflow.
+- Add a small Playwright visual check for header at `320/360/390/430` widths to close the remaining deferred resilience gap.
 
 ### Risks / Assumptions
-- Current Stage 2 coverage validates DOM text and responsive class contracts; it assumes Tailwind responsive behavior is correctly compiled and applied in runtime.
+- The hardening note assumes responsive class-contract tests are sufficient for this iteration; visual regressions that only appear in real browser layout could still slip without viewport screenshot coverage.
 
 ## Acceptance Criteria
-- [x] Header identity change is covered (`Lanchonete Dioney` present as `h1`, `Cardápio` removed as header title).
-- [x] Supporting sentence retention is covered.
-- [x] Phone block presence/absence behavior is covered.
-- [x] Mobile/desktop alignment class contract for the phone block is covered.
-- [x] Existing customer flow tests remain green (no functional regression in this suite).
+- [x] Stage 4 notes explicitly cover security, dependencies, performance, observability, and resilience for this feature.
+- [x] No new attack surface or dependency risk introduced by the UI-only change is identified.
+- [x] Remaining known risk is documented with a clear deferred follow-up path.
 ---
