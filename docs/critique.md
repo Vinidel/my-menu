@@ -2,7 +2,7 @@
 
 Date: 2026-03-05  
 Reviewed by: Critic Agent  
-Scope: Stage 0 brief review — `docs/briefs/menu-inspired-design-review-and-implementation.md`  
+Scope: Stage 2 test review — customer/admin UI styling updates (`components/customer-order-page.test.tsx`, `components/admin-orders-dashboard.test.tsx`)  
 Verdict: APPROVE
 
 ## Findings
@@ -11,15 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In Stage 1, keep the token names centralized in one stylesheet/module to avoid drift between page-level utilities and component-level classes.
-- In Stage 2, add at least one viewport-based assertion for each representative width listed in the brief (`320/360/390/430`), even if implemented as focused rendering/snapshot checks.
+- Class-based styling assertions are valid here, but they are brittle to harmless class refactors. Consider adding stable test hooks (`data-testid` or semantic wrappers) for style-critical regions in a future pass.
+- For future visual features, consider adding one focused viewport test harness (e.g. `window.matchMedia` + mobile scenario) tied directly to the Stage 0 width matrix.
 
 ### Risks / Assumptions
-- Visual inspiration remains photo-derived, so final token calibration may need small iterative tweaks after real-device QA.
-- Contrast compliance assumes chosen red shades remain within AA thresholds against defined surfaces and text colors.
+- Tests now cover the new status-card color mapping and customer style hooks (radio accent + total price chip), but full visual QA still depends on manual browser/device verification.
+- The current test approach assumes key class names remain stable enough across refactors.
 
 ## Acceptance Criteria
-- [x] Success criteria are objective and testable enough for Stage 1/2.
-- [x] UI component scope is explicitly locked for Stage 1.
-- [x] Accessibility baseline is explicit (focus, reduced motion, contrast target).
-- [x] Typography fallback strategy is documented as a locked decision.
+- [x] New style-related behaviors introduced in Stage 1 are covered by tests.
+- [x] Existing interaction/regression coverage remains intact.
+- [x] Stage 2 test suite passes for touched components.
