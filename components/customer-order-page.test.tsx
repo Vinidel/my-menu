@@ -19,6 +19,11 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+const STORE_PHONE_PROPS = {
+  storePhoneDisplay: "(48) 99958-5067",
+  storePhoneHref: "tel:+5548999585067",
+} as const;
+
 function addFirstMenuItemAndOpenCart() {
   fireEvent.click(screen.getAllByRole("button", { name: "Adicionar" })[0]);
   fireEvent.click(screen.getByRole("button", { name: "Ver carrinho (1 item)" }));
@@ -60,14 +65,13 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       <CustomerOrderPage
         menuItems={MENU_ITEMS}
         isSupabaseConfigured
-        storePhoneDisplay="(48) 99958-5067"
-        storePhoneHref="tel:+5548999585067"
+        {...STORE_PHONE_PROPS}
       />
     );
 
-    const phoneLink = screen.getByRole("link", { name: "(48) 99958-5067" });
+    const phoneLink = screen.getByRole("link", { name: STORE_PHONE_PROPS.storePhoneDisplay });
     expect(phoneLink).toBeInTheDocument();
-    expect(phoneLink).toHaveAttribute("href", "tel:+5548999585067");
+    expect(phoneLink).toHaveAttribute("href", STORE_PHONE_PROPS.storePhoneHref);
   });
 
   it("keeps phone block aligned with mobile/desktop contract (brief: header mobile alignment)", () => {
@@ -75,12 +79,11 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
       <CustomerOrderPage
         menuItems={MENU_ITEMS}
         isSupabaseConfigured
-        storePhoneDisplay="(48) 99958-5067"
-        storePhoneHref="tel:+5548999585067"
+        {...STORE_PHONE_PROPS}
       />
     );
 
-    const phoneLink = screen.getByRole("link", { name: "(48) 99958-5067" });
+    const phoneLink = screen.getByRole("link", { name: STORE_PHONE_PROPS.storePhoneDisplay });
     const phoneWrapper = phoneLink.parentElement;
     expect(phoneWrapper).toBeTruthy();
     expect(phoneWrapper?.className).toContain("text-left");
