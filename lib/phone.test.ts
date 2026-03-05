@@ -3,6 +3,7 @@ import {
   formatBrazilPhoneDisplay,
   formatBrazilPhoneMask,
   normalizeBrazilPhone,
+  resolveStorePhoneContact,
   toBrazilPhoneTelHref,
 } from "./phone";
 
@@ -28,5 +29,14 @@ describe("phone helpers", () => {
   it("formats display label and tel href from normalized value", () => {
     expect(formatBrazilPhoneDisplay("11987654321")).toBe("(11) 98765-4321");
     expect(toBrazilPhoneTelHref("11987654321")).toBe("tel:+5511987654321");
+  });
+
+  it("resolves store phone contact only for valid BR values", () => {
+    expect(resolveStorePhoneContact("+55 (48) 99958-5067")).toEqual({
+      display: "(48) 99958-5067",
+      href: "tel:+5548999585067",
+    });
+    expect(resolveStorePhoneContact("123")).toBeNull();
+    expect(resolveStorePhoneContact(undefined)).toBeNull();
   });
 });

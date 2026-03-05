@@ -1,5 +1,10 @@
 const BRAZIL_COUNTRY_CODE = "55";
 
+export type StorePhoneContact = {
+  display: string;
+  href: string;
+};
+
 export function stripNonDigits(value: string): string {
   return value.replace(/\D+/g, "");
 }
@@ -60,6 +65,18 @@ export function toBrazilPhoneTelHref(value: string): string | null {
   const normalized = normalizeBrazilPhone(value);
   if (!normalized) return null;
   return `tel:+55${normalized}`;
+}
+
+export function resolveStorePhoneContact(
+  value: string | null | undefined
+): StorePhoneContact | null {
+  if (typeof value !== "string") return null;
+
+  const display = formatBrazilPhoneDisplay(value);
+  const href = toBrazilPhoneTelHref(value);
+  if (!display || !href) return null;
+
+  return { display, href };
 }
 
 function normalizeBrazilPhoneDigitsForMask(value: string): string {
