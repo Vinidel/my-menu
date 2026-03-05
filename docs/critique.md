@@ -2,7 +2,7 @@
 
 Date: 2026-03-05  
 Reviewed by: Critic Agent  
-Scope: Stage 5 documentation review — Menu-Inspired Design implementation (`docs/menu-inspired-design-review-and-implementation.md`, `PROJECT.md`)  
+Scope: Stage 5 documentation review — Customer menu phone display + BR mask/validation (`docs/customer-menu-phone-display-and-br-mask-validation.md`, `PROJECT.md`)  
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In a future docs pass, consider adding a short “verification evidence” table (automated tests + manual viewport smoke checks) for faster review traceability.
-- If more design features land, consider a centralized index page for UI/theme docs to keep discovery simple.
+- In a future docs pass, add a short “verification evidence” subsection with exact Stage 2 test commands/results for quicker PR review.
+- Consider documenting recommended formatting for `NEXT_PUBLIC_STORE_PHONE` in deployment runbooks (even though runtime validation already protects UI).
 
 ### Risks / Assumptions
-- Visual quality acceptance still depends on manual device checks; current docs correctly call this out as deferred.
-- Class-based style tests remain sensitive to utility-class refactors; acceptable for current scope.
+- Assumes product acceptance of hidden phone contact block when env is missing/invalid remains unchanged.
+- Admin views may show digits-only phone values until a dedicated display-format pass is implemented.
 
 ## Acceptance Criteria
-- [x] `PROJECT.md` metadata date reflects current documentation state.
-- [x] Stage 5 docs and Stage 0 brief are scope-consistent regarding the admin summary color change.
-- [x] Documentation is clear enough for next-stage/archive without ambiguity on what was intentionally delivered.
+- [x] Stage 5 docs capture decisions, deferred gaps, and operational notes.
+- [x] `PROJECT.md` reflects delivered feature and docs index updates.
+- [x] No Stage 5 documentation blockers remain.

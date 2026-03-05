@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getMenuItemMap, type MenuItem } from "@/lib/menu";
+import { normalizeBrazilPhone } from "@/lib/phone";
 import {
   normalizePaymentMethod,
   type PaymentMethod,
@@ -14,7 +15,7 @@ const SETUP_ERROR_MESSAGE =
 const VALIDATION_REQUIRED_MESSAGE =
   "Preencha nome, telefone, forma de pagamento e selecione pelo menos um item.";
 const VALIDATION_EMAIL_MESSAGE = "Informe um e-mail válido.";
-const VALIDATION_PHONE_MESSAGE = "Informe um telefone válido.";
+const VALIDATION_PHONE_MESSAGE = "Telefone inválido. Use um número brasileiro válido.";
 const VALIDATION_PAYMENT_METHOD_MESSAGE = "Selecione uma forma de pagamento válida.";
 const VALIDATION_ITEMS_MESSAGE = "Selecione itens válidos do cardápio para enviar o pedido.";
 const VALIDATION_PRICING_MESSAGE =
@@ -126,7 +127,7 @@ export async function submitCustomerOrderWithClient(
   }
 
   const normalizedEmail = normalizeOptionalEmail(customerEmail);
-  const normalizedPhone = normalizePhone(customerPhone);
+  const normalizedPhone = normalizeBrazilPhone(customerPhone);
 
   if (!normalizedPhone) {
     return submitErrorResult("validation", VALIDATION_PHONE_MESSAGE);
@@ -169,7 +170,7 @@ export async function submitCustomerOrderWithClient(
       customer_id: customerId,
       customer_name: customerName,
       customer_email: customerEmail,
-      customer_phone: customerPhone,
+      customer_phone: normalizedPhone,
       payment_method: paymentMethod,
       notes,
       items: orderItems,
@@ -607,10 +608,6 @@ function sanitizeOptionalText(value: string | undefined): string | null {
 function normalizeOptionalEmail(value: string | null): string | null {
   if (!value) return null;
   return value.trim().toLowerCase();
-}
-
-function normalizePhone(value: string): string {
-  return value.trim().replace(/\D+/g, "");
 }
 
 function isBasicEmail(value: string): boolean {

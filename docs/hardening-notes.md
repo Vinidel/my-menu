@@ -649,3 +649,41 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Minimal class-only overhead |
 | Observability | Gap       | No UX metrics; accepted for scope |
 | Resilience    | Improved  | Centralized style mappings reduce drift |
+
+---
+
+## Customer Menu Phone Display + BR Mask/Validation — Stage 4
+
+### Security
+
+- **Server validation is authoritative:** Client mask is UX-only; backend now validates BR phone format before order creation (`10/11` local digits after optional `55` prefix normalization). Invalid values are rejected with deterministic pt-BR validation message. **Improved in Stage 4 sweep.**
+- **No secret exposure change:** Store contact display uses a public env var (`NEXT_PUBLIC_STORE_PHONE`) by design; no new server-only secret path introduced. **No change.**
+
+### Dependencies
+
+- **No new external package:** BR mask/normalization uses local helper module (`lib/phone.ts`) without third-party masking libs. **No change.**
+- **Config dependency introduced:** Feature depends on `NEXT_PUBLIC_STORE_PHONE` for storefront phone display; missing/invalid value intentionally hides the phone block. **Documented operational dependency.**
+
+### Performance
+
+- **Low-cost string transforms:** Mask/normalization operations are linear over short phone strings and negligible at current load.
+- **No additional network calls:** Store phone rendering is derived at page render from env/config and local helpers only. **No change in request profile.**
+
+### Observability
+
+- **No dedicated phone-validation telemetry:** Invalid phone rejections follow existing validation response path; no new counters/metrics were added. **Deferred.**
+
+### Resilience
+
+- **Consistent formatting logic:** Shared helpers centralize normalization, mask, display label, and `tel:` link generation to reduce drift between UI and server behavior. **Improved in Stage 4 sweep.**
+- **Fail-safe storefront behavior:** Invalid/missing store phone config hides the contact block instead of rendering broken links/text. **Improved in Stage 4 sweep.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Server-authoritative BR validation with deterministic rejection |
+| Dependencies  | OK        | Local helper only; documented env dependency |
+| Performance   | OK        | Minimal string-processing overhead |
+| Observability | Gap       | No phone-specific validation telemetry |
+| Resilience    | Improved  | Shared helper contract + safe hidden fallback on invalid config |

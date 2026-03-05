@@ -144,7 +144,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
     expect(supabase.state.orderInsertPayload).toMatchObject({
       customer_name: "Ana",
       customer_email: "ana@example.com",
-      customer_phone: "(11) 99999-9999",
+      customer_phone: "11999999999",
       payment_method: "dinheiro",
       status: "aguardando_confirmacao",
     });
@@ -422,6 +422,68 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
       ok: false,
       code: "validation",
       message: "Selecione uma forma de pagamento válida.",
+    });
+  });
+
+  it("accepts +55-prefixed phone values by normalizing to BR local digits (brief: optional country code normalization)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+          },
+        ],
+      ])
+    );
+
+    const supabase = makeFakeSupabase();
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "+55 (11) 99999-9999",
+        paymentMethod: "pix",
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      supabase
+    );
+
+    expect(result).toEqual({ ok: true, orderReference: "PED-TESTE123" });
+    expect(supabase.state.orderInsertPayload?.customer_phone).toBe("11999999999");
+  });
+
+  it("rejects malformed/incomplete BR phone numbers (brief: strict BR phone validation)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999",
+        paymentMethod: "pix",
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Telefone inválido. Use um número brasileiro válido.",
     });
   });
 
