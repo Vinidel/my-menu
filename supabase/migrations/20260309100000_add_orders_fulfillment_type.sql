@@ -15,3 +15,11 @@ check (
   delivery_fee_cents is null
   or delivery_fee_cents >= 0
 );
+
+alter table public.orders
+add constraint orders_fulfillment_delivery_fee_consistency_check
+check (
+  (fulfillment_type is null and delivery_fee_cents is null)
+  or (fulfillment_type = 'retirada' and delivery_fee_cents = 0)
+  or (fulfillment_type = 'entrega' and delivery_fee_cents = 500)
+);

@@ -3,7 +3,7 @@
 
 Date: 2026-03-09
 Reviewed by: Critic Agent
-Scope: Stage 2 tests for `docs/briefs/order-delivery-option.md`
+Scope: Stage 4 hardening for `docs/briefs/order-delivery-option.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider adding one route-level test that forwards `fulfillmentType: "entrega"` through `POST /api/orders` so the request-contract coverage exists at the API boundary as well as in component/action tests.
+- Consider adding a migration-level test or operational checklist item in a future pass to explicitly verify rollout ordering for schema-first deployment of the new fulfillment columns and constraints.
 
 ### Risks / Assumptions
-- This approval assumes the draft PR label has already been updated to `stage-2-tests`, as you confirmed.
-- This review is based on the targeted Stage 2 suite passing locally for the touched files; broader CI status is assumed but not independently re-run here.
-- The new tests intentionally do not cover out-of-scope admin status changes, consistent with the brief.
+- This review intentionally ignores PR-label workflow state, per your instruction, and evaluates only the hardening artifact itself.
+- Approval assumes the migration will be applied before or alongside the app deploy, as documented in `docs/hardening-notes.md`.
+- Delivery-specific observability remains limited to existing logs; no dedicated counters or alerts were added in this stage.
 
 ## Acceptance Criteria
-- [x] All happy paths from the brief have corresponding tests.
-- [x] All unhappy paths from the brief have corresponding tests.
-- [x] Edge cases from the brief are covered.
-- [x] Targeted CI/test suite is passing.
-- [x] No production code was modified in Stage 2.
-- [x] PR label is updated to `stage-2-tests`.
+- [x] Security sweep completed.
+- [x] Dependency risks assessed.
+- [x] Performance concerns identified and addressed or documented.
+- [x] Observability verified/documented.
+- [x] Resilience considerations documented.
+- [x] Fixes were applied or risks explicitly documented in `docs/hardening-notes.md`.
 ---
