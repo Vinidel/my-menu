@@ -114,7 +114,7 @@ The Documenter captures everything that matters for the future.
 - Captures deferred items and known gaps
 - Adds operational notes for deployment and on-call
 - Updates the PR description with summary, brief link, risks, and rollback plan
-- Moves PR label to `ready-for-review`
+- Moves PR label to `stage-5-review`
 
 **Exit gate:** Critic approves documentation → PR is ready for human review.
 
@@ -128,7 +128,7 @@ Draft
   → stage-2-tests      (Critic approves)
   → stage-3-refactor   (Critic approves)
   → stage-4-hardening  (Critic approves)
-  → ready-for-review   (Critic approves)
+  → stage-5-review     (Critic approves)
   → merge
 ```
 
