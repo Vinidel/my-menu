@@ -15,6 +15,7 @@ import {
 export const ORDER_STATUS_LABELS = {
   aguardando_confirmacao: "Esperando confirmação",
   em_preparo: "Em preparo",
+  pronto_para_retirada: "Pronto para retirada",
   saiu_para_entrega: "Saiu para entrega",
   entregue: "Entregue",
 } as const;
@@ -24,9 +25,11 @@ export type OrderStatus = keyof typeof ORDER_STATUS_LABELS;
 export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
   "aguardando_confirmacao",
   "em_preparo",
+  "pronto_para_retirada",
   "saiu_para_entrega",
   "entregue",
 ] as const;
+const ORDER_STATUS_SET = new Set<OrderStatus>(ORDER_STATUS_SEQUENCE);
 
 export type AdminOrderItem = {
   name: string;
@@ -95,7 +98,10 @@ export function getNextOrderStatus(
   if (!status) return null;
   if (status === "aguardando_confirmacao") return "em_preparo";
   if (status === "em_preparo") {
-    return fulfillmentType === "entrega" ? "saiu_para_entrega" : "entregue";
+    return fulfillmentType === "entrega" ? "saiu_para_entrega" : "pronto_para_retirada";
+  }
+  if (status === "pronto_para_retirada") {
+    return fulfillmentType === "entrega" ? null : "entregue";
   }
   if (status === "saiu_para_entrega") {
     return fulfillmentType === "entrega" ? "entregue" : null;
@@ -132,12 +138,7 @@ export function countOrdersByStatus(orders: AdminOrder[]) {
       if (order.status) acc[order.status] += 1;
       return acc;
     },
-    {
-      aguardando_confirmacao: 0,
-      em_preparo: 0,
-      saiu_para_entrega: 0,
-      entregue: 0,
-    }
+    createEmptyOrderStatusCounts()
   );
 }
 
@@ -492,18 +493,27 @@ function normalizeStatus(value: unknown): OrderStatus | null {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, "_");
 
-  if (
-    normalized === "aguardando_confirmacao" ||
-    normalized === "em_preparo" ||
-    normalized === "saiu_para_entrega" ||
-    normalized === "entregue"
-  ) {
+  if (isOrderStatus(normalized)) {
     return normalized;
   }
 
   if (normalized === "esperando_confirmacao") return "aguardando_confirmacao";
 
   return null;
+}
+
+function createEmptyOrderStatusCounts(): Record<OrderStatus, number> {
+  return ORDER_STATUS_SEQUENCE.reduce(
+    (acc, status) => {
+      acc[status] = 0;
+      return acc;
+    },
+    {} as Record<OrderStatus, number>
+  );
+}
+
+function isOrderStatus(value: string): value is OrderStatus {
+  return ORDER_STATUS_SET.has(value as OrderStatus);
 }
 
 function stringFrom(value: unknown): string | null {

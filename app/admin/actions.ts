@@ -23,6 +23,7 @@ const STALE_STATUS_MESSAGE =
   "Este pedido foi atualizado por outra pessoa. Recarregamos o status atual.";
 const ORDER_STATUS_LOOKUP_COLUMNS = "status, fulfillment_type";
 const ORDER_STATUS_STALE_CHECK_COLUMNS = "status";
+const ORDERS_TABLE_NAME = "orders";
 
 type ProgressOrderInput = {
   orderId: string;
@@ -102,11 +103,11 @@ export async function progressOrderStatus(
     return errorResult("auth", AUTH_VALIDATION_ERROR_MESSAGE);
   }
 
-  const ordersLookupTable = asOrdersStatusLookupChain(supabase.from("orders"));
-  const { data: persistedOrder, error: lookupError } = await ordersLookupTable
-    .select(ORDER_STATUS_LOOKUP_COLUMNS)
-    .eq("id", orderId)
-    .maybeSingle();
+  const { data: persistedOrder, error: lookupError } = await lookupOrderStatus(
+    supabase,
+    orderId,
+    ORDER_STATUS_LOOKUP_COLUMNS
+  );
 
   if (lookupError) {
     console.error("[admin/orders] failed to load order before status update", {
@@ -130,7 +131,7 @@ export async function progressOrderStatus(
     return errorResult("validation", INVALID_PROGRESS_MESSAGE);
   }
 
-  const ordersTable = asOrdersStatusUpdateChain(supabase.from("orders"));
+  const ordersTable = asOrdersStatusUpdateChain(supabase.from(ORDERS_TABLE_NAME));
 
   const { data, error } = await ordersTable
     .update({ status: nextStatus })
@@ -151,12 +152,11 @@ export async function progressOrderStatus(
   }
 
   if (!data) {
-    const staleCheckTable = asOrdersStatusLookupChain(supabase.from("orders"));
-
-    const { data: currentOrder, error: staleLookupError } = await staleCheckTable
-      .select(ORDER_STATUS_STALE_CHECK_COLUMNS)
-      .eq("id", orderId)
-      .maybeSingle();
+    const { data: currentOrder, error: staleLookupError } = await lookupOrderStatus(
+      supabase,
+      orderId,
+      ORDER_STATUS_STALE_CHECK_COLUMNS
+    );
 
     if (staleLookupError) {
       console.error("[admin/orders] failed to load current status after stale update miss", {
@@ -164,6 +164,11 @@ export async function progressOrderStatus(
         expectedStatus: currentStatus,
         message: staleLookupError.message,
         code: staleLookupError.code,
+      });
+    } else if (!currentOrder) {
+      console.warn("[admin/orders] stale update miss followed by missing order lookup result", {
+        orderId,
+        expectedStatus: currentStatus,
       });
     }
 
@@ -193,6 +198,15 @@ function asOrdersStatusUpdateChain(value: unknown): OrdersStatusUpdateChain {
 
 function asOrdersStatusLookupChain(value: unknown): OrdersStatusLookupChain {
   return value as OrdersStatusLookupChain;
+}
+
+async function lookupOrderStatus(
+  supabase: { from: (table: string) => unknown },
+  orderId: string,
+  columns: "status, fulfillment_type" | "status"
+) {
+  const ordersLookupTable = asOrdersStatusLookupChain(supabase.from(ORDERS_TABLE_NAME));
+  return ordersLookupTable.select(columns).eq("id", orderId).maybeSingle();
 }
 
 function staleResult(

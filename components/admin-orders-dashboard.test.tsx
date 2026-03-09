@@ -42,7 +42,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     cleanup();
   });
 
-  it("shows summary counts and renders orders in provided oldest->newest order (brief: dashboard summary/list)", () => {
+  it("shows summary counts including pronto para retirada and renders orders in status-first order (brief: dashboard summary/list)", () => {
     const orders = [
       makeOrder({
         id: "1",
@@ -64,6 +64,15 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
         id: "3",
         reference: "PED-0003",
         customerName: "Carla",
+        status: "pronto_para_retirada",
+        statusLabel: "Pronto para retirada",
+        createdAtIso: "2026-02-23T10:12:00.000Z",
+        createdAtLabel: "23/02/2026, 07:12",
+      }),
+      makeOrder({
+        id: "4",
+        reference: "PED-0004",
+        customerName: "Dora",
         fulfillmentType: "entrega",
         fulfillmentTypeLabel: "Entrega",
         status: "saiu_para_entrega",
@@ -72,8 +81,8 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
         createdAtLabel: "23/02/2026, 07:15",
       }),
       makeOrder({
-        id: "4",
-        reference: "PED-0004",
+        id: "5",
+        reference: "PED-0005",
         customerName: "Davi",
         status: "entregue",
         statusLabel: "Entregue",
@@ -89,20 +98,25 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     });
     expect(within(summary).getByText("Esperando confirmação")).toBeInTheDocument();
     expect(within(summary).getByText("Em preparo")).toBeInTheDocument();
+    expect(within(summary).getByText("Pronto para retirada")).toBeInTheDocument();
     expect(within(summary).getByText("Saiu para entrega")).toBeInTheDocument();
     expect(within(summary).getByText("Entregue")).toBeInTheDocument();
 
     const oneCounts = screen.getAllByText("1");
-    expect(oneCounts.length).toBeGreaterThanOrEqual(4);
+    expect(oneCounts.length).toBeGreaterThanOrEqual(5);
 
-    const listButtons = screen.getAllByRole("button").filter((button) =>
+    const listButtons = screen
+      .getAllByRole("button")
+      .filter((button) =>
       button.textContent?.includes("PED-000")
-    );
+      )
+      .slice(0, orders.length);
     expect(listButtons.map((button) => button.textContent)).toEqual([
       expect.stringContaining("PED-0001"),
       expect.stringContaining("PED-0002"),
       expect.stringContaining("PED-0003"),
       expect.stringContaining("PED-0004"),
+      expect.stringContaining("PED-0005"),
     ]);
   });
 
@@ -121,6 +135,12 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
       }),
       makeOrder({
         id: "3",
+        status: "pronto_para_retirada",
+        statusLabel: "Pronto para retirada",
+        createdAtIso: "2026-02-23T10:12:00.000Z",
+      }),
+      makeOrder({
+        id: "4",
         fulfillmentType: "entrega",
         fulfillmentTypeLabel: "Entrega",
         status: "saiu_para_entrega",
@@ -128,7 +148,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
         createdAtIso: "2026-02-23T10:15:00.000Z",
       }),
       makeOrder({
-        id: "4",
+        id: "5",
         status: "entregue",
         statusLabel: "Entregue",
         createdAtIso: "2026-02-23T10:20:00.000Z",
@@ -142,6 +162,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     });
     const aguardandoCard = within(summary).getByText("Esperando confirmação").closest("div");
     const preparoCard = within(summary).getByText("Em preparo").closest("div");
+    const pickupReadyCard = within(summary).getByText("Pronto para retirada").closest("div");
     const saiuEntregaCard = within(summary).getByText("Saiu para entrega").closest("div");
     const entregueCard = within(summary).getByText("Entregue").closest("div");
 
@@ -149,17 +170,19 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(aguardandoCard?.className).toContain("bg-amber-50/80");
     expect(preparoCard?.className).toContain("border-blue-300");
     expect(preparoCard?.className).toContain("bg-blue-50/80");
+    expect(pickupReadyCard?.className).toContain("border-cyan-300");
+    expect(pickupReadyCard?.className).toContain("bg-cyan-50/80");
     expect(saiuEntregaCard?.className).toContain("border-orange-300");
     expect(saiuEntregaCard?.className).toContain("bg-orange-50/80");
     expect(entregueCard?.className).toContain("border-green-300");
     expect(entregueCard?.className).toContain("bg-green-50/80");
   });
 
-  it("renders orders by status priority first and oldest first within each status, including saiu_para_entrega (brief: status-first sorting)", () => {
+  it("renders orders by status priority first and oldest first within each status, including pronto_para_retirada and saiu_para_entrega (brief: status-first sorting)", () => {
     const orders = [
       makeOrder({
         id: "delivered-old",
-        reference: "PED-0004",
+        reference: "PED-0005",
         status: "entregue",
         statusLabel: "Entregue",
         createdAtIso: "2026-02-23T10:00:00.000Z",
@@ -174,18 +197,26 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
         createdAtLabel: "23/02/2026, 07:15",
       }),
       makeOrder({
-        id: "delivery-en-route",
+        id: "pickup-ready",
         reference: "PED-0003",
-        fulfillmentType: "entrega",
-        fulfillmentTypeLabel: "Entrega",
-        status: "saiu_para_entrega",
-        statusLabel: "Saiu para entrega",
+        status: "pronto_para_retirada",
+        statusLabel: "Pronto para retirada",
         createdAtIso: "2026-02-23T10:18:00.000Z",
         createdAtLabel: "23/02/2026, 07:18",
       }),
       makeOrder({
+        id: "delivery-en-route",
+        reference: "PED-0004",
+        fulfillmentType: "entrega",
+        fulfillmentTypeLabel: "Entrega",
+        status: "saiu_para_entrega",
+        statusLabel: "Saiu para entrega",
+        createdAtIso: "2026-02-23T10:19:00.000Z",
+        createdAtLabel: "23/02/2026, 07:19",
+      }),
+      makeOrder({
         id: "waiting-newer",
-        reference: "PED-0005",
+        reference: "PED-0006",
         status: "aguardando_confirmacao",
         statusLabel: "Esperando confirmação",
         createdAtIso: "2026-02-23T10:20:00.000Z",
@@ -203,36 +234,39 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
 
     render(<AdminOrdersDashboard initialOrders={orders} />);
 
-    const listButtons = screen.getAllByRole("button").filter((button) =>
-      button.textContent?.includes("PED-000")
-    );
+    const ordersSection = screen.getByRole("heading", { level: 1, name: "Pedidos" }).closest("section");
+    expect(ordersSection).toBeTruthy();
+    const listButtons = Array.from(
+      ordersSection!.querySelectorAll<HTMLButtonElement>("ul > li > button")
+    ).slice(0, orders.length);
 
     expect(listButtons.map((button) => button.textContent)).toEqual([
       expect.stringContaining("PED-0001"),
-      expect.stringContaining("PED-0005"),
+      expect.stringContaining("PED-0006"),
       expect.stringContaining("PED-0002"),
       expect.stringContaining("PED-0003"),
       expect.stringContaining("PED-0004"),
+      expect.stringContaining("PED-0005"),
     ]);
   });
 
-  it("shows the new status label in list and details for delivery orders out for delivery (brief: status labels)", () => {
+  it("shows the new pickup status label in list and details for pickup-ready orders (brief: status labels)", () => {
     render(
       <AdminOrdersDashboard
         initialOrders={[
           makeOrder({
-            id: "delivery-row",
-            reference: "PED-ROTA",
-            fulfillmentType: "entrega",
-            fulfillmentTypeLabel: "Entrega",
-            status: "saiu_para_entrega",
-            statusLabel: "Saiu para entrega",
+            id: "pickup-row",
+            reference: "PED-RETIRA",
+            fulfillmentType: "retirada",
+            fulfillmentTypeLabel: "Retirada",
+            status: "pronto_para_retirada",
+            statusLabel: "Pronto para retirada",
           }),
         ]}
       />
     );
 
-    expect(screen.getAllByText("Saiu para entrega").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("Pronto para retirada").length).toBeGreaterThan(1);
     expect(screen.getByText("Próximo status: Entregue")).toBeInTheDocument();
   });
 
@@ -715,14 +749,14 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     });
     expect(within(summary).getAllByText("0").length).toBeGreaterThanOrEqual(2);
     expect(within(summary).getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("Próximo status: Entregue")).toBeInTheDocument();
+    expect(screen.getByText("Próximo status: Pronto para retirada")).toBeInTheDocument();
   });
 
-  it("progresses status from preparing to delivered and updates summary counts (brief: progress preparing->delivered)", async () => {
+  it("progresses pickup status from preparing to pronto para retirada and updates summary counts (brief: progress preparing->pickup ready)", async () => {
     vi.mocked(progressOrderStatus).mockResolvedValue({
       ok: true,
-      nextStatus: "entregue",
-      nextStatusLabel: "Entregue",
+      nextStatus: "pronto_para_retirada",
+      nextStatusLabel: "Pronto para retirada",
     });
 
     const orders = [
@@ -735,8 +769,8 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
       makeOrder({
         id: "2",
         reference: "PED-0002",
-        status: "entregue",
-        statusLabel: "Entregue",
+        status: "pronto_para_retirada",
+        statusLabel: "Pronto para retirada",
       }),
     ];
 
@@ -751,17 +785,56 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Pedido atualizado para Entregue.")).toBeInTheDocument();
+      expect(screen.getByText("Pedido atualizado para Pronto para retirada.")).toBeInTheDocument();
     });
-
-    expect(screen.getByText("Este pedido não pode avançar mais.")).toBeInTheDocument();
 
     const summary = screen.getByRole("region", {
       name: "Resumo de pedidos por status",
     });
-    const cards = within(summary).getAllByText(/^(0|2)$/).map((el) => el.textContent);
-    expect(cards).toContain("0");
-    expect(cards).toContain("2");
+    const pickupSummaryCard = within(summary)
+      .getByText("Pronto para retirada")
+      .closest("div");
+    expect(pickupSummaryCard).toHaveTextContent("2");
+    expect(screen.getByText("Próximo status: Entregue")).toBeInTheDocument();
+  });
+
+  it("progresses pickup status from pronto para retirada to entregue and disables further progression (brief: pickup completion)", async () => {
+    vi.mocked(progressOrderStatus).mockResolvedValue({
+      ok: true,
+      nextStatus: "entregue",
+      nextStatusLabel: "Entregue",
+    });
+
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "pickup-final",
+            reference: "PED-0001",
+            fulfillmentType: "retirada",
+            fulfillmentTypeLabel: "Retirada",
+            status: "pronto_para_retirada",
+            statusLabel: "Pronto para retirada",
+          }),
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Avançar status" }));
+
+    await waitFor(() => {
+      expect(progressOrderStatus).toHaveBeenCalledWith({
+        orderId: "pickup-final",
+        currentStatus: "pronto_para_retirada",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Pedido atualizado para Entregue.")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Este pedido não pode avançar mais.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sem próxima etapa" })).toBeDisabled();
   });
 
   it("progresses delivery status from preparing to saiu para entrega and updates summary counts (brief: delivery out-for-delivery step)", async () => {
@@ -881,7 +954,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     });
 
     expect(screen.getAllByText("Em preparo").length).toBeGreaterThan(0);
-    expect(screen.getByText("Próximo status: Entregue")).toBeInTheDocument();
+    expect(screen.getByText("Próximo status: Pronto para retirada")).toBeInTheDocument();
   });
 
   it("preserves the delivery-only next step when a delivery update fails (brief: delivery status update fails)", async () => {
