@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
+import { ADMIN_ORDERS_SELECT_COLUMNS } from "@/lib/admin-orders-query";
 import { parseAdminOrders } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
 
@@ -29,9 +30,7 @@ export default async function AdminPage() {
 
   const { data, error } = await supabase
     .from("orders")
-    .select(
-      "id, reference, customer_name, customer_email, customer_phone, payment_method, fulfillment_type, delivery_fee_cents, items, status, notes, created_at"
-    )
+    .select(ADMIN_ORDERS_SELECT_COLUMNS)
     .order("created_at", { ascending: true });
 
   if (error) {

@@ -57,6 +57,12 @@ const STATUS_VISUAL_STYLES: Record<
     summaryLabel: "text-blue-800",
     summaryValue: "text-blue-900",
   },
+  saiu_para_entrega: {
+    chip: "bg-orange-500/15 text-orange-700",
+    summaryContainer: "border-orange-300 bg-orange-50/80",
+    summaryLabel: "text-orange-800",
+    summaryValue: "text-orange-900",
+  },
   entregue: {
     chip: "bg-green-600/15 text-green-700",
     summaryContainer: "border-green-300 bg-green-50/80",
@@ -147,7 +153,9 @@ function AdminOrdersDashboardContent({
   const counts = countOrdersByStatus(orders);
   const selectedOrder = findOrderById(sortedOrders, selectedOrderId) ?? sortedOrders[0] ?? null;
 
-  const nextStatus = selectedOrder ? getNextOrderStatus(selectedOrder.status) : null;
+  const nextStatus = selectedOrder
+    ? getNextOrderStatus(selectedOrder.status, selectedOrder.fulfillmentType)
+    : null;
 
   useEffect(() => {
     if (!enablePolling) return;
@@ -193,7 +201,10 @@ function AdminOrdersDashboardContent({
   }
 
   function handleProgressOrder(targetOrder: AdminOrder) {
-    const targetNextStatus = getNextOrderStatus(targetOrder.status);
+    const targetNextStatus = getNextOrderStatus(
+      targetOrder.status,
+      targetOrder.fulfillmentType
+    );
     if (!targetOrder.status || !targetNextStatus || isPending) return;
 
     const currentOrderId = targetOrder.id;
@@ -300,7 +311,10 @@ function AdminOrdersDashboardContent({
             {sortedOrders.map((order) => {
               const isSelected = selectedOrder?.id === order.id;
               const isExpandedMobile = isMobileViewport && mobileExpandedOrderId === order.id;
-              const orderNextStatus = getNextOrderStatus(order.status);
+              const orderNextStatus = getNextOrderStatus(
+                order.status,
+                order.fulfillmentType
+              );
               const mobilePanelId = mobileOrderPanelId(order.id);
               const triggerId = mobileOrderTriggerId(order.id);
 
@@ -418,7 +432,7 @@ function errorFeedback(message: string): FeedbackState {
 function SummaryCards({ counts }: { counts: Record<OrderStatus, number> }) {
   return (
     <section
-      className="grid gap-4 sm:grid-cols-3"
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
       aria-label="Resumo de pedidos por status"
     >
       {ORDER_STATUS_SEQUENCE.map((status) => {

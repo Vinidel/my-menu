@@ -89,3 +89,9 @@ Issues or observations spotted during implementation that are **out of scope** f
 
 - **Repository-wide TS errors remain out of scope:** `npx tsc --noEmit` still reports existing test typing issues in admin/cardapio and anti-abuse test files unrelated to this header UI change. Stage 1 only validated the targeted customer page tests.
 - **ESLint script not yet non-interactive:** `npm run lint` prompts for first-time Next.js ESLint setup in this repo, so lint was not usable as a CI-style automated gate during this stage.
+
+---
+
+## Admin Delivery Status Step (Stage 1)
+
+- **Repository-wide test typing debt remains out of scope:** `npm exec tsc --noEmit` still fails on existing test-only TypeScript issues in files such as `app/admin/cardapio/page.test.tsx`, `app/admin/login/page.test.tsx`, `app/api/orders/route.test.ts`, and `lib/anti-abuse/captcha-config.test.ts`. The production build for this feature passes; Stage 1 did not fix unrelated test typing debt.

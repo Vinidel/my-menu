@@ -15,6 +15,7 @@ import {
 export const ORDER_STATUS_LABELS = {
   aguardando_confirmacao: "Esperando confirmação",
   em_preparo: "Em preparo",
+  saiu_para_entrega: "Saiu para entrega",
   entregue: "Entregue",
 } as const;
 
@@ -23,6 +24,7 @@ export type OrderStatus = keyof typeof ORDER_STATUS_LABELS;
 export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
   "aguardando_confirmacao",
   "em_preparo",
+  "saiu_para_entrega",
   "entregue",
 ] as const;
 
@@ -86,11 +88,19 @@ export function getOrderStatusLabel(status: OrderStatus) {
   return ORDER_STATUS_LABELS[status];
 }
 
-export function getNextOrderStatus(status: OrderStatus | null): OrderStatus | null {
+export function getNextOrderStatus(
+  status: OrderStatus | null,
+  fulfillmentType: FulfillmentType | null = null
+): OrderStatus | null {
   if (!status) return null;
-  const currentIndex = ORDER_STATUS_SEQUENCE.indexOf(status);
-  if (currentIndex < 0) return null;
-  return ORDER_STATUS_SEQUENCE[currentIndex + 1] ?? null;
+  if (status === "aguardando_confirmacao") return "em_preparo";
+  if (status === "em_preparo") {
+    return fulfillmentType === "entrega" ? "saiu_para_entrega" : "entregue";
+  }
+  if (status === "saiu_para_entrega") {
+    return fulfillmentType === "entrega" ? "entregue" : null;
+  }
+  return null;
 }
 
 export function getStatusLabelFromUnknown(value: unknown): {
@@ -125,6 +135,7 @@ export function countOrdersByStatus(orders: AdminOrder[]) {
     {
       aguardando_confirmacao: 0,
       em_preparo: 0,
+      saiu_para_entrega: 0,
       entregue: 0,
     }
   );
@@ -484,6 +495,7 @@ function normalizeStatus(value: unknown): OrderStatus | null {
   if (
     normalized === "aguardando_confirmacao" ||
     normalized === "em_preparo" ||
+    normalized === "saiu_para_entrega" ||
     normalized === "entregue"
   ) {
     return normalized;

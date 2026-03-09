@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAdminOrder } from "./orders";
+import { getNextOrderStatus, parseAdminOrder } from "./orders";
 
 describe("parseAdminOrder extras hardening", () => {
   it("limits parsed extras per item and preserves valid names", () => {
@@ -167,6 +167,23 @@ describe("parseAdminOrder total amount display", () => {
     expect(order?.fulfillmentTypeLabel).toBe("Não informado");
   });
 
+  it("parses the new delivery-only status label safely for admin rendering", () => {
+    const order = parseAdminOrder({
+      id: "delivery-step",
+      reference: "PED-SAIU",
+      customer_name: "Ana",
+      customer_email: "ana@example.com",
+      customer_phone: "11999999999",
+      status: "saiu_para_entrega",
+      fulfillment_type: "entrega",
+      items: [{ name: "X-Burger", quantity: 1 }],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.status).toBe("saiu_para_entrega");
+    expect(order?.statusLabel).toBe("Saiu para entrega");
+  });
+
   it("returns total indisponível when any selected extra lacks price snapshot", () => {
     const order = parseAdminOrder({
       id: "5",
@@ -232,5 +249,20 @@ describe("parseAdminOrder total amount display", () => {
     expect(order).not.toBeNull();
     expect(order?.totalAmountCents).toBeNull();
     expect(order?.totalAmountLabel).toBe("Indisponível");
+  });
+});
+
+describe("delivery-aware order progression helpers", () => {
+  it("routes delivery orders through saiu_para_entrega before entregue", () => {
+    expect(getNextOrderStatus("aguardando_confirmacao", "entrega")).toBe("em_preparo");
+    expect(getNextOrderStatus("em_preparo", "entrega")).toBe("saiu_para_entrega");
+    expect(getNextOrderStatus("saiu_para_entrega", "entrega")).toBe("entregue");
+  });
+
+  it("keeps pickup and unknown fulfillment rows on the existing two-step completion path", () => {
+    expect(getNextOrderStatus("em_preparo", "retirada")).toBe("entregue");
+    expect(getNextOrderStatus("em_preparo", null)).toBe("entregue");
+    expect(getNextOrderStatus("saiu_para_entrega", null)).toBeNull();
+    expect(getNextOrderStatus("entregue", "entrega")).toBeNull();
   });
 });
