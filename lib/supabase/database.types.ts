@@ -202,6 +202,7 @@ export type Database = {
           status:
             | "aguardando_confirmacao"
             | "em_preparo"
+            | "pronto_para_retirada"
             | "saiu_para_entrega"
             | "entregue";
           notes: string | null;
@@ -222,6 +223,7 @@ export type Database = {
           status?:
             | "aguardando_confirmacao"
             | "em_preparo"
+            | "pronto_para_retirada"
             | "saiu_para_entrega"
             | "entregue";
           notes?: string | null;
@@ -242,6 +244,7 @@ export type Database = {
           status?:
             | "aguardando_confirmacao"
             | "em_preparo"
+            | "pronto_para_retirada"
             | "saiu_para_entrega"
             | "entregue";
           notes?: string | null;

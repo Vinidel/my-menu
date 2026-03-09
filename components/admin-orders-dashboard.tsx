@@ -57,6 +57,12 @@ const STATUS_VISUAL_STYLES: Record<
     summaryLabel: "text-blue-800",
     summaryValue: "text-blue-900",
   },
+  pronto_para_retirada: {
+    chip: "bg-cyan-500/15 text-cyan-700",
+    summaryContainer: "border-cyan-300 bg-cyan-50/80",
+    summaryLabel: "text-cyan-800",
+    summaryValue: "text-cyan-900",
+  },
   saiu_para_entrega: {
     chip: "bg-orange-500/15 text-orange-700",
     summaryContainer: "border-orange-300 bg-orange-50/80",
@@ -432,7 +438,7 @@ function errorFeedback(message: string): FeedbackState {
 function SummaryCards({ counts }: { counts: Record<OrderStatus, number> }) {
   return (
     <section
-      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
       aria-label="Resumo de pedidos por status"
     >
       {ORDER_STATUS_SEQUENCE.map((status) => {
