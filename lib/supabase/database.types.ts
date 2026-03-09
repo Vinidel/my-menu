@@ -199,7 +199,11 @@ export type Database = {
           fulfillment_type: string | null;
           delivery_fee_cents: number | null;
           items: Json;
-          status: "aguardando_confirmacao" | "em_preparo" | "entregue";
+          status:
+            | "aguardando_confirmacao"
+            | "em_preparo"
+            | "saiu_para_entrega"
+            | "entregue";
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -215,7 +219,11 @@ export type Database = {
           fulfillment_type?: string | null;
           delivery_fee_cents?: number | null;
           items?: Json;
-          status?: "aguardando_confirmacao" | "em_preparo" | "entregue";
+          status?:
+            | "aguardando_confirmacao"
+            | "em_preparo"
+            | "saiu_para_entrega"
+            | "entregue";
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -231,7 +239,11 @@ export type Database = {
           fulfillment_type?: string | null;
           delivery_fee_cents?: number | null;
           items?: Json;
-          status?: "aguardando_confirmacao" | "em_preparo" | "entregue";
+          status?:
+            | "aguardando_confirmacao"
+            | "em_preparo"
+            | "saiu_para_entrega"
+            | "entregue";
           notes?: string | null;
           created_at?: string;
           updated_at?: string;

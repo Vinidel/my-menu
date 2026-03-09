@@ -3,7 +3,7 @@
 
 Date: 2026-03-09
 Reviewed by: Critic Agent
-Scope: Stage 0 brief review for `docs/briefs/admin-delivery-status-step.md`
+Scope: Stage 1 implementation for `docs/briefs/admin-delivery-status-step.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,18 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider calling out in a future doc pass whether the new `Saiu para entrega` summary card should reuse the existing summary-card visual priority exactly on both desktop and mobile, to make UI expectations even more explicit.
+- Add Stage 2 coverage for the new delivery-only branch in `lib/orders`, the `/admin` dashboard progression UI, and the server action stale/error paths so the locked `entrega` vs `retirada` behavior is regression-resistant.
+- Add a migration or integration test around the new DB constraint/trigger combination to verify pickup rows cannot persist `saiu_para_entrega` while delivery rows can still advance forward normally.
 
 ### Risks / Assumptions
-- Approval assumes the implementation preserves current safe fallback behavior for unknown statuses and unknown `fulfillment_type`, consistent with existing admin patterns.
-- The brief now correctly locks the delivery-aware operational order used for both summary-card ordering and status-first sorting.
+- Approval assumes the new Supabase migration [20260309113000_add_delivery_out_for_delivery_status.sql](/Users/vinny/workspace/personal/my-menu/supabase/migrations/20260309113000_add_delivery_out_for_delivery_status.sql) is applied before rollout; without it, the app and DB status contracts will diverge.
+- Approval assumes existing admin polling and stale-update tests are updated in Stage 2 to reflect the new operational order `aguardando_confirmacao -> em_preparo -> saiu_para_entrega -> entregue` for delivery rows.
+- Repository-wide `tsc --noEmit` remains blocked by pre-existing test-only typing issues outside this feature; that did not surface a production-code blocker in the reviewed scope, but it still limits verification depth.
 
 ## Acceptance Criteria
-- [x] Problem is clearly defined.
-- [x] Goals are concrete and testable.
-- [x] Non-goals are explicitly listed.
-- [x] Happy and unhappy paths are documented.
-- [x] Edge cases are surfaced.
-- [x] Key decisions are locked, including exact admin status ordering.
-- [x] Approach is outlined at a high level (no code).
+- [ ] Apply the new Supabase migration in the target environment before deploying the app changes.
+- [ ] Verify manually that delivery orders advance `Em preparo -> Saiu para entrega -> Entregue` in `/admin`.
+- [ ] Verify manually that pickup orders still advance `Em preparo -> Entregue` and never enter `Saiu para entrega`.
+- [ ] Verify manually that the `/admin` summary shows a dedicated `Saiu para entrega` card and that status-first ordering matches the locked sequence.
+- [ ] Add Stage 2 tests covering the new delivery-only status branch and DB/API rejection behavior for invalid pickup transitions.
 ---

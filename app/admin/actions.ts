@@ -9,6 +9,7 @@ import {
   getOrderStatusLabel,
   type OrderStatus,
 } from "@/lib/orders";
+import { normalizeFulfillmentType } from "@/lib/fulfillment-types";
 
 const UPDATE_STATUS_ERROR_MESSAGE = "Não foi possível atualizar o status do pedido.";
 const INVALID_ORDER_MESSAGE = "Pedido inválido para atualização.";
@@ -52,9 +53,20 @@ type OrdersStatusUpdateChain = {
 };
 
 type OrdersStatusLookupChain = {
-  select: (columns: "status") => {
+  select: (columns: "status, fulfillment_type" | "status") => {
     eq: (column: "id", value: string) => {
-      maybeSingle: () => Promise<{ data: { status: string | null } | null }>;
+      maybeSingle: () => Promise<{
+        data:
+          | {
+              status: string | null;
+              fulfillment_type?: string | null;
+            }
+          | null;
+        error?: {
+          message?: string;
+          code?: string;
+        } | null;
+      }>;
     };
   };
 };
@@ -67,11 +79,6 @@ export async function progressOrderStatus(
 
   if (!orderId) {
     return errorResult("validation", INVALID_ORDER_MESSAGE);
-  }
-
-  const nextStatus = getNextOrderStatus(currentStatus);
-  if (!nextStatus) {
-    return errorResult("validation", INVALID_PROGRESS_MESSAGE);
   }
 
   const supabase = await createClient();
@@ -91,6 +98,46 @@ export async function progressOrderStatus(
   } catch {
     console.error("[admin/orders] failed to validate session during status update");
     return errorResult("auth", AUTH_VALIDATION_ERROR_MESSAGE);
+  }
+
+  const ordersLookupTable = asOrdersStatusLookupChain(supabase.from("orders"));
+  const { data: persistedOrder, error: lookupError } = await ordersLookupTable
+    .select("status, fulfillment_type")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("[admin/orders] failed to load order before status update", {
+      orderId,
+      message: lookupError.message,
+      code: lookupError.code,
+    });
+    return errorResult("unknown", UPDATE_STATUS_ERROR_MESSAGE);
+  }
+
+  const persisted = getStatusLabelFromUnknown(persistedOrder?.status);
+  if (persisted.status !== currentStatus) {
+    console.warn("[admin/orders] stale status progression rejected", {
+      orderId,
+      expectedStatus: currentStatus,
+      currentStatus: persisted.status ?? persisted.raw ?? null,
+    });
+
+    return {
+      ok: false,
+      code: "stale",
+      message: STALE_STATUS_MESSAGE,
+      currentStatus: persisted.status,
+      currentStatusLabel: persisted.label,
+    };
+  }
+
+  const nextStatus = getNextOrderStatus(
+    persisted.status,
+    normalizeFulfillmentType(persistedOrder?.fulfillment_type)
+  );
+  if (!nextStatus) {
+    return errorResult("validation", INVALID_PROGRESS_MESSAGE);
   }
 
   const ordersTable = asOrdersStatusUpdateChain(supabase.from("orders"));
