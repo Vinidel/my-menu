@@ -1,9 +1,9 @@
 ---
 # Critique
 
-Date: 2026-03-05
+Date: 2026-03-09
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — `docs/customer-header-branding-and-mobile-alignment.md`
+Scope: `docs/briefs/order-delivery-option.md` (Stage 0 brief)
 Verdict: APPROVE
 
 ## Findings
@@ -12,14 +12,15 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Optionally add a short “PR checklist snippet” section in this doc to copy into PR descriptions (summary, risk, rollback) for faster review handoff.
+- Consider aligning `docs/briefs/order-delivery-option.md:59` with the locked legacy display rule at `docs/briefs/order-delivery-option.md:155` so “legacy behaves safely as pickup” vs “legacy displays as unknown” is spelled out more explicitly for implementers.
 
 ### Risks / Assumptions
-- The documentation assumes targeted component tests plus hardening notes are sufficient for this UI-only change; viewport screenshot validation remains intentionally deferred.
+- The feature intentionally depends on manual follow-up to capture the delivery address after order submission.
+- Historical delivery-fee accuracy depends on implementation honoring the locked persistence rules for `delivery_fee_cents`.
 
 ## Acceptance Criteria
-- [x] Stage 5 doc links to the correct Stage 0 brief.
-- [x] Delivered scope, touched files, and locked decisions are clearly documented.
-- [x] Validation evidence and test command/results are recorded.
-- [x] Deferred risks/gaps and rollback path are explicit.
+- [x] Problem and scope are aligned with the narrowed feature.
+- [x] Admin visibility for fulfillment type is explicitly defined.
+- [x] Delivery surcharge storage/representation is locked for historical accuracy.
+- [x] Delivery field contract and canonical values are explicitly defined.
 ---
