@@ -13,11 +13,13 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 - **Summary counts:** Top summary cards show totals for the locked statuses:
   - `Esperando confirmação`
   - `Em preparo`
+  - `Saiu para entrega` *(delivery-only; added later)*
   - `Entregue`
 - **Order details:** Clicking an order shows a details panel with customer data, items, current status, and optional notes.
 - **Status progression:** Employees can only progress status forward:
   - `aguardando_confirmacao` -> `em_preparo`
-  - `em_preparo` -> `entregue`
+  - `em_preparo` -> `saiu_para_entrega` -> `entregue` for delivery orders
+  - `em_preparo` -> `entregue` for pickup/unknown fulfillment rows
   - `entregue` -> no next step
 - **Error/empty states:** Portuguese empty state and error messages for order load/update failures.
 - **Schema + seed:** Supabase migrations for `public.orders` and a demo seed file were added.
@@ -34,7 +36,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 | Order parsing + status helpers | `lib/orders.ts` |
 | Supabase DB types | `lib/supabase/database.types.ts` |
 | Orders table migration | `supabase/migrations/20260223_000001_create_orders_table.sql` |
-| Status transition hardening migration | `supabase/migrations/20260223_000002_enforce_order_status_transitions.sql` *(or renamed equivalent timestamp if you changed the prefix before applying)* |
+| Status transition hardening migrations | `supabase/migrations/20260223000001_enforce_order_status_transitions.sql`, `supabase/migrations/20260309113000_add_delivery_out_for_delivery_status.sql` |
 | Demo seed data | `supabase/seed.sql` |
 | Tests (dashboard UI) | `components/admin-orders-dashboard.test.tsx` |
 | Tests (server page query/load errors) | `app/admin/page.test.tsx` |
@@ -45,8 +47,9 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 
 - **Dashboard route:** Employee orders dashboard lives on the existing protected `/admin` page.
 - **Ordering:** Orders are shown **oldest -> newest** by `created_at`.
-- **Canonical persisted statuses:** `aguardando_confirmacao`, `em_preparo`, `entregue`.
+- **Canonical persisted statuses:** `aguardando_confirmacao`, `em_preparo`, `saiu_para_entrega`, `entregue`.
 - **UI labels (pt-BR):** `Esperando confirmação`, `Em preparo`, `Entregue`.
+- **Delivery-only label (pt-BR):** `Saiu para entrega`.
 - **Progression rule:** Forward-only progression; no reverse or jump transitions.
 - **Concurrency behavior:** Stale updates are rejected (conditional update on `id` + current `status`) and the UI refreshes the displayed status.
 - **Language:** All employee-facing UI/messages are Portuguese (pt-BR).
@@ -65,7 +68,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 
 ## Operational Notes
 
-- **Required DB objects:** Apply the orders table migration and the status-transition hardening migration before using the dashboard in production.
+- **Required DB objects:** The orders table migration, the original status-transition hardening migration, and the later delivery-status migration have been applied in the current environment. Any new environment must apply them before using the dashboard in production.
 - **Migration filename/version:** If Supabase CLI treats only the leading numeric prefix as the migration version, use unique full numeric timestamps for every migration file (e.g. `YYYYMMDDHHMMSS_*`) to avoid `schema_migrations_pkey` conflicts.
 - **Seed data:** `supabase/seed.sql` provides demo orders across all three statuses and is safe to re-run (`ON CONFLICT (reference)`).
 - **RLS expectations:** Authenticated users can `SELECT` orders and `UPDATE status` only. Status transitions are additionally enforced by DB trigger.
@@ -80,6 +83,9 @@ Summary for the next engineer: what was built, where it lives, what was deferred
   - `lib/orders.ts`
   - `supabase` migrations / DB constraints / trigger
   - `components/admin-orders-dashboard.tsx`
+  - `app/admin/actions.ts`
   - tests in `components/admin-orders-dashboard.test.tsx`
   - brief + docs
+
+See also: [docs/admin-delivery-status-step.md](admin-delivery-status-step.md)
 - **If you add admin routes:** Middleware already protects `/admin/*` (except `/admin/login`) from the auth feature; reuse the same admin layout unless you intentionally split layouts.

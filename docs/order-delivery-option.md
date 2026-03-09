@@ -55,7 +55,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 - **Admin display scope:** Fulfillment type is shown in `/admin` order details only.
 - **Admin fallback for missing/unknown values:** `Tipo de entrega: Não informado`.
 - **Address capture policy:** No delivery address is collected in this feature.
-- **Status flow policy:** Delivery does not change admin status progression in this feature.
+- **Status flow policy at delivery-option stage:** Delivery did not change admin status progression in this feature. A later feature added the delivery-only admin step `Saiu para entrega`; see [docs/admin-delivery-status-step.md](admin-delivery-status-step.md).
 - **Language:** pt-BR labels/messages for customer and employee UI.
 
 ---
@@ -83,7 +83,7 @@ Notes:
 ## Known Gaps & Deferred Work
 
 - **No address capture:** Staff still collect address/details later when confirming the order with the customer.
-- **No delivery-specific status flow:** `out for delivery` or any delivery lifecycle stage is deferred to a separate feature.
+- **Delivery-specific status flow shipped later:** Delivery lifecycle status is now documented separately in [docs/admin-delivery-status-step.md](admin-delivery-status-step.md).
 - **Customer estimated total gap remains:** Checkout `Total estimado` still does not fully include extras pricing; this feature only layered the fixed delivery fee on top of the existing behavior.
 - **No delivery-specific observability:** Failures are diagnosable through existing logs only; there are no dedicated counters or alerts for fulfillment validation rejects.
 - **No variable delivery pricing:** Delivery fee is fixed; there is no distance, neighborhood, or order-value logic.
@@ -92,7 +92,7 @@ Notes:
 
 ## Operational Notes
 
-- **Migration required before rollout:** Apply `supabase/migrations/20260309100000_add_orders_fulfillment_type.sql` before or alongside the app deploy.
+- **Migration status:** `supabase/migrations/20260309100000_add_orders_fulfillment_type.sql` has been applied.
 - **Rollout dependency matters:** If app code is deployed before the migration, submit/admin paths can fail because the new columns and constraints do not exist yet.
 - **Admin compatibility:** `/admin` safely renders legacy rows and unexpected manual values as `Não informado`.
 - **Regression checks after changes:**
@@ -106,6 +106,6 @@ Notes:
 ## For the Next Engineer
 
 - **If you add address capture:** Treat it as a separate feature brief; it changes checkout UX, validation, and persistence.
-- **If you add delivery status stages:** Model them separately from `fulfillment_type`; delivery intent and order lifecycle are different concerns.
+- **Delivery status stages are separate from fulfillment intent:** The later `Saiu para entrega` feature kept lifecycle status separate from `fulfillment_type`; preserve that separation in future changes.
 - **If you change the delivery fee later:** Update `lib/fulfillment-types.ts`, server validation, the DB consistency constraint, tests, and docs together.
 - **If you expose fulfillment in more admin surfaces:** Reuse the canonical helpers in `lib/fulfillment-types.ts` and preserve the `Não informado` fallback for legacy safety.
