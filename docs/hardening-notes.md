@@ -798,3 +798,41 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Small bounded lookup cost only |
 | Observability | Improved  | Added stale-follow-up lookup failure logging |
 | Resilience    | Improved  | Safe stale fallback preserved even on follow-up lookup failure |
+
+---
+
+## Admin Ready-for-Pickup Status Step (Stage 4)
+
+### Security
+
+- **DB pickup-only applicability remains enforced:** The pickup-ready migration constrains `pronto_para_retirada` to rows whose `fulfillment_type` is not `entrega`, in addition to the forward-only transition trigger. This keeps delivery rows from entering the pickup-only branch through manual writes or direct clients. **No change from Stage 1 contract; reaffirmed in Stage 4.**
+- **Legacy/unknown fulfillment fallback remains bounded:** App-layer progression and DB transition rules still treat missing or unsupported `fulfillment_type` as pickup flow only, so legacy rows may enter `pronto_para_retirada` but are still blocked from `saiu_para_entrega`. **No change.**
+
+### Dependencies
+
+- **No new dependencies:** Hardening stays within the existing Next.js server action, shared order helpers, and Supabase migration contract. **No change.**
+- **Typed Supabase workaround remains:** `app/admin/actions.ts` still uses narrow cast helpers around query chains. This is a compile-time maintainability gap, not a new runtime risk introduced by this feature. **Deferred.**
+
+### Performance
+
+- **Update path remains small and bounded:** Pickup-ready progression still performs one pre-update lookup and only performs a follow-up lookup on stale conditional-update misses. That cost remains acceptable for the project’s small operational scale. **No change.**
+
+### Observability
+
+- **Missing-row stale diagnostics improved:** If a conditional update misses and the follow-up lookup returns no row at all, the action now emits a dedicated warning with `orderId` and expected status. This distinguishes “real stale status race” from “row disappeared after miss” without changing the user-facing response. **Improved in Stage 4.**
+- **Migration rollout visibility remains manual:** There is still no runtime health check confirming that `20260309123000_add_ready_for_pickup_status.sql` was applied in each environment. Rollout sequencing still carries that responsibility. **Deferred.**
+
+### Resilience
+
+- **Safe stale fallback retained:** Even if the follow-up lookup after a stale conditional-update miss returns no row, the action still returns the same safe stale response instead of throwing, so the admin UI degrades predictably. **Improved observability; user behavior unchanged.**
+- **Deployment ordering assumption remains:** If the application deploys before the pickup-ready migration, app and DB status contracts diverge and updates may fail. This remains an operational rollout dependency rather than an app-code fix. **Documented; not implemented.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | Pickup-only DB applicability and legacy fallback preserved |
+| Dependencies  | Deferred  | Supabase typed-chain workaround still present |
+| Performance   | OK        | No extra runtime cost beyond existing bounded lookups |
+| Observability | Improved  | Added dedicated missing-row stale-miss warning |
+| Resilience    | Improved  | Safe stale fallback preserved under missing follow-up row |

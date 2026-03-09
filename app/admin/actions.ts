@@ -165,6 +165,11 @@ export async function progressOrderStatus(
         message: staleLookupError.message,
         code: staleLookupError.code,
       });
+    } else if (!currentOrder) {
+      console.warn("[admin/orders] stale update miss followed by missing order lookup result", {
+        orderId,
+        expectedStatus: currentStatus,
+      });
     }
 
     const current = getStatusLabelFromUnknown(currentOrder?.status);
