@@ -1,8 +1,8 @@
 # Critique
 
-Date: 2026-03-09
+Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 0 brief for `docs/briefs/tech-review-data-access-abstraction.md`
+Scope: Stage 1 implementation for docs/briefs/tech-review-data-access-abstraction.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- When implementation starts, keep the first interface methods narrowly named around the locked use cases, for example admin-order listing and conditional status progression, so the abstraction stays practical instead of becoming a generic repository shell.
+- Add Stage 2 coverage that exercises the new data-access adapter boundary directly, not only the page, route, and action call sites.
 
 ### Risks / Assumptions
-- This approval assumes the implementation will preserve the locked boundary: auth/session validation remains in route-action code while only admin/orders persistence moves behind the interface.
-- The brief deliberately avoids broader repo restructuring. That is the right tradeoff for this stage, but it means some remaining Supabase coupling outside admin/orders is expected and should not be treated as a failure of this feature.
+- The abstraction reduces app-layer Supabase coupling for the locked slice, but the Supabase adapter still relies on local chain casts, so provider-specific typing fragility remains inside the adapter.
+- This stage intentionally covers only the `admin/orders` slice; other direct Supabase touchpoints elsewhere in the repo remain by design.
 
 ## Acceptance Criteria
-- [ ] Stage 1 introduces a narrow admin/orders data-access interface with a Supabase-backed implementation.
-- [ ] Stage 1 migrates `app/admin/page.tsx`, `app/api/admin/orders/route.ts`, and `app/admin/actions.ts` to that boundary for persistence work only.
-- [ ] Stage 1 keeps auth/session validation in the route-action layer.
-- [ ] Shipped admin order behavior remains unchanged while the new structure is introduced.
+- [ ] Stage 2 adds tests that cover the new admin/orders data-access boundary where practical.
+- [ ] The migrated call sites in `app/admin/page.tsx`, `app/api/admin/orders/route.ts`, and `app/admin/actions.ts` preserve current behavior.
+- [ ] Admin auth/session validation remains outside the data-access abstraction.
+- [ ] The full test suite remains green after Stage 2 changes.

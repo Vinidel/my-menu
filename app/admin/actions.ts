@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/database.types";
 import {
   getStatusLabelFromUnknown,
   getNextOrderStatus,
@@ -21,9 +21,6 @@ const AUTH_VALIDATION_ERROR_MESSAGE =
   "Não foi possível validar sua sessão. Faça login novamente.";
 const STALE_STATUS_MESSAGE =
   "Este pedido foi atualizado por outra pessoa. Recarregamos o status atual.";
-const ORDER_STATUS_LOOKUP_COLUMNS = "status, fulfillment_type";
-const ORDER_STATUS_STALE_CHECK_COLUMNS = "status";
-const ORDERS_TABLE_NAME = "orders";
 
 type ProgressOrderInput = {
   orderId: string;
@@ -44,35 +41,6 @@ export type ProgressOrderResult =
       currentStatus: OrderStatus | null;
       currentStatusLabel: string;
     };
-
-type OrdersStatusUpdateChain = {
-  update: (values: Database["public"]["Tables"]["orders"]["Update"]) => {
-    eq: (column: "id", value: string) => {
-      eq: (column: "status", value: OrderStatus) => {
-        select: (columns: "id, status") => { maybeSingle: () => Promise<any> };
-      };
-    };
-  };
-};
-
-type OrdersStatusLookupChain = {
-  select: (columns: "status, fulfillment_type" | "status") => {
-    eq: (column: "id", value: string) => {
-      maybeSingle: () => Promise<{
-        data:
-          | {
-              status: string | null;
-              fulfillment_type?: string | null;
-            }
-          | null;
-        error?: {
-          message?: string;
-          code?: string;
-        } | null;
-      }>;
-    };
-  };
-};
 
 export async function progressOrderStatus(
   input: ProgressOrderInput
@@ -103,11 +71,9 @@ export async function progressOrderStatus(
     return errorResult("auth", AUTH_VALIDATION_ERROR_MESSAGE);
   }
 
-  const { data: persistedOrder, error: lookupError } = await lookupOrderStatus(
-    supabase,
-    orderId,
-    ORDER_STATUS_LOOKUP_COLUMNS
-  );
+  const adminOrdersDataAccess = createSupabaseAdminOrdersDataAccess(supabase);
+  const { data: persistedOrder, error: lookupError } =
+    await adminOrdersDataAccess.getAdminOrderStatusSnapshot(orderId);
 
   if (lookupError) {
     console.error("[admin/orders] failed to load order before status update", {
@@ -125,20 +91,17 @@ export async function progressOrderStatus(
 
   const nextStatus = getNextOrderStatus(
     persisted.status,
-    normalizeFulfillmentType(persistedOrder?.fulfillment_type)
+    normalizeFulfillmentType(persistedOrder?.fulfillmentType)
   );
   if (!nextStatus) {
     return errorResult("validation", INVALID_PROGRESS_MESSAGE);
   }
 
-  const ordersTable = asOrdersStatusUpdateChain(supabase.from(ORDERS_TABLE_NAME));
-
-  const { data, error } = await ordersTable
-    .update({ status: nextStatus })
-    .eq("id", orderId)
-    .eq("status", currentStatus)
-    .select("id, status")
-    .maybeSingle();
+  const { data, error } = await adminOrdersDataAccess.progressAdminOrderStatusConditionally({
+    orderId,
+    currentStatus,
+    nextStatus,
+  });
 
   if (error) {
     console.error("[admin/orders] failed to progress order status", {
@@ -152,11 +115,8 @@ export async function progressOrderStatus(
   }
 
   if (!data) {
-    const { data: currentOrder, error: staleLookupError } = await lookupOrderStatus(
-      supabase,
-      orderId,
-      ORDER_STATUS_STALE_CHECK_COLUMNS
-    );
+    const { data: currentOrder, error: staleLookupError } =
+      await adminOrdersDataAccess.getAdminOrderStatusSnapshot(orderId);
 
     if (staleLookupError) {
       console.error("[admin/orders] failed to load current status after stale update miss", {
@@ -190,23 +150,6 @@ function errorResult(
   message: string
 ): Extract<ProgressOrderResult, { ok: false; code: "setup" | "auth" | "validation" | "unknown" }> {
   return { ok: false, code, message };
-}
-
-function asOrdersStatusUpdateChain(value: unknown): OrdersStatusUpdateChain {
-  return value as OrdersStatusUpdateChain;
-}
-
-function asOrdersStatusLookupChain(value: unknown): OrdersStatusLookupChain {
-  return value as OrdersStatusLookupChain;
-}
-
-async function lookupOrderStatus(
-  supabase: { from: (table: string) => unknown },
-  orderId: string,
-  columns: "status, fulfillment_type" | "status"
-) {
-  const ordersLookupTable = asOrdersStatusLookupChain(supabase.from(ORDERS_TABLE_NAME));
-  return ordersLookupTable.select(columns).eq("id", orderId).maybeSingle();
 }
 
 function staleResult(
