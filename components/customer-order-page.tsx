@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  DEFAULT_FULFILLMENT_TYPE,
+  FULFILLMENT_TYPE_OPTIONS,
+  getDeliveryFeeCentsForFulfillmentType,
+  type FulfillmentType,
+} from "@/lib/fulfillment-types";
 import type { MenuExtra, MenuItem, MenuRemovableIngredient } from "@/lib/menu";
 import { formatBrazilPhoneMask } from "@/lib/phone";
 import {
@@ -131,6 +137,9 @@ export function CustomerOrderPage({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>(
+    DEFAULT_FULFILLMENT_TYPE
+  );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -184,6 +193,8 @@ export function CustomerOrderPage({
     (acc, entry) => acc + (entry.item.priceCents ?? 0) * entry.quantity,
     0
   );
+  const deliveryFeeCents = getDeliveryFeeCentsForFulfillmentType(fulfillmentType);
+  const estimatedTotalPriceCents = totalPriceCents + deliveryFeeCents;
   const cartCountLabel = formatItemCountLabel(totalItems);
   const cartFeedbackState = isCartFeedbackActive ? "recent-add" : "idle";
   const cartTabLabel = `Carrinho (${cartCountLabel})`;
@@ -234,9 +245,7 @@ export function CustomerOrderPage({
     });
 
     if (editingLineId === lineId && nextQuantity <= 0) {
-      setEditingLineId(null);
-      setEditingLineExtraIds([]);
-      setEditingLineRemovedIngredientIds([]);
+      resetEditingLineState();
     }
   }
 
@@ -245,15 +254,20 @@ export function CustomerOrderPage({
     setCustomizingMenuItemId(null);
     setDraftExtrasByMenuItemId({});
     setDraftRemovedIngredientsByMenuItemId({});
-    setEditingLineId(null);
-    setEditingLineExtraIds([]);
-    setEditingLineRemovedIngredientIds([]);
+    resetEditingLineState();
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
+    setFulfillmentType(DEFAULT_FULFILLMENT_TYPE);
     setPaymentMethod("");
     setCustomerNotes("");
     setFieldErrors({});
+  }
+
+  function resetEditingLineState() {
+    setEditingLineId(null);
+    setEditingLineExtraIds([]);
+    setEditingLineRemovedIngredientIds([]);
   }
 
   function clearFieldError(field: keyof FieldErrors) {
@@ -436,9 +450,7 @@ export function CustomerOrderPage({
         editingLineRemovedIngredientIds
       )
     );
-    setEditingLineId(null);
-    setEditingLineExtraIds([]);
-    setEditingLineRemovedIngredientIds([]);
+    resetEditingLineState();
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -477,6 +489,7 @@ export function CustomerOrderPage({
       customerName,
       customerEmail,
       customerPhone,
+      fulfillmentType,
       paymentMethod: selectedPaymentMethod,
       notes: customerNotes,
       items: selectedEntries.map(({ item, quantity, extraIds, removedIngredientIds }) => ({
@@ -766,10 +779,13 @@ export function CustomerOrderPage({
           <OrderSummaryTab
             totalItems={totalItems}
             totalPriceCents={totalPriceCents}
+            deliveryFeeCents={deliveryFeeCents}
+            estimatedTotalPriceCents={estimatedTotalPriceCents}
             selectedEntries={selectedEntries}
             customerName={customerName}
             customerEmail={customerEmail}
             customerPhone={customerPhone}
+            fulfillmentType={fulfillmentType}
             customerNotes={customerNotes}
             paymentMethod={paymentMethod}
             fieldErrors={fieldErrors}
@@ -790,6 +806,7 @@ export function CustomerOrderPage({
               setCustomerPhone(value);
               clearFieldError("customerPhone");
             }}
+            onFulfillmentTypeChange={setFulfillmentType}
             onCustomerNotesChange={setCustomerNotes}
             onPaymentMethodChange={(value) => {
               setPaymentMethod(value);
@@ -803,9 +820,7 @@ export function CustomerOrderPage({
             onToggleEditingLineRemovedIngredient={toggleEditingLineRemovedIngredient}
             onSaveEditingLineCustomization={saveEditedLineCustomization}
             onCancelEditingLineCustomization={() => {
-              setEditingLineId(null);
-              setEditingLineExtraIds([]);
-              setEditingLineRemovedIngredientIds([]);
+              resetEditingLineState();
             }}
             onBackToMenu={() => setActiveTab("cardapio")}
           />
@@ -846,10 +861,13 @@ function formatItemCountLabel(totalItems: number): string {
 type OrderSummaryTabProps = {
   totalItems: number;
   totalPriceCents: number;
+  deliveryFeeCents: number;
+  estimatedTotalPriceCents: number;
   selectedEntries: SelectedEntry[];
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  fulfillmentType: FulfillmentType;
   paymentMethod: PaymentMethod | "";
   customerNotes: string;
   fieldErrors: FieldErrors;
@@ -861,6 +879,7 @@ type OrderSummaryTabProps = {
   onCustomerNameChange: (value: string) => void;
   onCustomerEmailChange: (value: string) => void;
   onCustomerPhoneChange: (value: string) => void;
+  onFulfillmentTypeChange: (value: FulfillmentType) => void;
   onCustomerNotesChange: (value: string) => void;
   onPaymentMethodChange: (value: PaymentMethod) => void;
   onStartEditLineCustomization: (lineId: string) => void;
@@ -877,10 +896,13 @@ type OrderSummaryTabProps = {
 function OrderSummaryTab({
   totalItems,
   totalPriceCents,
+  deliveryFeeCents,
+  estimatedTotalPriceCents,
   selectedEntries,
   customerName,
   customerEmail,
   customerPhone,
+  fulfillmentType,
   paymentMethod,
   customerNotes,
   fieldErrors,
@@ -892,6 +914,7 @@ function OrderSummaryTab({
   onCustomerNameChange,
   onCustomerEmailChange,
   onCustomerPhoneChange,
+  onFulfillmentTypeChange,
   onCustomerNotesChange,
   onPaymentMethodChange,
   onStartEditLineCustomization,
@@ -1074,6 +1097,31 @@ function OrderSummaryTab({
         </div>
 
         <div className="space-y-2">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Tipo de entrega</legend>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {FULFILLMENT_TYPE_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-2 rounded-md border border-[hsl(var(--menu-border-soft))] bg-[hsl(var(--menu-surface-soft))] px-3 py-2 text-sm"
+                >
+                  <input
+                    type="radio"
+                    name="fulfillment-type"
+                    value={option.value}
+                    checked={fulfillmentType === option.value}
+                    onChange={() => onFulfillmentTypeChange(option.value)}
+                    className={MENU_RADIO_ACCENT_CLASS}
+                    disabled={isPending}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
+        <div className="space-y-2">
           <fieldset
             className="space-y-2"
             aria-invalid={Boolean(fieldErrors.paymentMethod)}
@@ -1121,12 +1169,22 @@ function OrderSummaryTab({
         </div>
 
         {selectedEntries.length > 0 ? (
-          <p className="text-sm font-semibold text-[hsl(var(--menu-ink))]">
-            Total estimado:{" "}
-            <span className={MENU_PRICE_CHIP_CLASS}>
-              {formatCurrency(totalPriceCents)}
-            </span>
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-[hsl(var(--menu-muted))]">
+              Subtotal dos itens: <span className="font-semibold text-[hsl(var(--menu-ink))]">{formatCurrency(totalPriceCents)}</span>
+            </p>
+            {fulfillmentType === "entrega" ? (
+              <p className="text-sm text-[hsl(var(--menu-muted))]">
+                Taxa de entrega: <span className="font-semibold text-[hsl(var(--menu-ink))]">{formatCurrency(deliveryFeeCents)}</span>
+              </p>
+            ) : null}
+            <p className="text-sm font-semibold text-[hsl(var(--menu-ink))]">
+              Total estimado:{" "}
+              <span className={MENU_PRICE_CHIP_CLASS}>
+                {formatCurrency(estimatedTotalPriceCents)}
+              </span>
+            </p>
+          </div>
         ) : null}
 
         {feedback ? (
@@ -1268,6 +1326,7 @@ type SubmitOrderRequestInput = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  fulfillmentType: FulfillmentType;
   paymentMethod: PaymentMethod;
   turnstileToken?: string;
   notes?: string;

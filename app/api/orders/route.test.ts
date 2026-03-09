@@ -28,6 +28,7 @@ const BASE_ORDER_BODY = {
   customerEmail: "ana@example.com",
   customerPhone: "11999999999",
   paymentMethod: "pix",
+  fulfillmentType: "retirada",
   items: [{ menuItemId: "x-burger", quantity: 1 }],
 };
 

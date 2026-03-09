@@ -463,6 +463,7 @@ function OrderDetailsContent({
             <DetailRow label="Nome" value={order.customerName} />
             <DetailRow label="Telefone" value={order.customerPhone} />
             <DetailRow label="E-mail" value={order.customerEmail} />
+            <DetailRow label="Tipo de entrega" value={order.fulfillmentTypeLabel} />
             <DetailRow label="Forma de pagamento" value={order.paymentMethodLabel} />
             <DetailRow label="Total do pedido" value={order.totalAmountLabel ?? "Indisponível"} />
           </dl>

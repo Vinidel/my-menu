@@ -53,6 +53,7 @@ Issues or observations spotted during implementation that are **out of scope** f
 - **Server-only write path:** Customer submission now goes through `POST /api/orders`, which uses `SUPABASE_SERVICE_ROLE_KEY` server-side. A follow-up hardening migration locks down the temporary public `customers`/`orders` write/read grants created during the initial implementation.
 - **Pricing snapshots now persisted (backward-compatible):** Customer order inserts now store item-level pricing snapshots in `orders.items` (`unitPriceCents`, optional extras `priceCents`, and `lineTotalCents`) to support reliable admin totals while preserving legacy row compatibility.
 - **Fail-closed pricing rule (from total-display brief):** If a selected base item or selected extra is missing valid `priceCents` in `data/menu.json`, submission is rejected with a pt-BR validation/setup error and no order is created.
+- **Customer checkout estimated total gap:** The existing customer-side `Total estimado` calculation is based on line item base prices and does not fully account for extras pricing in the UI. This Stage 1 delivery feature preserved that behavior and only layered the fixed delivery fee on top; a separate brief should address full client-side total parity if desired.
 
 ---
 

@@ -723,3 +723,39 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK            | No action needed |
 | Observability | OK            | No additional instrumentation required |
 | Resilience    | OK/Deferred   | Behavior stable; viewport screenshot coverage deferred |
+
+---
+
+## Order Delivery Option — Stage 4
+
+### Security
+
+- **Server validation remains authoritative:** `fulfillmentType` is normalized server-side and rejected if tampered; client-provided totals are still ignored. **No change in trust boundary.**
+- **DB-level consistency hardened:** The fulfillment migration now enforces valid `fulfillment_type` / `delivery_fee_cents` pairs, preventing invalid combinations such as pickup orders with non-zero delivery fees or delivery orders with missing/incorrect fees from manual writes or partial scripts. **Improved in Stage 4.**
+
+### Dependencies
+
+- **No new dependencies:** Hardening uses existing TypeScript helpers and SQL constraints only. **No change.**
+
+### Performance
+
+- **No material runtime cost:** Added consistency enforcement is at the database constraint layer and does not introduce additional application queries or loops. **No change.**
+
+### Observability
+
+- **Delivery-specific failures remain diagnosable only through existing logs:** Order submit/load failures are logged, but there are no dedicated counters for fulfillment validation rejects or malformed legacy fulfillment rows. **Deferred.**
+
+### Resilience
+
+- **Safer persistence invariants:** New orders cannot drift into inconsistent fulfillment/fee states if the migration is applied, improving reliability of admin totals and downstream operational handling. **Improved in Stage 4.**
+- **Deferred rollout dependency:** If app code is deployed before the migration, submit/admin paths may fail because the new columns/constraints are not present yet. Rollout should apply the migration before or with the application deploy. **Documented operational dependency.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Added DB-level fulfillment/fee consistency constraint |
+| Dependencies  | OK        | No dependency changes |
+| Performance   | OK        | Constraint-only hardening |
+| Observability | Gap       | Existing logs only; no delivery-specific counters |
+| Resilience    | Improved  | Stronger persistence invariants; rollout dependency documented |

@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  getDeliveryFeeCentsForFulfillmentType,
+  normalizeFulfillmentType,
+  type FulfillmentType,
+} from "@/lib/fulfillment-types";
 import { getMenuItemMap, type MenuItem } from "@/lib/menu";
 import { normalizeBrazilPhone } from "@/lib/phone";
 import {
@@ -17,6 +22,7 @@ const VALIDATION_REQUIRED_MESSAGE =
 const VALIDATION_EMAIL_MESSAGE = "Informe um e-mail válido.";
 const VALIDATION_PHONE_MESSAGE = "Telefone inválido. Use um número brasileiro válido.";
 const VALIDATION_PAYMENT_METHOD_MESSAGE = "Selecione uma forma de pagamento válida.";
+const VALIDATION_FULFILLMENT_TYPE_MESSAGE = "Selecione um tipo de entrega válido.";
 const VALIDATION_ITEMS_MESSAGE = "Selecione itens válidos do cardápio para enviar o pedido.";
 const VALIDATION_PRICING_MESSAGE =
   "Alguns itens selecionados estão sem preço configurado. Revise o cardápio e tente novamente.";
@@ -38,6 +44,7 @@ export type SubmitCustomerOrderInput = {
   customerEmail: string;
   customerPhone: string;
   paymentMethod: PaymentMethod;
+  fulfillmentType: FulfillmentType;
   notes?: string;
   items: Array<{
     menuItemId: string;
@@ -107,6 +114,7 @@ export async function submitCustomerOrderWithClient(
   );
   const customerPhone = sanitizeText(input.customerPhone);
   const paymentMethod = normalizePaymentMethod(input.paymentMethod);
+  const fulfillmentType = normalizeFulfillmentType(input.fulfillmentType);
   const notes = sanitizeOptionalText(input.notes);
 
   if (
@@ -135,6 +143,9 @@ export async function submitCustomerOrderWithClient(
 
   if (!paymentMethod) {
     return submitErrorResult("validation", VALIDATION_PAYMENT_METHOD_MESSAGE);
+  }
+  if (!fulfillmentType) {
+    return submitErrorResult("validation", VALIDATION_FULFILLMENT_TYPE_MESSAGE);
   }
 
   const menuMap = menuMapOverride ?? getMenuItemMap();
@@ -172,6 +183,8 @@ export async function submitCustomerOrderWithClient(
       customer_email: customerEmail,
       customer_phone: normalizedPhone,
       payment_method: paymentMethod,
+      fulfillment_type: fulfillmentType,
+      delivery_fee_cents: getDeliveryFeeCentsForFulfillmentType(fulfillmentType),
       notes,
       items: orderItems,
       status: "aguardando_confirmacao" satisfies OrderStatus,

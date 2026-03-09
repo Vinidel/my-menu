@@ -1,9 +1,9 @@
 ---
 # Critique
 
-Date: 2026-03-05
+Date: 2026-03-09
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation review — `docs/customer-header-branding-and-mobile-alignment.md`
+Scope: Stage 4 hardening for `docs/briefs/order-delivery-option.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,14 +12,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Optionally add a short “PR checklist snippet” section in this doc to copy into PR descriptions (summary, risk, rollback) for faster review handoff.
+- Consider adding a migration-level test or operational checklist item in a future pass to explicitly verify rollout ordering for schema-first deployment of the new fulfillment columns and constraints.
 
 ### Risks / Assumptions
-- The documentation assumes targeted component tests plus hardening notes are sufficient for this UI-only change; viewport screenshot validation remains intentionally deferred.
+- This review intentionally ignores PR-label workflow state, per your instruction, and evaluates only the hardening artifact itself.
+- Approval assumes the migration will be applied before or alongside the app deploy, as documented in `docs/hardening-notes.md`.
+- Delivery-specific observability remains limited to existing logs; no dedicated counters or alerts were added in this stage.
 
 ## Acceptance Criteria
-- [x] Stage 5 doc links to the correct Stage 0 brief.
-- [x] Delivered scope, touched files, and locked decisions are clearly documented.
-- [x] Validation evidence and test command/results are recorded.
-- [x] Deferred risks/gaps and rollback path are explicit.
+- [x] Security sweep completed.
+- [x] Dependency risks assessed.
+- [x] Performance concerns identified and addressed or documented.
+- [x] Observability verified/documented.
+- [x] Resilience considerations documented.
+- [x] Fixes were applied or risks explicitly documented in `docs/hardening-notes.md`.
 ---

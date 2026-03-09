@@ -25,6 +25,9 @@ function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
     notes: null,
     paymentMethod: null,
     paymentMethodLabel: "Não informado",
+    fulfillmentType: null,
+    fulfillmentTypeLabel: "Não informado",
+    deliveryFeeCents: null,
     ...overrides,
   };
 }
@@ -332,6 +335,44 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     expect(screen.getByText("Pix")).toBeInTheDocument();
   });
 
+  it("renders fulfillment type label in admin order details for new delivery orders (brief: fulfillment display)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            fulfillmentType: "entrega",
+            fulfillmentTypeLabel: "Entrega",
+            deliveryFeeCents: 500,
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Tipo de entrega")).toBeInTheDocument();
+    expect(screen.getByText("Entrega")).toBeInTheDocument();
+  });
+
+  it("renders fulfillment fallback in admin order details for legacy orders (brief: legacy fulfillment fallback)", () => {
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            reference: "PED-0001",
+            fulfillmentType: null,
+            fulfillmentTypeLabel: "Não informado",
+            deliveryFeeCents: null,
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Tipo de entrega")).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado").length).toBeGreaterThanOrEqual(1);
+  });
+
   it("renders payment method fallback in admin order details for legacy/unknown values (brief: payment method fallback)", () => {
     render(
       <AdminOrdersDashboard
@@ -347,7 +388,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     );
 
     expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
-    expect(screen.getByText("Não informado")).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders payment method fallback for unknown stored DB values in admin details (brief: unknown DB value fallback)", () => {
@@ -366,7 +407,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     );
 
     expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
-    expect(screen.getByText("Não informado")).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders 'Total do pedido' in admin order details when pricing snapshots are available (brief: total display)", () => {

@@ -1,5 +1,12 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
 import {
+  getDeliveryFeeCentsForFulfillmentType,
+  FULFILLMENT_TYPE_FALLBACK_LABEL,
+  getFulfillmentTypeLabel,
+  normalizeFulfillmentType,
+  type FulfillmentType,
+} from "@/lib/fulfillment-types";
+import {
   getPaymentMethodLabel,
   normalizePaymentMethod,
   type PaymentMethod,
@@ -50,6 +57,9 @@ export type AdminOrder = {
   notes: string | null;
   paymentMethod: PaymentMethod | null;
   paymentMethodLabel: string;
+  fulfillmentType: FulfillmentType | null;
+  fulfillmentTypeLabel: string;
+  deliveryFeeCents: number | null;
   totalAmountCents?: number | null;
   totalAmountLabel?: string;
 };
@@ -68,6 +78,7 @@ const MAX_PARSED_UNIT_PRICE_CENTS = 1_000_000; // R$ 10.000,00 por unidade
 const MAX_PARSED_EXTRA_PRICE_CENTS = 200_000; // R$ 2.000,00 por extra
 const MAX_PARSED_LINE_TOTAL_CENTS = 5_000_000; // R$ 50.000,00 por linha
 const MAX_PARSED_ORDER_TOTAL_CENTS = 20_000_000; // R$ 200.000,00 por pedido
+const MAX_PARSED_DELIVERY_FEE_CENTS = 1_000_000; // R$ 10.000,00 por taxa
 const ORDER_TOTAL_UNAVAILABLE_LABEL = "Indisponível";
 const ORDER_PAYMENT_METHOD_FALLBACK_LABEL = "Não informado";
 
@@ -168,6 +179,17 @@ export function parseAdminOrder(
   const { paymentMethod, paymentMethodLabel } = getPaymentMethodLabelFromUnknown(
     record.payment_method ?? record.paymentMethod
   );
+  const { fulfillmentType, fulfillmentTypeLabel } = getFulfillmentTypeLabelFromUnknown(
+    record.fulfillment_type ?? record.fulfillmentType
+  );
+  const deliveryFeeCents = getDeliveryFeeCentsFromUnknown(
+    record.delivery_fee_cents ?? record.deliveryFeeCents,
+    fulfillmentType
+  );
+  const totalAmountWithDelivery =
+    totalAmountCents === null || deliveryFeeCents === null
+      ? totalAmountCents
+      : totalAmountCents + deliveryFeeCents;
 
   return {
     id: idValue,
@@ -186,8 +208,11 @@ export function parseAdminOrder(
     notes,
     paymentMethod,
     paymentMethodLabel,
-    totalAmountCents,
-    totalAmountLabel: formatOrderTotalLabel(totalAmountCents),
+    fulfillmentType,
+    fulfillmentTypeLabel,
+    deliveryFeeCents,
+    totalAmountCents: totalAmountWithDelivery,
+    totalAmountLabel: formatOrderTotalLabel(totalAmountWithDelivery),
   };
 }
 
@@ -203,6 +228,41 @@ function getPaymentMethodLabelFromUnknown(value: unknown): {
     paymentMethod,
     paymentMethodLabel: getPaymentMethodLabel(paymentMethod) ?? ORDER_PAYMENT_METHOD_FALLBACK_LABEL,
   };
+}
+
+function getFulfillmentTypeLabelFromUnknown(value: unknown): {
+  fulfillmentType: FulfillmentType | null;
+  fulfillmentTypeLabel: string;
+} {
+  const fulfillmentType = normalizeFulfillmentType(value);
+  if (!fulfillmentType) {
+    return {
+      fulfillmentType: null,
+      fulfillmentTypeLabel: FULFILLMENT_TYPE_FALLBACK_LABEL,
+    };
+  }
+  return {
+    fulfillmentType,
+    fulfillmentTypeLabel:
+      getFulfillmentTypeLabel(fulfillmentType) ?? FULFILLMENT_TYPE_FALLBACK_LABEL,
+  };
+}
+
+function getDeliveryFeeCentsFromUnknown(
+  value: unknown,
+  fulfillmentType: FulfillmentType | null
+): number | null {
+  if (value === null || typeof value === "undefined") {
+    if (fulfillmentType === "retirada") return 0;
+    return null;
+  }
+
+  const parsed = parseNonNegativeCents(value, MAX_PARSED_DELIVERY_FEE_CENTS);
+  if (parsed === null) return null;
+  if (fulfillmentType && parsed !== getDeliveryFeeCentsForFulfillmentType(fulfillmentType)) {
+    return null;
+  }
+  return parsed;
 }
 
 function parseOrderItemsWithTotal(
