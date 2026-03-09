@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getNextOrderStatus, parseAdminOrder } from "./orders";
+import { countOrdersByStatus, getNextOrderStatus, parseAdminOrder } from "./orders";
 
 describe("parseAdminOrder extras hardening", () => {
   it("limits parsed extras per item and preserves valid names", () => {
@@ -167,7 +167,24 @@ describe("parseAdminOrder total amount display", () => {
     expect(order?.fulfillmentTypeLabel).toBe("Não informado");
   });
 
-  it("parses the new delivery-only status label safely for admin rendering", () => {
+  it("parses the new pickup-only status label safely for admin rendering", () => {
+    const order = parseAdminOrder({
+      id: "pickup-step",
+      reference: "PED-RETIRADA",
+      customer_name: "Ana",
+      customer_email: "ana@example.com",
+      customer_phone: "11999999999",
+      status: "pronto_para_retirada",
+      fulfillment_type: "retirada",
+      items: [{ name: "X-Burger", quantity: 1 }],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.status).toBe("pronto_para_retirada");
+    expect(order?.statusLabel).toBe("Pronto para retirada");
+  });
+
+  it("parses the delivery-only status label safely for admin rendering", () => {
     const order = parseAdminOrder({
       id: "delivery-step",
       reference: "PED-SAIU",
@@ -259,10 +276,40 @@ describe("delivery-aware order progression helpers", () => {
     expect(getNextOrderStatus("saiu_para_entrega", "entrega")).toBe("entregue");
   });
 
-  it("keeps pickup and unknown fulfillment rows on the existing two-step completion path", () => {
-    expect(getNextOrderStatus("em_preparo", "retirada")).toBe("entregue");
-    expect(getNextOrderStatus("em_preparo", null)).toBe("entregue");
+  it("routes pickup and unknown fulfillment rows through pronto_para_retirada before entregue", () => {
+    expect(getNextOrderStatus("aguardando_confirmacao", "retirada")).toBe("em_preparo");
+    expect(getNextOrderStatus("em_preparo", "retirada")).toBe("pronto_para_retirada");
+    expect(getNextOrderStatus("pronto_para_retirada", "retirada")).toBe("entregue");
+    expect(getNextOrderStatus("em_preparo", null)).toBe("pronto_para_retirada");
+    expect(getNextOrderStatus("pronto_para_retirada", null)).toBe("entregue");
     expect(getNextOrderStatus("saiu_para_entrega", null)).toBeNull();
     expect(getNextOrderStatus("entregue", "entrega")).toBeNull();
+  });
+
+  it("counts pronto_para_retirada separately in admin summary totals", () => {
+    const counts = countOrdersByStatus([
+      parseAdminOrder({
+        id: "pickup-ready",
+        reference: "PED-READY",
+        customer_name: "Ana",
+        customer_email: "ana@example.com",
+        customer_phone: "11999999999",
+        status: "pronto_para_retirada",
+        items: [{ name: "X-Burger", quantity: 1 }],
+      })!,
+      parseAdminOrder({
+        id: "delivery-route",
+        reference: "PED-ROUTE",
+        customer_name: "Bruno",
+        customer_email: "bruno@example.com",
+        customer_phone: "11888888888",
+        status: "saiu_para_entrega",
+        fulfillment_type: "entrega",
+        items: [{ name: "X-Burger", quantity: 1 }],
+      })!,
+    ]);
+
+    expect(counts.pronto_para_retirada).toBe(1);
+    expect(counts.saiu_para_entrega).toBe(1);
   });
 });

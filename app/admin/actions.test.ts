@@ -62,7 +62,7 @@ describe("progressOrderStatus", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/admin");
   });
 
-  it("keeps pickup orders on the direct em preparo to entregue path (brief: pickup unchanged flow)", async () => {
+  it("progresses pickup orders from em preparo to pronto_para_retirada (brief: pickup ready-for-pickup step)", async () => {
     const supabase = makeSupabase({
       lookupResults: [
         {
@@ -71,7 +71,7 @@ describe("progressOrderStatus", () => {
         },
       ],
       updateResult: {
-        data: { id: "order-2", status: "entregue" },
+        data: { id: "order-2", status: "pronto_para_retirada" },
         error: null,
       },
     });
@@ -84,13 +84,13 @@ describe("progressOrderStatus", () => {
 
     expect(result).toEqual({
       ok: true,
-      nextStatus: "entregue",
-      nextStatusLabel: "Entregue",
+      nextStatus: "pronto_para_retirada",
+      nextStatusLabel: "Pronto para retirada",
     });
-    expect(supabase.state.updateCalls).toEqual([{ status: "entregue" }]);
+    expect(supabase.state.updateCalls).toEqual([{ status: "pronto_para_retirada" }]);
   });
 
-  it("does not force unknown fulfillment rows into the delivery-only step (brief: unknown fulfillment fallback)", async () => {
+  it("treats unknown fulfillment rows as pickup flow instead of delivery flow (brief: unknown fulfillment fallback)", async () => {
     const supabase = makeSupabase({
       lookupResults: [
         {
@@ -99,7 +99,7 @@ describe("progressOrderStatus", () => {
         },
       ],
       updateResult: {
-        data: { id: "order-legacy", status: "entregue" },
+        data: { id: "order-legacy", status: "pronto_para_retirada" },
         error: null,
       },
     });
@@ -112,9 +112,38 @@ describe("progressOrderStatus", () => {
 
     expect(result).toEqual({
       ok: true,
+      nextStatus: "pronto_para_retirada",
+      nextStatusLabel: "Pronto para retirada",
+    });
+    expect(supabase.state.updateCalls).toEqual([{ status: "pronto_para_retirada" }]);
+  });
+
+  it("progresses pickup orders from pronto_para_retirada to entregue (brief: pickup completion)", async () => {
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "pronto_para_retirada", fulfillment_type: "retirada" },
+          error: null,
+        },
+      ],
+      updateResult: {
+        data: { id: "order-pickup-done", status: "entregue" },
+        error: null,
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await progressOrderStatus({
+      orderId: "order-pickup-done",
+      currentStatus: "pronto_para_retirada",
+    });
+
+    expect(result).toEqual({
+      ok: true,
       nextStatus: "entregue",
       nextStatusLabel: "Entregue",
     });
+    expect(supabase.state.updateCalls).toEqual([{ status: "entregue" }]);
   });
 
   it("rejects pickup orders that are manually targeted at the delivery-only status (brief: pickup order attempts delivery-only step)", async () => {
