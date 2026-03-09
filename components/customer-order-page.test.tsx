@@ -574,10 +574,12 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const payload = JSON.parse(String(requestInit.body)) as {
+      fulfillmentType: string;
       paymentMethod: string;
       items: Array<{ menuItemId: string; quantity: number; extraIds?: string[] }>;
     };
 
+    expect(payload.fulfillmentType).toBe("retirada");
     expect(payload.paymentMethod).toBe("cartao");
     expect(payload.items).toEqual([
       {

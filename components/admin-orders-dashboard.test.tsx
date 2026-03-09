@@ -25,6 +25,9 @@ function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
     notes: null,
     paymentMethod: null,
     paymentMethodLabel: "Não informado",
+    fulfillmentType: null,
+    fulfillmentTypeLabel: "Não informado",
+    deliveryFeeCents: null,
     ...overrides,
   };
 }
@@ -347,7 +350,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     );
 
     expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
-    expect(screen.getByText("Não informado")).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders payment method fallback for unknown stored DB values in admin details (brief: unknown DB value fallback)", () => {
@@ -366,7 +369,7 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
     );
 
     expect(screen.getByText("Forma de pagamento")).toBeInTheDocument();
-    expect(screen.getByText("Não informado")).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders 'Total do pedido' in admin order details when pricing snapshots are available (brief: total display)", () => {

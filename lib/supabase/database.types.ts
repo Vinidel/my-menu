@@ -196,6 +196,8 @@ export type Database = {
           customer_email: string | null;
           customer_phone: string;
           payment_method: string | null;
+          fulfillment_type: string | null;
+          delivery_fee_cents: number | null;
           items: Json;
           status: "aguardando_confirmacao" | "em_preparo" | "entregue";
           notes: string | null;
@@ -210,6 +212,8 @@ export type Database = {
           customer_email?: string | null;
           customer_phone: string;
           payment_method?: string | null;
+          fulfillment_type?: string | null;
+          delivery_fee_cents?: number | null;
           items?: Json;
           status?: "aguardando_confirmacao" | "em_preparo" | "entregue";
           notes?: string | null;
@@ -224,6 +228,8 @@ export type Database = {
           customer_email?: string | null;
           customer_phone?: string;
           payment_method?: string | null;
+          fulfillment_type?: string | null;
+          delivery_fee_cents?: number | null;
           items?: Json;
           status?: "aguardando_confirmacao" | "em_preparo" | "entregue";
           notes?: string | null;

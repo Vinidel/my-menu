@@ -41,6 +41,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -80,6 +81,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -124,6 +126,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "(11) 99999-9999",
         paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -192,6 +195,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "(11) 99999-9999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -263,6 +267,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -303,6 +308,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -340,6 +346,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "cartao",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       makeFakeSupabase()
@@ -374,6 +381,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [
           {
             menuItemId: "x-burger",
@@ -413,6 +421,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999999999",
         paymentMethod: "credito" as never,
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       makeFakeSupabase()
@@ -446,6 +455,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "+55 (11) 99999-9999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       supabase
@@ -475,6 +485,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ana@example.com",
         customerPhone: "11999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       makeFakeSupabase()
@@ -508,6 +519,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "   ",
         customerPhone: "(11) 99999-9999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       supabase
@@ -537,6 +549,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: { value: "ana@example.com" } as never,
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       makeFakeSupabase()
@@ -582,6 +595,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "",
         customerPhone: "11999999999",
         paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       supabase
@@ -625,6 +639,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "ANA@example.com",
         customerPhone: "11999999999",
         paymentMethod: "cartao",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       supabase
@@ -671,6 +686,7 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
         customerEmail: "   ",
         customerPhone: "11999999999",
         paymentMethod: "pix",
+        fulfillmentType: "retirada",
         items: [{ menuItemId: "x-burger", quantity: 1 }],
       },
       supabase
