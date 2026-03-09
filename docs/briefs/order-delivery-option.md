@@ -169,4 +169,4 @@ Success = customer can explicitly choose delivery, the server persists the deliv
 - [x] Edge cases are surfaced
 - [x] Key decisions are locked
 - [x] Approach is outlined at a high level (no code)
-- [ ] Critic has approved this brief
+- [x] Critic has approved this brief
