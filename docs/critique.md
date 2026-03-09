@@ -3,7 +3,7 @@
 
 Date: 2026-03-09
 Reviewed by: Critic Agent
-Scope: Stage 2 test coverage for `docs/briefs/admin-delivery-status-step.md`
+Scope: Stage 3 refactor for `docs/briefs/admin-delivery-status-step.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,16 +12,16 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add a DB-level integration test around [supabase/migrations/20260309113000_add_delivery_out_for_delivery_status.sql](/Users/vinny/workspace/personal/my-menu/supabase/migrations/20260309113000_add_delivery_out_for_delivery_status.sql) in a later stage if the repo adds migration-test infrastructure; Stage 2 currently covers the app-layer rejection path well, but not the trigger/constraint behavior against a real database.
-- Consider muting or asserting expected `console.warn` / `console.error` output in [app/admin/actions.test.ts](/Users/vinny/workspace/personal/my-menu/app/admin/actions.test.ts) if the team wants quieter test logs, though the current output is acceptable and informative.
+- If more admin order query consumers are added later, consider keeping all admin-order fetch concerns together near [lib/admin-orders-query.ts](/Users/vinny/workspace/personal/my-menu/lib/admin-orders-query.ts) so the shared select contract does not drift again.
+- If the typed Supabase chain workaround in [app/admin/actions.ts](/Users/vinny/workspace/personal/my-menu/app/admin/actions.ts) is revisited in a later stage, keep the new `staleResult` helper intact or replace it with an equally centralized path to avoid reintroducing duplicate stale-handling branches.
 
 ### Risks / Assumptions
-- Approval assumes the Stage 1 production changes remain as reviewed previously; this Stage 2 review only covered the added/updated tests.
-- The new tests correctly lock the delivery-only flow, pickup fallback, unknown-fulfillment fallback, stale concurrency handling, and the updated admin query shape, but they still do not execute against a live Supabase instance.
-- Full repository tests pass on March 9, 2026 via `npm test`; a separate repo-wide typecheck issue remains outside this Stage 2 scope.
+- Approval assumes Stage 1 and Stage 2 artifacts remain unchanged in behavior; this review only covered the structural cleanup in the production code.
+- The new shared admin query constant reduces duplication cleanly, but any future column-shape change now affects both [app/admin/page.tsx](/Users/vinny/workspace/personal/my-menu/app/admin/page.tsx) and [app/api/admin/orders/route.ts](/Users/vinny/workspace/personal/my-menu/app/api/admin/orders/route.ts) simultaneously by design.
+- Full repository tests pass on March 9, 2026 via `npm test`, which is an appropriate Stage 3 safety gate for this repo.
 
 ## Acceptance Criteria
-- [ ] Keep the new Stage 2 coverage in place for future changes to admin status progression.
-- [ ] If the DB transition rules change later, add or update integration coverage so the DB contract and app-layer tests stay aligned.
-- [ ] Run Critic again after any Stage 3+ edits that touch the delivery-status flow or its tests.
+- [ ] Keep the shared admin orders select contract centralized unless there is a concrete reason to split it.
+- [ ] Preserve the single `staleResult` path if the status-update action is edited again.
+- [ ] Run Critic again after any Stage 4 hardening changes that touch the delivery-status flow or shared admin order queries.
 ---
