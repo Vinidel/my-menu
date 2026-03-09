@@ -153,10 +153,19 @@ export async function progressOrderStatus(
   if (!data) {
     const staleCheckTable = asOrdersStatusLookupChain(supabase.from("orders"));
 
-    const { data: currentOrder } = await staleCheckTable
+    const { data: currentOrder, error: staleLookupError } = await staleCheckTable
       .select(ORDER_STATUS_STALE_CHECK_COLUMNS)
       .eq("id", orderId)
       .maybeSingle();
+
+    if (staleLookupError) {
+      console.error("[admin/orders] failed to load current status after stale update miss", {
+        orderId,
+        expectedStatus: currentStatus,
+        message: staleLookupError.message,
+        code: staleLookupError.code,
+      });
+    }
 
     const current = getStatusLabelFromUnknown(currentOrder?.status);
     return staleResult(orderId, currentStatus, current);

@@ -759,3 +759,42 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Constraint-only hardening |
 | Observability | Gap       | Existing logs only; no delivery-specific counters |
 | Resilience    | Improved  | Stronger persistence invariants; rollout dependency documented |
+
+---
+
+## Admin Delivery Status Step (Stage 4)
+
+### Security
+
+- **DB invariant enforcement extended:** The new migration constrains `saiu_para_entrega` to rows where `fulfillment_type = 'entrega'`, in addition to the forward-only transition trigger. This closes the manual-write/direct-client gap for pickup rows entering the delivery-only status. **Improved in Stage 4.**
+- **Unknown fulfillment fallback preserved:** App-layer progression still treats missing or unknown `fulfillment_type` as non-delivery, so legacy rows are not forced into the delivery-only path. **No change.**
+
+### Dependencies
+
+- **No new dependencies:** Hardening uses existing Next.js, Supabase, and local helpers only. **No change.**
+- **Typed Supabase workaround remains:** `app/admin/actions.ts` still relies on narrow cast helpers for query-chain typing. This is a compile-time maintainability gap, not a new runtime risk. **Deferred.**
+
+### Performance
+
+- **Update path remains bounded:** The status progression action performs one small pre-update lookup and only performs a second lookup on stale-update misses. This is acceptable for the project’s small-scale operational profile. **Acceptable for current scope.**
+- **Shared admin query contract avoids drift:** Centralizing the admin order select columns removes duplication between `/admin` SSR and the polling route without adding runtime cost. **Improved in Stage 4.**
+
+### Observability
+
+- **Stale-miss diagnostics improved:** The admin action now logs a dedicated error when the follow-up status lookup fails after a conditional update miss, making “stale but unknown current status” incidents diagnosable without exposing customer PII. **Improved in Stage 4.**
+- **Migration rollout visibility remains manual:** There is still no automated runtime check that confirms the delivery-status migration was applied in each environment. Deployment sequencing must cover this. **Deferred.**
+
+### Resilience
+
+- **Safe stale fallback retained:** If another employee wins the update race, the UI still receives a deterministic stale response and reloads the current persisted label. If the follow-up lookup also fails, the action now logs that failure and still returns a safe stale response rather than crashing. **Improved in Stage 4.**
+- **Deployment ordering assumption remains:** If the application deploys before the new migration, app and database status contracts diverge. This remains an operational rollout requirement rather than an app-code fix. **Documented; not implemented.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | Improved  | Added DB applicability guard for delivery-only status |
+| Dependencies  | Deferred  | Supabase typed-chain workaround still present |
+| Performance   | OK        | Small bounded lookup cost only |
+| Observability | Improved  | Added stale-follow-up lookup failure logging |
+| Resilience    | Improved  | Safe stale fallback preserved even on follow-up lookup failure |
