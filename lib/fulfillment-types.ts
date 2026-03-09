@@ -7,6 +7,7 @@ const MAX_FULFILLMENT_TYPE_INPUT_LENGTH = 32;
 
 export const FULFILLMENT_DELIVERY_FEE_CENTS = 500;
 export const FULFILLMENT_TYPE_FALLBACK_LABEL = "Não informado";
+export const DEFAULT_FULFILLMENT_TYPE: FulfillmentType = "retirada";
 
 export type FulfillmentType = keyof typeof FULFILLMENT_TYPE_LABELS;
 
@@ -34,4 +35,10 @@ export function normalizeFulfillmentType(value: unknown): FulfillmentType | null
 export function getFulfillmentTypeLabel(value: unknown): string | null {
   const normalized = normalizeFulfillmentType(value);
   return normalized ? FULFILLMENT_TYPE_LABELS[normalized] : null;
+}
+
+export function getDeliveryFeeCentsForFulfillmentType(
+  fulfillmentType: FulfillmentType
+): number {
+  return fulfillmentType === "entrega" ? FULFILLMENT_DELIVERY_FEE_CENTS : 0;
 }

@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
-  FULFILLMENT_DELIVERY_FEE_CENTS,
+  DEFAULT_FULFILLMENT_TYPE,
   FULFILLMENT_TYPE_OPTIONS,
+  getDeliveryFeeCentsForFulfillmentType,
   type FulfillmentType,
 } from "@/lib/fulfillment-types";
 import type { MenuExtra, MenuItem, MenuRemovableIngredient } from "@/lib/menu";
@@ -136,7 +137,9 @@ export function CustomerOrderPage({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("retirada");
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>(
+    DEFAULT_FULFILLMENT_TYPE
+  );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -190,8 +193,7 @@ export function CustomerOrderPage({
     (acc, entry) => acc + (entry.item.priceCents ?? 0) * entry.quantity,
     0
   );
-  const deliveryFeeCents =
-    fulfillmentType === "entrega" ? FULFILLMENT_DELIVERY_FEE_CENTS : 0;
+  const deliveryFeeCents = getDeliveryFeeCentsForFulfillmentType(fulfillmentType);
   const estimatedTotalPriceCents = totalPriceCents + deliveryFeeCents;
   const cartCountLabel = formatItemCountLabel(totalItems);
   const cartFeedbackState = isCartFeedbackActive ? "recent-add" : "idle";
@@ -243,9 +245,7 @@ export function CustomerOrderPage({
     });
 
     if (editingLineId === lineId && nextQuantity <= 0) {
-      setEditingLineId(null);
-      setEditingLineExtraIds([]);
-      setEditingLineRemovedIngredientIds([]);
+      resetEditingLineState();
     }
   }
 
@@ -254,16 +254,20 @@ export function CustomerOrderPage({
     setCustomizingMenuItemId(null);
     setDraftExtrasByMenuItemId({});
     setDraftRemovedIngredientsByMenuItemId({});
-    setEditingLineId(null);
-    setEditingLineExtraIds([]);
-    setEditingLineRemovedIngredientIds([]);
+    resetEditingLineState();
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
-    setFulfillmentType("retirada");
+    setFulfillmentType(DEFAULT_FULFILLMENT_TYPE);
     setPaymentMethod("");
     setCustomerNotes("");
     setFieldErrors({});
+  }
+
+  function resetEditingLineState() {
+    setEditingLineId(null);
+    setEditingLineExtraIds([]);
+    setEditingLineRemovedIngredientIds([]);
   }
 
   function clearFieldError(field: keyof FieldErrors) {
@@ -446,9 +450,7 @@ export function CustomerOrderPage({
         editingLineRemovedIngredientIds
       )
     );
-    setEditingLineId(null);
-    setEditingLineExtraIds([]);
-    setEditingLineRemovedIngredientIds([]);
+    resetEditingLineState();
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -818,9 +820,7 @@ export function CustomerOrderPage({
             onToggleEditingLineRemovedIngredient={toggleEditingLineRemovedIngredient}
             onSaveEditingLineCustomization={saveEditedLineCustomization}
             onCancelEditingLineCustomization={() => {
-              setEditingLineId(null);
-              setEditingLineExtraIds([]);
-              setEditingLineRemovedIngredientIds([]);
+              resetEditingLineState();
             }}
             onBackToMenu={() => setActiveTab("cardapio")}
           />

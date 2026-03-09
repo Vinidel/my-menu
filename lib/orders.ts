@@ -1,6 +1,6 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
 import {
-  FULFILLMENT_DELIVERY_FEE_CENTS,
+  getDeliveryFeeCentsForFulfillmentType,
   FULFILLMENT_TYPE_FALLBACK_LABEL,
   getFulfillmentTypeLabel,
   normalizeFulfillmentType,
@@ -259,8 +259,9 @@ function getDeliveryFeeCentsFromUnknown(
 
   const parsed = parseNonNegativeCents(value, MAX_PARSED_DELIVERY_FEE_CENTS);
   if (parsed === null) return null;
-  if (fulfillmentType === "retirada" && parsed !== 0) return null;
-  if (fulfillmentType === "entrega" && parsed !== FULFILLMENT_DELIVERY_FEE_CENTS) return null;
+  if (fulfillmentType && parsed !== getDeliveryFeeCentsForFulfillmentType(fulfillmentType)) {
+    return null;
+  }
   return parsed;
 }
 

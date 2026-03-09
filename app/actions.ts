@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  FULFILLMENT_DELIVERY_FEE_CENTS,
+  getDeliveryFeeCentsForFulfillmentType,
   normalizeFulfillmentType,
   type FulfillmentType,
 } from "@/lib/fulfillment-types";
@@ -184,8 +184,7 @@ export async function submitCustomerOrderWithClient(
       customer_phone: normalizedPhone,
       payment_method: paymentMethod,
       fulfillment_type: fulfillmentType,
-      delivery_fee_cents:
-        fulfillmentType === "entrega" ? FULFILLMENT_DELIVERY_FEE_CENTS : 0,
+      delivery_fee_cents: getDeliveryFeeCentsForFulfillmentType(fulfillmentType),
       notes,
       items: orderItems,
       status: "aguardando_confirmacao" satisfies OrderStatus,
