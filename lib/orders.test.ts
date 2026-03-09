@@ -98,6 +98,26 @@ describe("parseAdminOrder total amount display", () => {
     expect(order?.totalAmountLabel).toBe("R$ 65,00");
   });
 
+  it("adds persisted delivery fee to admin total for delivery orders (brief: historical delivery fee accuracy)", () => {
+    const order = parseAdminOrder({
+      id: "delivery-total",
+      reference: "PED-DELIVERY",
+      customer_name: "Carlos",
+      customer_email: "carlos@example.com",
+      customer_phone: "11777777777",
+      status: "aguardando_confirmacao",
+      fulfillment_type: "entrega",
+      delivery_fee_cents: 500,
+      items: [{ name: "X-Burger", quantity: 1, lineTotalCents: 2500 }],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.fulfillmentType).toBe("entrega");
+    expect(order?.fulfillmentTypeLabel).toBe("Entrega");
+    expect(order?.totalAmountCents).toBe(3000);
+    expect(order?.totalAmountLabel).toBe("R$ 30,00");
+  });
+
   it("returns total indisponível for legacy items without pricing snapshots", () => {
     const order = parseAdminOrder({
       id: "4",
@@ -112,6 +132,39 @@ describe("parseAdminOrder total amount display", () => {
     expect(order).not.toBeNull();
     expect(order?.totalAmountCents).toBeNull();
     expect(order?.totalAmountLabel).toBe("Indisponível");
+  });
+
+  it("falls back to 'Não informado' for legacy orders without fulfillment type", () => {
+    const order = parseAdminOrder({
+      id: "legacy-fulfillment-null",
+      reference: "PED-LEGACYNULL",
+      customer_name: "Ana",
+      customer_email: "ana@example.com",
+      customer_phone: "11999999999",
+      status: "aguardando_confirmacao",
+      items: [{ name: "X-Burger", quantity: 1 }],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.fulfillmentType).toBeNull();
+    expect(order?.fulfillmentTypeLabel).toBe("Não informado");
+  });
+
+  it("falls back to 'Não informado' for unknown stored fulfillment values", () => {
+    const order = parseAdminOrder({
+      id: "legacy-fulfillment-unknown",
+      reference: "PED-LEGACYUNKNOWN",
+      customer_name: "Ana",
+      customer_email: "ana@example.com",
+      customer_phone: "11999999999",
+      status: "aguardando_confirmacao",
+      fulfillment_type: "motoboy_externo",
+      items: [{ name: "X-Burger", quantity: 1 }],
+    });
+
+    expect(order).not.toBeNull();
+    expect(order?.fulfillmentType).toBeNull();
+    expect(order?.fulfillmentTypeLabel).toBe("Não informado");
   });
 
   it("returns total indisponível when any selected extra lacks price snapshot", () => {

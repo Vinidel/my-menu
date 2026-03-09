@@ -169,6 +169,41 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/admin");
   });
 
+  it("persists delivery fulfillment and fixed delivery fee for delivery orders (brief: delivery persistence)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+          },
+        ],
+      ])
+    );
+
+    const supabase = makeFakeSupabase();
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "(11) 99999-9999",
+        paymentMethod: "pix",
+        fulfillmentType: "entrega",
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      supabase
+    );
+
+    expect(result).toEqual({ ok: true, orderReference: "PED-TESTE123" });
+    expect(supabase.state.orderInsertPayload).toMatchObject({
+      fulfillment_type: "entrega",
+      delivery_fee_cents: 500,
+    });
+  });
+
   it("persists normalized removed ingredients snapshots and keeps lines separate when removals differ (brief: removals merge key + snapshot source)", async () => {
     vi.mocked(getMenuItemMap).mockReturnValue(
       new Map([
@@ -431,6 +466,39 @@ describe("submitCustomerOrderWithClient (item customization)", () => {
       ok: false,
       code: "validation",
       message: "Selecione uma forma de pagamento válida.",
+    });
+  });
+
+  it("rejects tampered fulfillment type values (brief: fulfillment server validation)", async () => {
+    vi.mocked(getMenuItemMap).mockReturnValue(
+      new Map([
+        [
+          "x-burger",
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2500,
+          },
+        ],
+      ])
+    );
+
+    const result = await submitCustomerOrderWithClient(
+      {
+        customerName: "Ana",
+        customerEmail: "ana@example.com",
+        customerPhone: "11999999999",
+        paymentMethod: "pix",
+        fulfillmentType: "delivery" as never,
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      },
+      makeFakeSupabase()
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Selecione um tipo de entrega válido.",
     });
   });
 

@@ -3,7 +3,7 @@
 
 Date: 2026-03-09
 Reviewed by: Critic Agent
-Scope: `docs/briefs/order-delivery-option.md` (Stage 0 brief)
+Scope: Stage 1 implementation for `docs/briefs/order-delivery-option.md`
 Verdict: APPROVE
 
 ## Findings
@@ -12,15 +12,21 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider aligning `docs/briefs/order-delivery-option.md:59` with the locked legacy display rule at `docs/briefs/order-delivery-option.md:155` so “legacy behaves safely as pickup” vs “legacy displays as unknown” is spelled out more explicitly for implementers.
+- Consider adding a dedicated fulfillment fallback assertion in admin-focused tests so future changes do not silently regress `Tipo de entrega: Não informado`.
+- Consider a later brief for full customer-side total parity when extras are selected; the current Stage 1 note correctly records that the checkout estimate still does not fully model extras pricing.
 
 ### Risks / Assumptions
-- The feature intentionally depends on manual follow-up to capture the delivery address after order submission.
-- Historical delivery-fee accuracy depends on implementation honoring the locked persistence rules for `delivery_fee_cents`.
+- This approval assumes the draft PR with label `stage-1-impl` is already open, as you confirmed.
+- The implementation assumes the new migration will be applied before the updated submit/admin paths run against production data.
+- Historical total accuracy depends on `delivery_fee_cents` being written consistently for all new orders after rollout.
+- Delivery address capture remains a manual follow-up outside the app, as locked by the brief.
 
 ## Acceptance Criteria
-- [x] Problem and scope are aligned with the narrowed feature.
-- [x] Admin visibility for fulfillment type is explicitly defined.
-- [x] Delivery surcharge storage/representation is locked for historical accuracy.
-- [x] Delivery field contract and canonical values are explicitly defined.
+- [x] Customer checkout exposes `Retirada` / `Entrega` with `Retirada` preselected.
+- [x] Server validates and persists canonical `fulfillmentType` values.
+- [x] Delivery fee is server-authoritative and stored per order.
+- [x] `/admin` details display `Tipo de entrega`.
+- [x] Admin status progression remains unchanged.
+- [x] Unrelated issue was logged in `docs/implementation-notes.md`.
+- [x] Draft PR is opened with label `stage-1-impl`.
 ---

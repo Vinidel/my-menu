@@ -60,6 +60,18 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByRole("button", { name: "Voltar ao cardápio" })).toBeInTheDocument();
   });
 
+  it("shows fulfillment options with 'Retirada' preselected in checkout (brief: default pickup flow)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    addFirstMenuItemAndOpenCart();
+
+    const retirada = screen.getByLabelText("Retirada") as HTMLInputElement;
+    const entrega = screen.getByLabelText("Entrega") as HTMLInputElement;
+
+    expect(retirada).toBeChecked();
+    expect(entrega).not.toBeChecked();
+  });
+
   it("shows store phone contact link when provided (brief: menu phone display)", () => {
     render(
       <CustomerOrderPage
@@ -588,6 +600,39 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
         extraIds: ["bacon-extra", "queijo-extra"],
       },
     ]);
+  });
+
+  it("submits a delivery order with fulfillment type and shows the fixed delivery fee in checkout (brief: delivery happy path)", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        orderReference: "PED-DELIVERY1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    addFirstMenuItemAndOpenCart();
+    fillRequiredCheckoutFields();
+    fireEvent.click(screen.getByLabelText("Entrega"));
+
+    expect(screen.getByText("Taxa de entrega:")).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s*5,00/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s*30,00/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(requestInit.body)) as {
+      fulfillmentType: string;
+      paymentMethod: string;
+    };
+
+    expect(payload.fulfillmentType).toBe("entrega");
+    expect(payload.paymentMethod).toBe("pix");
   });
 
   it("submits removed ingredients and renders 'Sem:' in cart summary (brief: removals payload shape + summary display)", async () => {
