@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient as createSupabaseRequestClient } from "@/lib/supabase/server";
 
 export type RequestClient = NonNullable<Awaited<ReturnType<typeof createSupabaseRequestClient>>>;

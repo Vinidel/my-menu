@@ -1,3 +1,4 @@
+import "server-only";
 import { createPrivilegedClient, type PrivilegedClient } from "@/lib/privileged-client";
 import { createRequestClient, type RequestClient } from "@/lib/request-client";
 

@@ -875,3 +875,38 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | No extra queries introduced |
 | Observability | Improved  | Added unexpected conditional-update result logging |
 | Resilience    | Improved  | Success path now validates returned row before accepting write |
+
+---
+
+## Provider-Agnostic Client Naming Follow-Up (Stage 4)
+
+### Security
+
+- **No privilege-boundary regression:** The split request/privileged/browser entrypoints still delegate to the same underlying Supabase implementations, and no new browser path can reach the service-role client through the app-facing boundary. **No change.**
+
+### Dependencies
+
+- **No new packages required:** Hardening uses Next's existing `server-only` and `client-only` guards, which are already available in the project dependency tree. **No change.**
+
+### Performance
+
+- **No material runtime overhead:** The added guards are import-time environment assertions only; they do not add meaningful request or render cost. **No change.**
+
+### Observability
+
+- **Boundary violations still rely on framework failures:** The main safeguard here is earlier import/build failure rather than new logs or metrics. If this class of issue recurs, add lint or CI-specific checks in a later observability pass. **Deferred.**
+
+### Resilience
+
+- **Explicit environment fences added:** `lib/request-client.ts`, `lib/privileged-client.ts`, and `lib/request-and-privileged-clients.ts` now declare `server-only`, while `lib/browser-client.ts` declares `client-only`. This hardens the provider-agnostic boundary against accidental mixed-environment imports like the `next/headers` build regression. **Improved in Stage 4.**
+- **Earlier and clearer failure mode:** Incorrect future imports should now fail closer to the offending module boundary instead of surfacing later as an indirect `next/headers` pipeline error. **Improved in Stage 4.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | No secret or privilege exposure change |
+| Dependencies  | OK        | Reused built-in Next environment guards |
+| Performance   | OK        | Import-time assertions only |
+| Observability | Gap       | No dedicated boundary telemetry yet |
+| Resilience    | Improved  | Added explicit `server-only` / `client-only` fences |
