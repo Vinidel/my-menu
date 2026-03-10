@@ -1,0 +1,1 @@
+Add cash change as one of the placeholders in the Observações text input

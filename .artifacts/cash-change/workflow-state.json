@@ -1,0 +1,8 @@
+{
+  "feature": "cash-change",
+  "workflow": "full",
+  "current_stage": "orchestrator",
+  "status": "gatekeeper_synced",
+  "critic_verdict": "APPROVE",
+  "handoff": ".artifacts/cash-change/orchestrator/handoff.md"
+}

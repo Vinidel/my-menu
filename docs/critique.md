@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 3 refactor for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
+Scope: Orchestrator Stage 0 for `cash-change` (`.artifacts/cash-change/orchestrator/handoff.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,16 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- If more slices start using paired request+privileged access, consider documenting when `createRequestAndPrivilegedClients()` is preferred over the individual helpers so the boundary stays consistent instead of becoming a grab bag of convenience functions.
+- [.artifacts/cash-change/orchestrator/handoff.md](/Users/vinny/workspace/personal/my-menu/.artifacts/cash-change/orchestrator/handoff.md#L31) could cite the existing test surface alongside the UI surface, since the brief already directs regression coverage in [docs/briefs/cash-change.md](/Users/vinny/workspace/personal/my-menu/docs/briefs/cash-change.md#L118) and the likely target is [components/customer-order-page.test.tsx](/Users/vinny/workspace/personal/my-menu/components/customer-order-page.test.tsx#L410).
 
 ### Risks / Assumptions
-- The new paired helper improves clarity for the menu-import slice, but future use should stay disciplined so it does not encourage unrelated callers to take privileged access when they only need request-scoped auth.
-- The exported client type aliases are convenient, but they still derive from provider-specific return types under the hood, so this remains an app-layer naming refactor rather than a provider-neutral type boundary.
+- The `Full` workflow remains process-heavy for a placeholder-only enhancement, but the brief and handoff consistently record that this was an explicit operator override rather than a product-risk judgment; this review assumes downstream stages should honor that override.
+- The brief leaves the final pt-BR placeholder wording open by design, so Implementer still needs to avoid copy that implies a structured `troco` field or cash-only behavior. The current UI surface is the textarea at [components/customer-order-page.tsx](/Users/vinny/workspace/personal/my-menu/components/customer-order-page.tsx#L1159).
+- The mobile overflow edge case in [docs/briefs/cash-change.md](/Users/vinny/workspace/personal/my-menu/docs/briefs/cash-change.md#L110) is acceptable as a surfaced risk, but it may be awkward to verify beyond a narrow rendering assertion in jsdom.
 
 ## Acceptance Criteria
-- [ ] Stage 4 changes, if any, keep the app-client boundary focused and do not broaden privileged access usage unnecessarily.
-- [ ] `lib/app-clients.test.ts` continues to cover the paired helper as well as the individual request/browser/privileged helpers.
-- [ ] The locked app/component set remains free of direct provider-specific client imports.
-- [ ] The full test suite remains green after later stages.
+
+- [x] The Stage 0 handoff and brief both trace the product ask back to [docs/requests/cash-change.md](/Users/vinny/workspace/personal/my-menu/docs/requests/cash-change.md#L1).
+- [x] The workflow routing decision is explicit, justified, and clearly distinguished from the narrower product scope in [docs/briefs/cash-change.md](/Users/vinny/workspace/personal/my-menu/docs/briefs/cash-change.md#L10) and [.artifacts/cash-change/orchestrator/handoff.md](/Users/vinny/workspace/personal/my-menu/.artifacts/cash-change/orchestrator/handoff.md#L16).
+- [x] Scope is locked to placeholder-copy only, with non-goals preventing drift into a structured `troco` feature in [docs/briefs/cash-change.md](/Users/vinny/workspace/personal/my-menu/docs/briefs/cash-change.md#L84).
+- [x] Happy paths, unhappy paths, edge cases, and key decisions are documented well enough for Implementer and Tester to proceed from [docs/briefs/cash-change.md](/Users/vinny/workspace/personal/my-menu/docs/briefs/cash-change.md#L94).
