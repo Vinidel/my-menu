@@ -9,7 +9,8 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 ## What Was Delivered
 
 - **Dashboard route:** `/admin` now renders the employee orders dashboard (protected by existing auth middleware).
-- **Orders list:** Orders are loaded from Supabase and displayed **do mais antigo para o mais recente** (`created_at` ascending).
+- **Orders list:** Orders are loaded and displayed **do mais antigo para o mais recente** (`created_at` ascending).
+- **Admin/orders data-access boundary:** The dashboard load, polling route, and status progression path now go through a dedicated `admin/orders` data-access contract with a Supabase-backed adapter instead of raw order queries at every call site.
 - **Summary counts:** Top summary cards show totals for the locked statuses:
   - `Esperando confirmação`
   - `Em preparo`
@@ -34,6 +35,9 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 | Admin dashboard page | `app/admin/page.tsx` |
 | Dashboard UI (list/details/summary/actions) | `components/admin-orders-dashboard.tsx` |
 | Status progression server action | `app/admin/actions.ts` |
+| Admin/orders data-access contract | `lib/admin-orders-data-access.ts` |
+| Supabase-backed admin/orders adapter | `lib/supabase/admin-orders-data-access.ts` |
+| Shared admin order select contract | `lib/admin-orders-query.ts` |
 | Order parsing + status helpers | `lib/orders.ts` |
 | Supabase DB types | `lib/supabase/database.types.ts` |
 | Orders table migration | `supabase/migrations/20260223_000001_create_orders_table.sql` |
@@ -53,6 +57,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 - **Delivery-only label (pt-BR):** `Saiu para entrega`.
 - **Progression rule:** Forward-only progression; no reverse or jump transitions.
 - **Concurrency behavior:** Stale updates are rejected (conditional update on `id` + current `status`) and the UI refreshes the displayed status.
+- **Abstraction boundary:** Admin auth/session validation remains outside the admin/orders data-access layer.
 - **Language:** All employee-facing UI/messages are Portuguese (pt-BR).
 
 ---
@@ -60,6 +65,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 ## Known Gaps & Deferred Work
 
 - **Supabase typing workaround:** `app/admin/actions.ts` uses narrow cast helpers around Supabase query chains because `@supabase/ssr` generic inference returned `never` for `.update()` in this setup. Runtime behavior is fine, but compile-time safety is weaker than desired. Follow-up: revisit library versions or wrap queries in typed helpers.
+- **First-slice only:** The admin/orders abstraction is intentionally the first slice only, not a repo-wide repository layer. Other Supabase touchpoints remain by design.
 - **No pagination/search/filtering:** Dashboard intentionally loads and renders a single ordered list only (brief non-goal). Add a new brief if order volume grows.
 - **No realtime updates:** Status/list updates are local UI refreshes after actions; no Supabase Realtime or polling.
 - **No structured metrics/tracing:** Server-side logs exist for failures, but there is no metrics/tracing for order operations yet.
@@ -70,6 +76,7 @@ Summary for the next engineer: what was built, where it lives, what was deferred
 ## Operational Notes
 
 - **Required DB objects:** The orders table migration, the original status-transition hardening migration, and the later delivery/pickup status migrations have been applied in the current environment. Any new environment must apply them before using the dashboard in production.
+- **Runtime abstraction contract:** `/admin`, `GET /api/admin/orders`, and `progressOrderStatus` all depend on the shared admin/orders data-access boundary. Keep those callers aligned with `lib/admin-orders-data-access.ts` if you extend the slice.
 - **Migration filename/version:** If Supabase CLI treats only the leading numeric prefix as the migration version, use unique full numeric timestamps for every migration file (e.g. `YYYYMMDDHHMMSS_*`) to avoid `schema_migrations_pkey` conflicts.
 - **Seed data:** `supabase/seed.sql` provides demo orders across all three statuses and is safe to re-run (`ON CONFLICT (reference)`).
 - **RLS expectations:** Authenticated users can `SELECT` orders and `UPDATE status` only. Status transitions are additionally enforced by DB trigger.
@@ -89,4 +96,5 @@ Summary for the next engineer: what was built, where it lives, what was deferred
   - brief + docs
 
 See also: [docs/admin-delivery-status-step.md](admin-delivery-status-step.md), [docs/admin-ready-for-pickup-status-step.md](admin-ready-for-pickup-status-step.md)
+See also: [docs/tech-review-data-access-abstraction.md](tech-review-data-access-abstraction.md)
 - **If you add admin routes:** Middleware already protects `/admin/*` (except `/admin/login`) from the auth feature; reuse the same admin layout unless you intentionally split layouts.
