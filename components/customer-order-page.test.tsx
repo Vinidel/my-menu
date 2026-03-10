@@ -396,6 +396,50 @@ describe("CustomerOrderPage (Customer Order Submission)", () => {
     expect(screen.getByText("0 itens")).toBeInTheDocument();
   });
 
+  it("shows the notes placeholder with a troco example in pt-BR (brief: cash-change placeholder guidance)", () => {
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    addFirstMenuItemAndOpenCart();
+
+    expect(screen.getByLabelText("Observações (opcional)")).toHaveAttribute(
+      "placeholder",
+      "Ex.: sem cebola, ponto da carne, troco para R$ 50, retirar molho..."
+    );
+  });
+
+  it("keeps troco as plain free text in the existing notes payload (brief: no structured troco flow)", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        orderReference: "PED-TROCO123",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<CustomerOrderPage menuItems={MENU_ITEMS} isSupabaseConfigured />);
+
+    addFirstMenuItemAndOpenCart();
+    fillRequiredCheckoutFields();
+    fireEvent.change(screen.getByLabelText("Observações (opcional)"), {
+      target: { value: "Troco para R$ 50 e sem cebola" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(requestInit.body)) as {
+      notes: string;
+      troco?: unknown;
+      cashChange?: unknown;
+    };
+
+    expect(payload.notes).toBe("Troco para R$ 50 e sem cebola");
+    expect(payload).not.toHaveProperty("troco");
+    expect(payload).not.toHaveProperty("cashChange");
+  });
+
   it("submits to /api/orders, shows success, and resets the order form (brief: submit success state)", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,

@@ -1159,7 +1159,7 @@ function OrderSummaryTab({
           <label htmlFor="customer-notes" className="text-sm font-medium">Observações (opcional)</label>
           <textarea
             id="customer-notes"
-            placeholder="Ex.: sem cebola, ponto da carne, retirar molho..."
+            placeholder="Ex.: sem cebola, ponto da carne, troco para R$ 50, retirar molho..."
             value={customerNotes}
             onChange={(event) => onCustomerNotesChange(event.target.value)}
             disabled={isPending}
