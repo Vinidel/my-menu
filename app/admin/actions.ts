@@ -140,6 +140,17 @@ export async function progressOrderStatus(
     return staleResult(orderId, currentStatus, current);
   }
 
+  if (data.id !== orderId || data.status !== nextStatus) {
+    console.error("[admin/orders] conditional status update returned unexpected persisted result", {
+      orderId,
+      currentStatus,
+      nextStatus,
+      returnedId: data.id,
+      returnedStatus: data.status,
+    });
+    return errorResult("unknown", UPDATE_STATUS_ERROR_MESSAGE);
+  }
+
   revalidatePath("/admin");
 
   return {

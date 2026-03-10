@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 3 refactor for docs/briefs/tech-review-data-access-abstraction.md
+Scope: Stage 4 hardening for docs/briefs/tech-review-data-access-abstraction.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- If the admin/orders abstraction expands later, consider moving the repeated Supabase adapter table-shape helpers into a more explicit internal adapter utility module so this file does not become the next concentration point for provider-specific plumbing.
+- If this abstraction grows further, consider moving the new “unexpected persisted result” validation closer to the adapter boundary so the invariant lives with the persistence contract instead of the action caller.
 
 ### Risks / Assumptions
-- The new `loadOrderStatusSnapshot` helper in `app/admin/actions.ts` is intentionally thin; Stage 3 assumes this small indirection is acceptable as a duplication reduction even though it does not yet add new behavior.
-- The adapter still uses local cast helpers around Supabase chains, so the refactor improves structure but does not materially change the underlying provider-typing risk.
+- The new fail-closed validation still depends on mocked adapter behavior in tests; there is no live integration proof that Supabase cannot return a surprising row shape under future query changes.
+- Hardening intentionally does not add runtime health checks for admin/orders schema or migration state, so deploy sequencing remains an operational assumption outside the app.
 
 ## Acceptance Criteria
-- [ ] Stage 4 changes, if any, remain within the locked `admin/orders` slice and do not absorb auth/session handling into the abstraction.
-- [ ] The refactored adapter helpers continue to preserve the current query shapes and result mapping behavior.
-- [ ] `progressOrderStatus` continues to preserve stale-update, validation, and success behavior after any hardening changes.
-- [ ] The full test suite remains green after later stages.
+- [ ] Stage 5 documentation records the admin/orders abstraction scope, the fact that auth/session checks remain outside it, and the remaining deferred provider-typing/runtime-health assumptions.
+- [ ] The unexpected conditional-update result guard remains covered by tests and continues to fail closed with the existing pt-BR error message.
+- [ ] No later stage expands this abstraction beyond the locked `admin/orders` slice without a new brief decision.
+- [ ] The full test suite remains green after documentation changes.

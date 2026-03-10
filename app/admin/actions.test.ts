@@ -265,6 +265,34 @@ describe("progressOrderStatus", () => {
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
+
+  it("returns a generic error when the conditional update returns an unexpected persisted record (hardening: unexpected update result)", async () => {
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "em_preparo", fulfillment_type: "retirada" },
+          error: null,
+        },
+      ],
+      updateResult: {
+        data: { id: "other-order", status: "entregue" },
+        error: null,
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+
+    const result = await progressOrderStatus({
+      orderId: "order-hardening",
+      currentStatus: "em_preparo",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "unknown",
+      message: "Não foi possível atualizar o status do pedido.",
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
 });
 
 function makeSupabase(input: {
