@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 1 implementation for docs/briefs/tech-review-data-access-abstraction.md
+Scope: Stage 2 tests for docs/briefs/tech-review-data-access-abstraction.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Add Stage 2 coverage that exercises the new data-access adapter boundary directly, not only the page, route, and action call sites.
+- In a later pass, consider a small adapter test for the `null` snapshot path on `getAdminOrderStatusSnapshot` so the no-row branch is covered directly at the boundary as well.
 
 ### Risks / Assumptions
-- The abstraction reduces app-layer Supabase coupling for the locked slice, but the Supabase adapter still relies on local chain casts, so provider-specific typing fragility remains inside the adapter.
-- This stage intentionally covers only the `admin/orders` slice; other direct Supabase touchpoints elsewhere in the repo remain by design.
+- The adapter tests still validate Supabase behavior through mocked chain shapes, so they protect the boundary contract but not a live Supabase integration.
+- `app/admin/actions.test.ts` remains the main proof that the migrated action preserves stale-update and status-progression behavior; Stage 2 assumes that existing coverage remains representative after the abstraction move.
 
 ## Acceptance Criteria
-- [ ] Stage 2 adds tests that cover the new admin/orders data-access boundary where practical.
-- [ ] The migrated call sites in `app/admin/page.tsx`, `app/api/admin/orders/route.ts`, and `app/admin/actions.ts` preserve current behavior.
-- [ ] Admin auth/session validation remains outside the data-access abstraction.
-- [ ] The full test suite remains green after Stage 2 changes.
+- [ ] The new adapter test file continues to cover list, snapshot, conditional update, and error paths for the admin/orders Supabase adapter.
+- [ ] `/admin` and `GET /api/admin/orders` tests continue to assert use of the admin/orders data-access boundary instead of raw Supabase order queries.
+- [ ] Auth/session validation remains tested at the route/action edge rather than inside the data-access abstraction.
+- [ ] The full test suite remains green after later stages.
