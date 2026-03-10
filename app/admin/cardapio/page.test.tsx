@@ -2,12 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import AdminMenuImportPage from "./page";
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
-}));
-
-vi.mock("@/lib/supabase/service-role", () => ({
-  createServiceRoleClient: vi.fn(),
+vi.mock("@/lib/app-clients", () => ({
+  createRequestClient: vi.fn(),
+  createPrivilegedClient: vi.fn(),
 }));
 
 vi.mock("./upload-form", () => ({
@@ -20,13 +17,12 @@ vi.mock("./processing-poller", () => ({
   ),
 }));
 
-import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
 
 describe("AdminMenuImportPage", () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockReset();
-    vi.mocked(createServiceRoleClient).mockReset();
+    vi.mocked(createRequestClient).mockReset();
+    vi.mocked(createPrivilegedClient).mockReset();
   });
 
   afterEach(() => {
@@ -35,16 +31,16 @@ describe("AdminMenuImportPage", () => {
 
   it("uses explicit FK relationship for import_job select (stage 2: join regression guard)", async () => {
     const selectCalls: string[] = [];
-    vi.mocked(createClient).mockResolvedValue({
+    vi.mocked(createRequestClient).mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "vinidroid@gmail.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
 
-    vi.mocked(createServiceRoleClient).mockReturnValue({
+    vi.mocked(createPrivilegedClient).mockReturnValue({
       from: vi.fn().mockImplementation(() => {
         const builder = {
           select: vi.fn((query: string) => {
@@ -69,14 +65,14 @@ describe("AdminMenuImportPage", () => {
   });
 
   it("hides actions for processing draft and shows actions for ready draft (stage 2: processing UX)", async () => {
-    vi.mocked(createClient).mockResolvedValue({
+    vi.mocked(createRequestClient).mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "vinidroid@gmail.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
 
     const activeRows = [];
     const draftRows = [
@@ -106,7 +102,7 @@ describe("AdminMenuImportPage", () => {
       },
     ];
 
-    vi.mocked(createServiceRoleClient).mockReturnValue({
+    vi.mocked(createPrivilegedClient).mockReturnValue({
       from: vi.fn().mockImplementation(() => {
         const builder = {
           select: vi.fn((query: string) => {

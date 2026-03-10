@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 0 brief for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
+Scope: Stage 1 implementation for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- During implementation, keep an eye on whether app-facing factory names need distinct semantics for auth-scoped versus service-role access so the new provider-agnostic naming does not become overly vague.
+- In Stage 2 or Stage 3, consider adding a small direct test file for `lib/app-clients.ts` so the new app-facing boundary itself is covered explicitly instead of only through migrated call sites.
 
 ### Risks / Assumptions
-- The brief intentionally allows `lib/**` to keep importing `lib/supabase/*`, so this feature will improve app-layer decoupling without fully removing provider naming from internal library code.
-- Because the locked migration set includes several different areas at once, implementation discipline still matters to avoid mixing inconsistent naming patterns across auth, service-role, and browser-client entrypoints.
+- The implementation intentionally leaves provider naming inside `lib/**`, so this is app-layer decoupling rather than full provider-neutralization across the repo.
+- The new app-facing client names are generic by design; future slices should keep their semantics clear so `request`, `browser`, and `privileged` access do not drift into ambiguous usage.
 
 ## Acceptance Criteria
-- [ ] The full locked app/component migration set is covered, not just a subset of obvious files.
-- [ ] App-layer files stop importing `@/lib/supabase/server`, `@/lib/supabase/client`, and `@/lib/supabase/service-role` directly for the migrated slice.
-- [ ] Provider-specific implementation remains allowed and contained inside `lib/**`.
-- [ ] Behavior remains unchanged and the test suite stays green.
+- [ ] Stage 2 verifies the migrated app/component call sites continue using the provider-agnostic `lib/app-clients.ts` boundary.
+- [ ] The full locked migration set remains free of direct `@/lib/supabase/server`, `@/lib/supabase/client`, and `@/lib/supabase/service-role` imports.
+- [ ] Provider-specific implementation remains internal to `lib/**`.
+- [ ] The full test suite remains green after later stages.

@@ -10,19 +10,19 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, refresh: mockRefresh }),
 }));
 
-vi.mock("@/lib/supabase/client", () => ({
-  createClient: vi.fn(),
+vi.mock("@/lib/app-clients", () => ({
+  createBrowserClient: vi.fn(),
 }));
 
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@/lib/app-clients";
 
 describe("Admin Login Page (Employee Auth)", () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockReturnValue({
+    vi.mocked(createBrowserClient).mockReturnValue({
       auth: {
         signInWithPassword: vi.fn(),
       },
-    } as unknown as ReturnType<typeof createClient>);
+    } as unknown as ReturnType<typeof createBrowserClient>);
     mockPush.mockClear();
     mockReplace.mockClear();
     mockRefresh.mockClear();
@@ -34,7 +34,7 @@ describe("Admin Login Page (Employee Auth)", () => {
 
   describe("when Supabase env vars are missing (brief: env vars missing)", () => {
     it("shows setup message in Portuguese and does not crash", () => {
-      vi.mocked(createClient).mockReturnValue(null);
+      vi.mocked(createBrowserClient).mockReturnValue(null);
       render(<AdminLoginPage />);
       expect(
         screen.getByText(/Configure as variáveis NEXT_PUBLIC_SUPABASE_URL/)
@@ -63,9 +63,9 @@ describe("Admin Login Page (Employee Auth)", () => {
 
     it("validates password required and does not call Supabase when empty (brief: empty fields)", async () => {
       const signInWithPassword = vi.fn();
-      vi.mocked(createClient).mockReturnValue({
+      vi.mocked(createBrowserClient).mockReturnValue({
         auth: { signInWithPassword },
-      } as unknown as ReturnType<typeof createClient>);
+      } as unknown as ReturnType<typeof createBrowserClient>);
       const { container } = render(<AdminLoginPage />);
       fireEvent.change(screen.getByLabelText(/E-mail/), { target: { value: "a@b.com" } });
       const form = container.querySelector("form");
@@ -81,9 +81,9 @@ describe("Admin Login Page (Employee Auth)", () => {
         data: { user: null, session: null },
         error: { message: "Invalid login" },
       });
-      vi.mocked(createClient).mockReturnValue({
+      vi.mocked(createBrowserClient).mockReturnValue({
         auth: { signInWithPassword },
-      } as unknown as ReturnType<typeof createClient>);
+      } as unknown as ReturnType<typeof createBrowserClient>);
       render(<AdminLoginPage />);
       const emailInputs = screen.getAllByPlaceholderText("seu@email.com");
       const passwordInputs = screen.getAllByPlaceholderText("••••••••");
@@ -106,9 +106,9 @@ describe("Admin Login Page (Employee Auth)", () => {
 
     it("recovers if signInWithPassword throws unexpectedly (hardening: no stuck redirecting state)", async () => {
       const signInWithPassword = vi.fn().mockRejectedValue(new Error("network down"));
-      vi.mocked(createClient).mockReturnValue({
+      vi.mocked(createBrowserClient).mockReturnValue({
         auth: { signInWithPassword },
-      } as unknown as ReturnType<typeof createClient>);
+      } as unknown as ReturnType<typeof createBrowserClient>);
 
       render(<AdminLoginPage />);
 
@@ -138,9 +138,9 @@ describe("Admin Login Page (Employee Auth)", () => {
           })
       );
 
-      vi.mocked(createClient).mockReturnValue({
+      vi.mocked(createBrowserClient).mockReturnValue({
         auth: { signInWithPassword },
-      } as unknown as ReturnType<typeof createClient>);
+      } as unknown as ReturnType<typeof createBrowserClient>);
 
       render(<AdminLoginPage />);
 
@@ -169,9 +169,9 @@ describe("Admin Login Page (Employee Auth)", () => {
         data: { user: {}, session: {} },
         error: null,
       });
-      vi.mocked(createClient).mockReturnValue({
+      vi.mocked(createBrowserClient).mockReturnValue({
         auth: { signInWithPassword },
-      } as unknown as ReturnType<typeof createClient>);
+      } as unknown as ReturnType<typeof createBrowserClient>);
       render(<AdminLoginPage />);
       const emailInputs = screen.getAllByPlaceholderText("seu@email.com");
       const passwordInputs = screen.getAllByPlaceholderText("••••••••");
@@ -200,9 +200,9 @@ describe("Admin Login Page (Employee Auth)", () => {
         data: { user: {}, session: {} },
         error: null,
       });
-      vi.mocked(createClient).mockReturnValue({
+      vi.mocked(createBrowserClient).mockReturnValue({
         auth: { signInWithPassword },
-      } as unknown as ReturnType<typeof createClient>);
+      } as unknown as ReturnType<typeof createBrowserClient>);
       render(<AdminLoginPage />);
       const emailInputs = screen.getAllByPlaceholderText("seu@email.com");
       const passwordInputs = screen.getAllByPlaceholderText("••••••••");

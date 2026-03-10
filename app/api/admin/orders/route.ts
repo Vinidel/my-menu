@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { createRequestClient } from "@/lib/app-clients";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
-import { createClient } from "@/lib/supabase/server";
 
 const SETUP_ERROR_MESSAGE =
   "Pedidos indisponíveis no momento. Verifique a configuração do Supabase.";
@@ -13,7 +13,7 @@ const NO_STORE_HEADERS = {
 } as const;
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = await createRequestClient();
 
   if (!supabase) {
     return errorJson(503, SETUP_ERROR_MESSAGE);

@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
+import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 import { processMenuImportJob } from "@/lib/menu-import/processor";
 import { deleteMenuImportQueueMessage, readMenuImportQueueMessages } from "@/lib/menu-import/queue";
-import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store",
@@ -17,7 +16,7 @@ export async function POST(request: Request) {
 }
 
 async function handleProcessNext(request: Request) {
-  const serviceClient = createServiceRoleClient();
+  const serviceClient = createPrivilegedClient();
   if (!serviceClient) {
     return NextResponse.json(
       { ok: false, message: "Configuração indisponível." },
@@ -94,7 +93,7 @@ async function authorizeRequest(
     return { ok: true };
   }
 
-  const authClient = await createClient();
+  const authClient = await createRequestClient();
   if (!authClient) {
     return { ok: false, status: 503, message: "Configuração indisponível." };
   }

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import AdminPage from "./page";
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+vi.mock("@/lib/app-clients", () => ({
+  createRequestClient: vi.fn(),
 }));
 
 vi.mock("@/lib/admin-orders-data-access", () => ({
@@ -25,12 +25,12 @@ vi.mock("@/components/admin-orders-dashboard", () => ({
   ),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient } from "@/lib/app-clients";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("AdminPage (Employee Orders Dashboard)", () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockReset();
+    vi.mocked(createRequestClient).mockReset();
     vi.mocked(createAdminOrdersDataAccess).mockReset();
   });
 
@@ -39,7 +39,7 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
   });
 
   it("shows setup message when Supabase is not configured (brief: env/setup resilience)", async () => {
-    vi.mocked(createClient).mockResolvedValue(null);
+    vi.mocked(createRequestClient).mockResolvedValue(null);
 
     render(await AdminPage());
 
@@ -56,7 +56,7 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
     });
     const supabase = { from: vi.fn() };
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
     vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);
@@ -75,7 +75,7 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
     });
     const supabase = { from: vi.fn() };
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
     vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);

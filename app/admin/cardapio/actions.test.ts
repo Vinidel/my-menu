@@ -4,37 +4,33 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
-}));
-
-vi.mock("@/lib/supabase/service-role", () => ({
-  createServiceRoleClient: vi.fn(),
+vi.mock("@/lib/app-clients", () => ({
+  createRequestClient: vi.fn(),
+  createPrivilegedClient: vi.fn(),
 }));
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
 import { uploadMenuImageAction, publishMenuVersionAction } from "./actions";
 import { MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 
 describe("admin menu import actions access guard", () => {
   beforeEach(() => {
     vi.mocked(redirect).mockReset();
-    vi.mocked(createClient).mockReset();
-    vi.mocked(createServiceRoleClient).mockReset();
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createRequestClient).mockReset();
+    vi.mocked(createPrivilegedClient).mockReset();
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
   });
 
   it("rejects upload action for non-allowlisted user (stage 2: server action guard)", async () => {
-    vi.mocked(createClient).mockResolvedValue({
+    vi.mocked(createRequestClient).mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "employee@example.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
 
     const formData = new FormData();
     formData.set("menuImages", new File(["fake"], "menu.jpg", { type: "image/jpeg" }));
@@ -47,14 +43,14 @@ describe("admin menu import actions access guard", () => {
   });
 
   it("rejects publish action for non-allowlisted user (stage 2: server action guard)", async () => {
-    vi.mocked(createClient).mockResolvedValue({
+    vi.mocked(createRequestClient).mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-2", email: "employee@example.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
 
     const formData = new FormData();
     formData.set("versionId", "version-1");
@@ -66,4 +62,3 @@ describe("admin menu import actions access guard", () => {
     );
   });
 });
-

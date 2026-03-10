@@ -4,8 +4,8 @@ vi.mock("@/app/actions", () => ({
   submitCustomerOrderWithClient: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/service-role", () => ({
-  createServiceRoleClient: vi.fn(),
+vi.mock("@/lib/app-clients", () => ({
+  createPrivilegedClient: vi.fn(),
 }));
 
 vi.mock("@/lib/anti-abuse/rate-limit", async () => {
@@ -20,7 +20,7 @@ vi.mock("@/lib/anti-abuse/rate-limit", async () => {
 
 import { POST } from "./route";
 import { submitCustomerOrderWithClient } from "@/app/actions";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createPrivilegedClient } from "@/lib/app-clients";
 import { consumeFixedWindowRateLimit } from "@/lib/anti-abuse/rate-limit";
 
 const BASE_ORDER_BODY = {
@@ -59,7 +59,7 @@ describe("POST /api/orders", () => {
     ).__my_menu_rate_limit_store__ = new Map();
     process.env.ORDERS_CAPTCHA_ENABLED = "false";
     vi.mocked(submitCustomerOrderWithClient).mockReset();
-    vi.mocked(createServiceRoleClient).mockReset();
+    vi.mocked(createPrivilegedClient).mockReset();
     vi.mocked(consumeFixedWindowRateLimit).mockClear();
   });
 
@@ -104,7 +104,7 @@ describe("POST /api/orders", () => {
   });
 
   it("returns 503 when service-role client is unavailable (brief: setup resilience)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue(null);
+    vi.mocked(createPrivilegedClient).mockReturnValue(null);
 
     const response = await POST(
       new Request("http://localhost/api/orders", {
@@ -122,7 +122,7 @@ describe("POST /api/orders", () => {
   });
 
   it("returns 201 and order reference on success (brief: proper HTTP status codes)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-1234ABCD",
@@ -152,7 +152,7 @@ describe("POST /api/orders", () => {
   });
 
   it("forwards empty optional e-mail to submit action (brief: optional e-mail route contract)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-EMPTYEMAIL",
@@ -170,7 +170,7 @@ describe("POST /api/orders", () => {
   });
 
   it("maps validation errors to 400 and unexpected errors to 500 (brief: status mapping)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
 
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValueOnce({
       ok: false,
@@ -204,7 +204,7 @@ describe("POST /api/orders", () => {
   });
 
   it("returns 429 with Retry-After and does not call order creation when rate limit is exceeded (brief: anti-abuse throttle)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-SHOULD-NOT-HAPPEN",
@@ -245,7 +245,7 @@ describe("POST /api/orders", () => {
   });
 
   it("uses the fallback 'unknown' bucket when source IP is missing (brief: missing source IP)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-1234ABCD",
@@ -275,7 +275,7 @@ describe("POST /api/orders", () => {
   });
 
   it("falls back to the 'unknown' bucket for oversized source header values (hardening: source parsing bounds)", async () => {
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-1234ABCD",
@@ -308,7 +308,7 @@ describe("POST /api/orders", () => {
     vi.mocked(consumeFixedWindowRateLimit).mockImplementationOnce(() => {
       throw new Error("limiter down");
     });
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-DEGRADEOPEN",
@@ -386,7 +386,7 @@ describe("POST /api/orders", () => {
     process.env.ORDERS_CAPTCHA_ENABLED = "true";
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
     process.env.TURNSTILE_SECRET_KEY = "secret-key";
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(submitCustomerOrderWithClient).mockResolvedValue({
       ok: true,
       orderReference: "PED-CAPTCHA1",

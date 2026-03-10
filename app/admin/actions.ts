@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createRequestClient } from "@/lib/app-clients";
 import {
   createAdminOrdersDataAccess,
   type AdminOrdersDataAccess,
 } from "@/lib/admin-orders-data-access";
-import { createClient } from "@/lib/supabase/server";
 import {
   getStatusLabelFromUnknown,
   getNextOrderStatus,
@@ -55,7 +55,7 @@ export async function progressOrderStatus(
     return errorResult("validation", INVALID_ORDER_MESSAGE);
   }
 
-  const supabase = await createClient();
+  const supabase = await createRequestClient();
   if (!supabase) {
     return errorResult("setup", SETUP_ERROR_MESSAGE);
   }

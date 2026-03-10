@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@/lib/app-clients";
 
 const AUTH_ERROR_MESSAGE = "E-mail ou senha incorretos.";
 const EMPTY_EMAIL_MESSAGE = "Informe o e-mail.";
@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const supabase = createClient();
+  const supabase = createBrowserClient();
 
   function navigateToAdminAfterLogin() {
     // Navigate first, then refresh to re-run middleware once the new auth cookie/session
@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError(null);
 
-    const client = createClient();
+    const client = createBrowserClient();
     if (!client) return;
 
     const trimmedEmail = email.trim();

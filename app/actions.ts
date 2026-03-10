@@ -12,7 +12,7 @@ import {
   normalizePaymentMethod,
   type PaymentMethod,
 } from "@/lib/payment-methods";
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient } from "@/lib/app-clients";
 import type { Database } from "@/lib/supabase/database.types";
 
 const SETUP_ERROR_MESSAGE =
@@ -90,7 +90,7 @@ type OrderItemSnapshot = {
 export async function submitCustomerOrder(
   input: SubmitCustomerOrderInput
 ): Promise<SubmitCustomerOrderResult> {
-  const supabase = await createClient();
+  const supabase = await createRequestClient();
   if (!supabase) {
     return submitErrorResult("setup", SETUP_ERROR_MESSAGE);
   }
