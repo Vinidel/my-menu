@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
-import { ADMIN_ORDERS_SELECT_COLUMNS } from "@/lib/admin-orders-query";
-import { parseAdminOrders } from "@/lib/orders";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 import { createClient } from "@/lib/supabase/server";
 
 const SETUP_MESSAGE =
@@ -28,10 +27,8 @@ export default async function AdminPage() {
     );
   }
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select(ADMIN_ORDERS_SELECT_COLUMNS)
-    .order("created_at", { ascending: true });
+  const adminOrdersDataAccess = createAdminOrdersDataAccess(supabase);
+  const { data: orders, error } = await adminOrdersDataAccess.listAdminOrders();
 
   if (error) {
     console.error("[admin/orders] failed to load orders", {
@@ -43,7 +40,5 @@ export default async function AdminPage() {
     );
   }
 
-  const orders = parseAdminOrders(Array.isArray(data) ? data : []);
-
-  return <AdminOrdersDashboard initialOrders={orders} enablePolling />;
+  return <AdminOrdersDashboard initialOrders={orders ?? []} enablePolling />;
 }

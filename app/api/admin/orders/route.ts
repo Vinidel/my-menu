@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { ADMIN_ORDERS_SELECT_COLUMNS } from "@/lib/admin-orders-query";
-import { parseAdminOrders } from "@/lib/orders";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 import { createClient } from "@/lib/supabase/server";
 
 const SETUP_ERROR_MESSAGE =
@@ -30,10 +29,8 @@ export async function GET() {
       return errorJson(401, AUTH_ERROR_MESSAGE);
     }
 
-    const { data, error } = await supabase
-      .from("orders")
-      .select(ADMIN_ORDERS_SELECT_COLUMNS)
-      .order("created_at", { ascending: true });
+    const adminOrdersDataAccess = createAdminOrdersDataAccess(supabase);
+    const { data: orders, error } = await adminOrdersDataAccess.listAdminOrders();
 
     if (error) {
       console.error("[admin/orders/api] failed to load orders", {
@@ -43,9 +40,7 @@ export async function GET() {
       return errorJson(500, LOAD_ERROR_MESSAGE);
     }
 
-    const orders = parseAdminOrders(Array.isArray(data) ? data : []);
-
-    return successJson(orders);
+    return successJson(orders ?? []);
   } catch (error) {
     console.error("[admin/orders/api] unexpected error", {
       message: error instanceof Error ? error.message : String(error),
@@ -54,7 +49,7 @@ export async function GET() {
   }
 }
 
-function successJson(orders: ReturnType<typeof parseAdminOrders>) {
+function successJson(orders: unknown[]) {
   return NextResponse.json(
     { ok: true, orders },
     { status: 200, headers: NO_STORE_HEADERS }

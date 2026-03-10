@@ -6,8 +6,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-vi.mock("@/lib/orders", () => ({
-  parseAdminOrders: vi.fn((rows: unknown[]) => rows),
+vi.mock("@/lib/admin-orders-data-access", () => ({
+  createAdminOrdersDataAccess: vi.fn(),
 }));
 
 vi.mock("@/components/admin-orders-dashboard", () => ({
@@ -26,12 +26,12 @@ vi.mock("@/components/admin-orders-dashboard", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { parseAdminOrders } from "@/lib/orders";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("AdminPage (Employee Orders Dashboard)", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
-    vi.mocked(parseAdminOrders).mockClear();
+    vi.mocked(createAdminOrdersDataAccess).mockReset();
   });
 
   afterEach(() => {
@@ -49,43 +49,40 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
     expect(screen.getByRole("link", { name: "Voltar ao cardápio" })).toBeInTheDocument();
   });
 
-  it("loads orders with explicit columns and oldest->newest ordering (brief: oldest to newest)", async () => {
-    const orderSpy = vi.fn().mockResolvedValue({
+  it("loads orders through the admin/orders data-access boundary (brief: first slice migrated)", async () => {
+    const listAdminOrders = vi.fn().mockResolvedValue({
       data: [{ id: "1" }, { id: "2" }],
       error: null,
     });
-    const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
-    const fromSpy = vi.fn().mockReturnValue({ select: selectSpy });
+    const supabase = { from: vi.fn() };
 
-    vi.mocked(createClient).mockResolvedValue({
-      from: fromSpy,
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
+      listAdminOrders,
+    } as never);
 
     render(await AdminPage());
 
-    expect(fromSpy).toHaveBeenCalledWith("orders");
-    expect(selectSpy).toHaveBeenCalledWith(
-      "id, reference, customer_name, customer_email, customer_phone, payment_method, fulfillment_type, delivery_fee_cents, items, status, notes, created_at"
-    );
-    expect(orderSpy).toHaveBeenCalledWith("created_at", { ascending: true });
-    expect(parseAdminOrders).toHaveBeenCalledWith([{ id: "1" }, { id: "2" }]);
+    expect(createAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
+    expect(listAdminOrders).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("orders-count")).toHaveTextContent("2");
   });
 
-  it("passes Portuguese load error state to dashboard when orders query fails (brief: orders load fails)", async () => {
-    const orderSpy = vi.fn().mockResolvedValue({
+  it("passes Portuguese load error state to dashboard when the data-access lookup fails (brief: orders load fails)", async () => {
+    const listAdminOrders = vi.fn().mockResolvedValue({
       data: null,
       error: { message: "boom", code: "500" },
     });
-    const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
-    const fromSpy = vi.fn().mockReturnValue({ select: selectSpy });
+    const supabase = { from: vi.fn() };
 
-    vi.mocked(createClient).mockResolvedValue({
-      from: fromSpy,
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
+      listAdminOrders,
+    } as never);
 
     render(await AdminPage());
 
+    expect(createAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
     expect(screen.getAllByTestId("orders-count").at(-1)).toHaveTextContent("0");
     expect(screen.getAllByTestId("load-error").at(-1)).toHaveTextContent(
       "Não foi possível carregar os pedidos agora. Tente novamente em instantes."

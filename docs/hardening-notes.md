@@ -836,3 +836,42 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | No extra runtime cost beyond existing bounded lookups |
 | Observability | Improved  | Added dedicated missing-row stale-miss warning |
 | Resilience    | Improved  | Safe stale fallback preserved under missing follow-up row |
+
+---
+
+## Tech Review + First Data Access Abstraction (Stage 4)
+
+### Security
+
+- **Abstraction boundary preserved:** Admin auth/session validation remains in the page/route/action edge and was not pulled into the new admin/orders data-access layer during hardening. That keeps the new boundary limited to persistence operations, matching the brief. **No change.**
+- **No new privilege expansion:** The new abstraction still uses the same Supabase client already available to the caller and does not introduce any broader data-access surface beyond admin order list/snapshot/progress operations. **No change.**
+
+### Dependencies
+
+- **No new packages:** Hardening stayed within existing Next.js, Vitest, and Supabase code. **No change.**
+- **Provider typing fragility remains localized:** The Supabase adapter still relies on local cast helpers for query-chain typing. This is now better isolated inside the adapter, but it remains a compile-time maintainability risk rather than a runtime defect. **Deferred.**
+
+### Performance
+
+- **No additional query cost:** Hardening adds only result-shape validation on the existing conditional update path; it does not introduce new queries or loops. **No change.**
+- **Scope remains intentionally small:** The abstraction still covers only the locked `admin/orders` slice, avoiding premature repo-wide indirection overhead. **No change.**
+
+### Observability
+
+- **Unexpected write-shape logging added:** `progressOrderStatus` now logs a dedicated error if the conditional update returns a row whose `id` or `status` does not match the expected persisted result. This makes adapter/DB anomalies diagnosable without changing the user-facing failure message. **Improved in Stage 4.**
+- **No dedicated abstraction metrics:** There are still no counters or traces for adapter method failures by operation. Production diagnosis still depends on structured logs. **Deferred.**
+
+### Resilience
+
+- **Safer success-path validation:** The admin action now verifies that the conditional update result matches the requested order and computed next status before treating the write as successful. Unexpected provider or query anomalies now fail closed with the existing generic pt-BR error. **Improved in Stage 4.**
+- **Remaining deployment assumption:** This feature still assumes the existing admin/orders schema and status migrations are already applied before deploy; Stage 4 does not add runtime migration-health checks. **Documented; not implemented.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | Boundary stayed limited to persistence only |
+| Dependencies  | Deferred  | Supabase typed-chain workaround still isolated in adapter |
+| Performance   | OK        | No extra queries introduced |
+| Observability | Improved  | Added unexpected conditional-update result logging |
+| Resilience    | Improved  | Success path now validates returned row before accepting write |
