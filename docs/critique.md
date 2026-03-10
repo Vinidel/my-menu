@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 1 implementation for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
+Scope: Stage 2 tests for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In Stage 2 or Stage 3, consider adding a small direct test file for `lib/app-clients.ts` so the new app-facing boundary itself is covered explicitly instead of only through migrated call sites.
+- In a later pass, consider a couple of small semantic tests that assert the most sensitive callers use the expected app-client mode (`request` vs `privileged`) if that distinction becomes easier to encode without over-coupling tests to implementation details.
 
 ### Risks / Assumptions
-- The implementation intentionally leaves provider naming inside `lib/**`, so this is app-layer decoupling rather than full provider-neutralization across the repo.
-- The new app-facing client names are generic by design; future slices should keep their semantics clear so `request`, `browser`, and `privileged` access do not drift into ambiguous usage.
+- The new `lib/app-clients.ts` tests validate delegation and null passthrough, but they still mock the provider-specific modules rather than exercising a live integration.
+- The suite proves the locked app/component call sites import the new boundary in tests, but future files added outside the locked set could still reintroduce direct provider imports unless guarded by review discipline or linting.
 
 ## Acceptance Criteria
-- [ ] Stage 2 verifies the migrated app/component call sites continue using the provider-agnostic `lib/app-clients.ts` boundary.
+- [ ] The direct `lib/app-clients.ts` test file remains green and covers request, browser, privileged, and null-setup behavior.
+- [ ] The migrated app/component tests continue to mock `@/lib/app-clients` rather than the provider-specific client modules.
 - [ ] The full locked migration set remains free of direct `@/lib/supabase/server`, `@/lib/supabase/client`, and `@/lib/supabase/service-role` imports.
-- [ ] Provider-specific implementation remains internal to `lib/**`.
 - [ ] The full test suite remains green after later stages.
