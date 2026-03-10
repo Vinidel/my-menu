@@ -1,4 +1,5 @@
 import type { AdminOrder, OrderStatus } from "@/lib/orders";
+import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
 
 export type AdminOrdersDataAccessError = {
   message?: string;
@@ -33,4 +34,10 @@ export interface AdminOrdersDataAccess {
   progressAdminOrderStatusConditionally(
     input: ProgressAdminOrderStatusInput
   ): Promise<AdminOrdersDataAccessResult<AdminOrderStatusUpdateRecord | null>>;
+}
+
+export function createAdminOrdersDataAccess(client: {
+  from: (table: string) => unknown;
+}): AdminOrdersDataAccess {
+  return createSupabaseAdminOrdersDataAccess(client);
 }

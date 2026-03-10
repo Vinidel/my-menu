@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 import { createClient } from "@/lib/supabase/server";
 
 const SETUP_ERROR_MESSAGE =
@@ -29,7 +29,7 @@ export async function GET() {
       return errorJson(401, AUTH_ERROR_MESSAGE);
     }
 
-    const adminOrdersDataAccess = createSupabaseAdminOrdersDataAccess(supabase);
+    const adminOrdersDataAccess = createAdminOrdersDataAccess(supabase);
     const { data: orders, error } = await adminOrdersDataAccess.listAdminOrders();
 
     if (error) {

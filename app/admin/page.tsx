@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
-import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 import { createClient } from "@/lib/supabase/server";
 
 const SETUP_MESSAGE =
@@ -27,7 +27,7 @@ export default async function AdminPage() {
     );
   }
 
-  const adminOrdersDataAccess = createSupabaseAdminOrdersDataAccess(supabase);
+  const adminOrdersDataAccess = createAdminOrdersDataAccess(supabase);
   const { data: orders, error } = await adminOrdersDataAccess.listAdminOrders();
 
   if (error) {

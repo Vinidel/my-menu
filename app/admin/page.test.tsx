@@ -6,8 +6,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/admin-orders-data-access", () => ({
-  createSupabaseAdminOrdersDataAccess: vi.fn(),
+vi.mock("@/lib/admin-orders-data-access", () => ({
+  createAdminOrdersDataAccess: vi.fn(),
 }));
 
 vi.mock("@/components/admin-orders-dashboard", () => ({
@@ -26,12 +26,12 @@ vi.mock("@/components/admin-orders-dashboard", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("AdminPage (Employee Orders Dashboard)", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
-    vi.mocked(createSupabaseAdminOrdersDataAccess).mockReset();
+    vi.mocked(createAdminOrdersDataAccess).mockReset();
   });
 
   afterEach(() => {
@@ -57,13 +57,13 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
     const supabase = { from: vi.fn() };
 
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(createSupabaseAdminOrdersDataAccess).mockReturnValue({
+    vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);
 
     render(await AdminPage());
 
-    expect(createSupabaseAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
+    expect(createAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
     expect(listAdminOrders).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("orders-count")).toHaveTextContent("2");
   });
@@ -76,13 +76,13 @@ describe("AdminPage (Employee Orders Dashboard)", () => {
     const supabase = { from: vi.fn() };
 
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(createSupabaseAdminOrdersDataAccess).mockReturnValue({
+    vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);
 
     render(await AdminPage());
 
-    expect(createSupabaseAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
+    expect(createAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
     expect(screen.getAllByTestId("orders-count").at(-1)).toHaveTextContent("0");
     expect(screen.getAllByTestId("load-error").at(-1)).toHaveTextContent(
       "Não foi possível carregar os pedidos agora. Tente novamente em instantes."

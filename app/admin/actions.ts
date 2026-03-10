@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
+import {
+  createAdminOrdersDataAccess,
+  type AdminOrdersDataAccess,
+} from "@/lib/admin-orders-data-access";
 import { createClient } from "@/lib/supabase/server";
 import {
   getStatusLabelFromUnknown,
@@ -71,7 +74,7 @@ export async function progressOrderStatus(
     return errorResult("auth", AUTH_VALIDATION_ERROR_MESSAGE);
   }
 
-  const adminOrdersDataAccess = createSupabaseAdminOrdersDataAccess(supabase);
+  const adminOrdersDataAccess = createAdminOrdersDataAccess(supabase);
   const { data: persistedOrder, error: lookupError } = await loadOrderStatusSnapshot(
     adminOrdersDataAccess,
     orderId
@@ -168,7 +171,7 @@ function errorResult(
 }
 
 async function loadOrderStatusSnapshot(
-  adminOrdersDataAccess: ReturnType<typeof createSupabaseAdminOrdersDataAccess>,
+  adminOrdersDataAccess: AdminOrdersDataAccess,
   orderId: string
 ) {
   return adminOrdersDataAccess.getAdminOrderStatusSnapshot(orderId);

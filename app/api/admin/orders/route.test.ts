@@ -4,18 +4,18 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/admin-orders-data-access", () => ({
-  createSupabaseAdminOrdersDataAccess: vi.fn(),
+vi.mock("@/lib/admin-orders-data-access", () => ({
+  createAdminOrdersDataAccess: vi.fn(),
 }));
 
 import { GET } from "./route";
 import { createClient } from "@/lib/supabase/server";
-import { createSupabaseAdminOrdersDataAccess } from "@/lib/supabase/admin-orders-data-access";
+import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("GET /api/admin/orders", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
-    vi.mocked(createSupabaseAdminOrdersDataAccess).mockReset();
+    vi.mocked(createAdminOrdersDataAccess).mockReset();
   });
 
   it("returns 503 when Supabase is not configured (brief: setup resilience)", async () => {
@@ -68,7 +68,7 @@ describe("GET /api/admin/orders", () => {
     };
 
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(createSupabaseAdminOrdersDataAccess).mockReturnValue({
+    vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);
 
@@ -77,7 +77,7 @@ describe("GET /api/admin/orders", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("Vary")).toBe("Cookie");
-    expect(createSupabaseAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
+    expect(createAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
     expect(listAdminOrders).toHaveBeenCalledTimes(1);
     await expect(response.json()).resolves.toEqual({
       ok: true,
@@ -101,7 +101,7 @@ describe("GET /api/admin/orders", () => {
     };
 
     vi.mocked(createClient).mockResolvedValue(supabase as never);
-    vi.mocked(createSupabaseAdminOrdersDataAccess).mockReturnValue({
+    vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);
 
@@ -110,7 +110,7 @@ describe("GET /api/admin/orders", () => {
     expect(response.status).toBe(500);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("Vary")).toBe("Cookie");
-    expect(createSupabaseAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
+    expect(createAdminOrdersDataAccess).toHaveBeenCalledWith(supabase);
     await expect(response.json()).resolves.toEqual({
       ok: false,
       message: "Não foi possível carregar os pedidos agora. Tente novamente em instantes.",
