@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Implementer Stage 1 for `cash-change` (`.artifacts/cash-change/implementer/handoff.md`)
+Scope: Tester Stage 2 for `cash-change` (`.artifacts/cash-change/tester/handoff.md`)
 Verdict: APPROVE
 
 ## Findings
@@ -11,16 +11,16 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- [components/customer-order-page.test.tsx / Stage 2 follow-up] Add the brief-requested regression assertion for the rendered `Observações (opcional)` placeholder so later copy edits cannot silently remove the `troco` guidance. | Evidence: `docs/briefs/cash-change.md` calls for regression coverage around the rendered placeholder text.
+- [components/customer-order-page.test.tsx] Consider adding a narrower note-entry regression that asserts non-`troco` free text still submits unchanged, so the payload guard is not coupled only to the specific `Troco para R$ 50 e sem cebola` example. | Evidence: `docs/briefs/cash-change.md` keeps the field as arbitrary free text, and the current Stage 2 payload test exercises only the new `troco` example path.
 
 ### Risks / Assumptions
-- This review assumes the feature remains locked to the single placeholder change in `components/customer-order-page.tsx`; the current diff matches that assumption and does not alter payload, validation, API, or persistence behavior.
-- The placeholder wording `Ex.: sem cebola, ponto da carne, troco para R$ 50, retirar molho...` reads naturally enough in pt-BR and does not imply a structured `troco` field, but future copy expansions should stay careful not to suggest cash-only branching or new form behavior.
-- The cited evidence in the handoff is accurate as of this review: `npm exec vitest run components/customer-order-page.test.tsx` passes with 30 tests.
+- This approval assumes Stage 2 scope is intentionally limited to component-level regression coverage. The brief mentions a mobile no-overflow edge case, but the repo does not appear to have a viewport/layout regression harness, so that edge remains unverified beyond the unchanged textarea structure.
+- The placeholder assertion is intentionally exact-string brittle. That is acceptable for this feature because the brief locks the change to placeholder copy, but future copy edits will need a conscious test update.
+- The handoff’s evidence matches the current repo state at review time: `npm exec vitest run components/customer-order-page.test.tsx` passes with 32 tests, and `npm exec vitest run` passes with 26 files / 193 tests.
 
 ## Acceptance Criteria
-- [x] The implementer handoff matches the actual code change in `components/customer-order-page.tsx`.
-- [x] The implementation stays within the brief’s locked scope: placeholder-copy only, no behavior or data-contract changes.
-- [x] User-facing copy remains Portuguese (pt-BR) and includes a `troco` example in the `Observações (opcional)` placeholder.
-- [x] Existing customer-order component tests still pass after the change.
-- [ ] Stage 2 adds regression coverage that asserts the rendered placeholder includes the `troco` guidance from the brief.
+- [x] Stage 2 adds regression coverage for the rendered `Observações (opcional)` placeholder including the pt-BR `troco` example from the brief.
+- [x] Stage 2 confirms `troco` still flows through the existing `notes` field without introducing structured `troco` payload fields.
+- [x] The tester-stage changes stay within the brief’s locked scope and do not modify production code.
+- [x] The handoff accurately reflects the changed files and current test results.
+- [x] Full-suite and targeted Vitest runs pass after the Stage 2 changes.
