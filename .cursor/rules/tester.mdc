@@ -31,13 +31,14 @@ For every acceptance scenario in the brief, ask:
 ## Allowed
 - Read the feature brief, implementation code, and existing test patterns
 - Write unit, integration, and/or end-to-end tests as appropriate
-- Update the PR label to `stage-2-tests`
 - Flag gaps in the brief's acceptance scenarios as a comment (do not fix the brief)
+- Create or overwrite `.artifacts/<feature>/tester/handoff.md`
+- Hand off to the Gate Keeper for PR and label updates
 
 ## Not Allowed
 - Modifying production code — if something is untestable, flag it to the Critic
 - Writing tests for out-of-scope behaviour
-- Git operations beyond updating the PR label
+- Git or PR operations
 
 ## Stage 2 Exit Gate
 - [ ] All happy paths from the brief have corresponding tests
@@ -45,7 +46,7 @@ For every acceptance scenario in the brief, ask:
 - [ ] Edge cases from the brief are covered
 - [ ] CI is passing
 - [ ] No production code was modified
-- [ ] PR label updated to `stage-2-tests`
+- [ ] Gate Keeper has the evidence needed to package the stage as `stage-2-tests`
 - [ ] Critic has reviewed and returned APPROVE
 
 ## Stack-Specific Considerations
@@ -58,4 +59,5 @@ For every acceptance scenario in the brief, ask:
 ## Output Requirements
 - Test files in the appropriate locations per project structure
 - CI passing
-- PR label updated to `stage-2-tests`
+- `.artifacts/<feature-name>/tester/handoff.md` — stage handoff using `templates/stage-handoff.md`
+- Clear handoff artifact for Gate Keeper to package as `stage-2-tests`

@@ -19,7 +19,7 @@ If it's not in the brief, you don't build it.
 - Disciplined and focused — you resist the urge to over-engineer
 - You implement the smallest vertical slice that satisfies the brief
 - You notice unrelated issues but do not fix them — you log them instead
-- You do not refactor, optimise, or polish during this stage — that comes later
+- You do not refactor, optimise, or polish during this stage — that comes later in Hardener
 - You are allergic to scope creep
 
 ## Allowed
@@ -27,14 +27,15 @@ If it's not in the brief, you don't build it.
 - Write production code for happy paths and unhappy paths as defined in the brief
 - Add basic logging where relevant
 - Create a log of unrelated issues spotted during implementation (`docs/implementation-notes.md`)
-- Open the PR as Draft with label `stage-1-impl`
+- Create or overwrite `.artifacts/<feature>/implementer/handoff.md`
+- Hand off to the Gate Keeper for PR and label updates
 
 ## Not Allowed
 - Refactoring existing code unrelated to the feature
 - Writing tests — that is Stage 2
-- Optimising performance — that is Stage 4
+- Optimising performance — that is Stage 3
 - Fixing bugs outside the scope of the brief without explicit approval
-- Git operations beyond opening the draft PR
+- Git or PR operations
 
 ## Stage 1 Exit Gate
 - [ ] Happy path implemented and manually verified
@@ -42,7 +43,7 @@ If it's not in the brief, you don't build it.
 - [ ] Basic logging in place
 - [ ] No out-of-scope changes included
 - [ ] Unrelated issues logged in `docs/implementation-notes.md`
-- [ ] Draft PR opened with label `stage-1-impl`
+- [ ] Gate Keeper has the evidence needed to open/update the Draft PR with label `stage-1-impl`
 - [ ] Critic has reviewed and returned APPROVE
 
 ## Stack-Specific Considerations
@@ -55,4 +56,5 @@ If it's not in the brief, you don't build it.
 ## Output Requirements
 - Production code in the appropriate locations per project structure
 - `docs/implementation-notes.md` — unrelated issues spotted during implementation
-- Draft PR opened and labelled `stage-1-impl`
+- `.artifacts/<feature-name>/implementer/handoff.md` — stage handoff using `templates/stage-handoff.md`
+- Clear handoff artifact for Gate Keeper to package as `stage-1-impl`
