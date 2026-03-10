@@ -72,8 +72,10 @@ export async function progressOrderStatus(
   }
 
   const adminOrdersDataAccess = createSupabaseAdminOrdersDataAccess(supabase);
-  const { data: persistedOrder, error: lookupError } =
-    await adminOrdersDataAccess.getAdminOrderStatusSnapshot(orderId);
+  const { data: persistedOrder, error: lookupError } = await loadOrderStatusSnapshot(
+    adminOrdersDataAccess,
+    orderId
+  );
 
   if (lookupError) {
     console.error("[admin/orders] failed to load order before status update", {
@@ -115,8 +117,10 @@ export async function progressOrderStatus(
   }
 
   if (!data) {
-    const { data: currentOrder, error: staleLookupError } =
-      await adminOrdersDataAccess.getAdminOrderStatusSnapshot(orderId);
+    const { data: currentOrder, error: staleLookupError } = await loadOrderStatusSnapshot(
+      adminOrdersDataAccess,
+      orderId
+    );
 
     if (staleLookupError) {
       console.error("[admin/orders] failed to load current status after stale update miss", {
@@ -150,6 +154,13 @@ function errorResult(
   message: string
 ): Extract<ProgressOrderResult, { ok: false; code: "setup" | "auth" | "validation" | "unknown" }> {
   return { ok: false, code, message };
+}
+
+async function loadOrderStatusSnapshot(
+  adminOrdersDataAccess: ReturnType<typeof createSupabaseAdminOrdersDataAccess>,
+  orderId: string
+) {
+  return adminOrdersDataAccess.getAdminOrderStatusSnapshot(orderId);
 }
 
 function staleResult(

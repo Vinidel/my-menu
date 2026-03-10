@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 2 tests for docs/briefs/tech-review-data-access-abstraction.md
+Scope: Stage 3 refactor for docs/briefs/tech-review-data-access-abstraction.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In a later pass, consider a small adapter test for the `null` snapshot path on `getAdminOrderStatusSnapshot` so the no-row branch is covered directly at the boundary as well.
+- If the admin/orders abstraction expands later, consider moving the repeated Supabase adapter table-shape helpers into a more explicit internal adapter utility module so this file does not become the next concentration point for provider-specific plumbing.
 
 ### Risks / Assumptions
-- The adapter tests still validate Supabase behavior through mocked chain shapes, so they protect the boundary contract but not a live Supabase integration.
-- `app/admin/actions.test.ts` remains the main proof that the migrated action preserves stale-update and status-progression behavior; Stage 2 assumes that existing coverage remains representative after the abstraction move.
+- The new `loadOrderStatusSnapshot` helper in `app/admin/actions.ts` is intentionally thin; Stage 3 assumes this small indirection is acceptable as a duplication reduction even though it does not yet add new behavior.
+- The adapter still uses local cast helpers around Supabase chains, so the refactor improves structure but does not materially change the underlying provider-typing risk.
 
 ## Acceptance Criteria
-- [ ] The new adapter test file continues to cover list, snapshot, conditional update, and error paths for the admin/orders Supabase adapter.
-- [ ] `/admin` and `GET /api/admin/orders` tests continue to assert use of the admin/orders data-access boundary instead of raw Supabase order queries.
-- [ ] Auth/session validation remains tested at the route/action edge rather than inside the data-access abstraction.
+- [ ] Stage 4 changes, if any, remain within the locked `admin/orders` slice and do not absorb auth/session handling into the abstraction.
+- [ ] The refactored adapter helpers continue to preserve the current query shapes and result mapping behavior.
+- [ ] `progressOrderStatus` continues to preserve stale-update, validation, and success behavior after any hardening changes.
 - [ ] The full test suite remains green after later stages.

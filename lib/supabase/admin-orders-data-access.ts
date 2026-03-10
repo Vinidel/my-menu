@@ -1,6 +1,7 @@
 import type {
   AdminOrderStatusSnapshot,
   AdminOrdersDataAccess,
+  AdminOrdersDataAccessError,
   AdminOrdersDataAccessResult,
   AdminOrderStatusUpdateRecord,
   ProgressAdminOrderStatusInput,
@@ -10,6 +11,7 @@ import { parseAdminOrders } from "@/lib/orders";
 import type { Database } from "@/lib/supabase/database.types";
 
 const ADMIN_ORDER_STATUS_SNAPSHOT_COLUMNS = "status, fulfillment_type";
+const ADMIN_ORDER_STATUS_UPDATE_COLUMNS = "id, status";
 const ORDERS_TABLE_NAME = "orders";
 
 type OrdersRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -71,59 +73,75 @@ export function createSupabaseAdminOrdersDataAccess(supabase: {
 }): AdminOrdersDataAccess {
   return {
     async listAdminOrders() {
-      const ordersTable = asOrdersListChain(supabase.from(ORDERS_TABLE_NAME));
+      const ordersTable = getOrdersListTable(supabase);
       const { data, error } = await ordersTable
         .select(ADMIN_ORDERS_SELECT_COLUMNS)
         .order("created_at", { ascending: true });
 
       if (error) {
-        return { data: null, error };
+        return errorResult(error);
       }
 
-      return {
-        data: parseAdminOrders(Array.isArray(data) ? data : []),
-        error: null,
-      };
+      return successResult(parseAdminOrders(Array.isArray(data) ? data : []));
     },
 
     async getAdminOrderStatusSnapshot(orderId: string) {
-      const ordersTable = asOrdersStatusLookupChain(supabase.from(ORDERS_TABLE_NAME));
+      const ordersTable = getOrdersStatusLookupTable(supabase);
       const { data, error } = await ordersTable
         .select(ADMIN_ORDER_STATUS_SNAPSHOT_COLUMNS)
         .eq("id", orderId)
         .maybeSingle();
 
       if (error) {
-        return { data: null, error };
+        return errorResult(error);
       }
 
-      return {
-        data: data
+      return successResult(
+        data
           ? {
               status: data.status,
               fulfillmentType: data.fulfillment_type ?? null,
             }
-          : null,
-        error: null,
-      };
+          : null
+      );
     },
 
     async progressAdminOrderStatusConditionally(input: ProgressAdminOrderStatusInput) {
-      const ordersTable = asOrdersStatusUpdateChain(supabase.from(ORDERS_TABLE_NAME));
+      const ordersTable = getOrdersStatusUpdateTable(supabase);
       const { data, error } = await ordersTable
         .update({ status: input.nextStatus })
         .eq("id", input.orderId)
         .eq("status", input.currentStatus)
-        .select("id, status")
+        .select(ADMIN_ORDER_STATUS_UPDATE_COLUMNS)
         .maybeSingle();
 
       if (error) {
-        return { data: null, error };
+        return errorResult(error);
       }
 
-      return { data, error: null };
+      return successResult(data);
     },
   };
+}
+
+function getOrdersListTable(supabase: { from: (table: string) => unknown }) {
+  return asOrdersListChain(supabase.from(ORDERS_TABLE_NAME));
+}
+
+function getOrdersStatusLookupTable(supabase: { from: (table: string) => unknown }) {
+  return asOrdersStatusLookupChain(supabase.from(ORDERS_TABLE_NAME));
+}
+
+function getOrdersStatusUpdateTable(supabase: { from: (table: string) => unknown }) {
+  return asOrdersStatusUpdateChain(supabase.from(ORDERS_TABLE_NAME));
+}
+
+function successResult<T>(data: T): AdminOrdersDataAccessResult<T> {
+  return { data, error: null };
+}
+
+function errorResult<T>(error: AdminOrdersDataAccessError): AdminOrdersDataAccessResult<T> {
+  return { data: null, error };
 }
 
 function asOrdersListChain(value: unknown): OrdersListChain {
