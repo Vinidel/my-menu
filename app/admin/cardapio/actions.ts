@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
+import {
+  createRequestAndPrivilegedClients,
+  type RequestClient,
+} from "@/lib/app-clients";
 import type { Json } from "@/lib/supabase/database.types";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 import { enqueueMenuImportJob } from "@/lib/menu-import/queue";
@@ -20,8 +23,8 @@ type MenuImportAuthResult =
   | { ok: false; message: string };
 
 export async function uploadMenuImageAction(formData: FormData) {
-  const authClient = await createRequestClient();
-  const serviceClient = createPrivilegedClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
 
   if (!authClient || !serviceClient) {
     return redirectWithError("Configuração do Supabase indisponível.");
@@ -226,8 +229,8 @@ export async function uploadMenuImageAction(formData: FormData) {
 }
 
 export async function publishMenuVersionAction(formData: FormData) {
-  const authClient = await createRequestClient();
-  const serviceClient = createPrivilegedClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
   if (!authClient || !serviceClient) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
@@ -298,8 +301,8 @@ export async function publishMenuVersionAction(formData: FormData) {
 }
 
 export async function discardMenuVersionAction(formData: FormData) {
-  const authClient = await createRequestClient();
-  const serviceClient = createPrivilegedClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
   if (!authClient || !serviceClient) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
@@ -368,7 +371,7 @@ function redirectWithError(error: string) {
 }
 
 async function requireMenuImportUser(
-  authClient: NonNullable<Awaited<ReturnType<typeof createRequestClient>>>
+  authClient: RequestClient
 ): Promise<MenuImportAuthResult> {
   const {
     data: { user },

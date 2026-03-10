@@ -7,10 +7,15 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/app-clients", () => ({
   createRequestClient: vi.fn(),
   createPrivilegedClient: vi.fn(),
+  createRequestAndPrivilegedClients: vi.fn(),
 }));
 
 import { redirect } from "next/navigation";
-import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
+import {
+  createPrivilegedClient,
+  createRequestAndPrivilegedClients,
+  createRequestClient,
+} from "@/lib/app-clients";
 import { uploadMenuImageAction, publishMenuVersionAction } from "./actions";
 import { MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 
@@ -19,18 +24,26 @@ describe("admin menu import actions access guard", () => {
     vi.mocked(redirect).mockReset();
     vi.mocked(createRequestClient).mockReset();
     vi.mocked(createPrivilegedClient).mockReset();
+    vi.mocked(createRequestAndPrivilegedClients).mockReset();
     vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
   });
 
   it("rejects upload action for non-allowlisted user (stage 2: server action guard)", async () => {
-    vi.mocked(createRequestClient).mockResolvedValue({
+    const authClient = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "employee@example.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>;
+    const privilegedClient = {} as never;
+    vi.mocked(createRequestClient).mockResolvedValue(authClient);
+    vi.mocked(createPrivilegedClient).mockReturnValue(privilegedClient);
+    vi.mocked(createRequestAndPrivilegedClients).mockResolvedValue({
+      requestClient: authClient,
+      privilegedClient,
+    } as never);
 
     const formData = new FormData();
     formData.set("menuImages", new File(["fake"], "menu.jpg", { type: "image/jpeg" }));
@@ -43,14 +56,21 @@ describe("admin menu import actions access guard", () => {
   });
 
   it("rejects publish action for non-allowlisted user (stage 2: server action guard)", async () => {
-    vi.mocked(createRequestClient).mockResolvedValue({
+    const authClient = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-2", email: "employee@example.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>;
+    const privilegedClient = {} as never;
+    vi.mocked(createRequestClient).mockResolvedValue(authClient);
+    vi.mocked(createPrivilegedClient).mockReturnValue(privilegedClient);
+    vi.mocked(createRequestAndPrivilegedClients).mockResolvedValue({
+      requestClient: authClient,
+      privilegedClient,
+    } as never);
 
     const formData = new FormData();
     formData.set("versionId", "version-1");

@@ -1,7 +1,7 @@
 import { publishMenuVersionAction, discardMenuVersionAction } from "./actions";
 import { UploadMenuForm } from "./upload-form";
 import { ProcessingPoller } from "./processing-poller";
-import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
+import { createRequestAndPrivilegedClients } from "@/lib/app-clients";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,8 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
   const feedbackMessage = normalizeQueryParam(params.message);
   const feedbackError = normalizeQueryParam(params.error);
 
-  const authClient = await createRequestClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
   if (!authClient) {
     return renderForbiddenView();
   }
@@ -31,7 +32,6 @@ export default async function AdminMenuImportPage({ searchParams }: PageProps) {
     return renderForbiddenView();
   }
 
-  const serviceClient = createPrivilegedClient();
   if (!serviceClient) {
     return (
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">

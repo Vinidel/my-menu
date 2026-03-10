@@ -5,6 +5,7 @@ import AdminMenuImportPage from "./page";
 vi.mock("@/lib/app-clients", () => ({
   createRequestClient: vi.fn(),
   createPrivilegedClient: vi.fn(),
+  createRequestAndPrivilegedClients: vi.fn(),
 }));
 
 vi.mock("./upload-form", () => ({
@@ -17,12 +18,17 @@ vi.mock("./processing-poller", () => ({
   ),
 }));
 
-import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
+import {
+  createPrivilegedClient,
+  createRequestAndPrivilegedClients,
+  createRequestClient,
+} from "@/lib/app-clients";
 
 describe("AdminMenuImportPage", () => {
   beforeEach(() => {
     vi.mocked(createRequestClient).mockReset();
     vi.mocked(createPrivilegedClient).mockReset();
+    vi.mocked(createRequestAndPrivilegedClients).mockReset();
   });
 
   afterEach(() => {
@@ -31,16 +37,17 @@ describe("AdminMenuImportPage", () => {
 
   it("uses explicit FK relationship for import_job select (stage 2: join regression guard)", async () => {
     const selectCalls: string[] = [];
-    vi.mocked(createRequestClient).mockResolvedValue({
+    const authClient = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "vinidroid@gmail.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>;
+    vi.mocked(createRequestClient).mockResolvedValue(authClient);
 
-    vi.mocked(createPrivilegedClient).mockReturnValue({
+    const privilegedClient = {
       from: vi.fn().mockImplementation(() => {
         const builder = {
           select: vi.fn((query: string) => {
@@ -53,6 +60,11 @@ describe("AdminMenuImportPage", () => {
         };
         return builder;
       }),
+    } as never;
+    vi.mocked(createPrivilegedClient).mockReturnValue(privilegedClient);
+    vi.mocked(createRequestAndPrivilegedClients).mockResolvedValue({
+      requestClient: authClient,
+      privilegedClient,
     } as never);
 
     await AdminMenuImportPage({ searchParams: {} });
@@ -65,14 +77,15 @@ describe("AdminMenuImportPage", () => {
   });
 
   it("hides actions for processing draft and shows actions for ready draft (stage 2: processing UX)", async () => {
-    vi.mocked(createRequestClient).mockResolvedValue({
+    const authClient = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "vinidroid@gmail.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>;
+    vi.mocked(createRequestClient).mockResolvedValue(authClient);
 
     const activeRows = [];
     const draftRows = [
@@ -102,7 +115,7 @@ describe("AdminMenuImportPage", () => {
       },
     ];
 
-    vi.mocked(createPrivilegedClient).mockReturnValue({
+    const privilegedClient = {
       from: vi.fn().mockImplementation(() => {
         const builder = {
           select: vi.fn((query: string) => {
@@ -119,6 +132,11 @@ describe("AdminMenuImportPage", () => {
         };
         return builder;
       }),
+    } as never;
+    vi.mocked(createPrivilegedClient).mockReturnValue(privilegedClient);
+    vi.mocked(createRequestAndPrivilegedClients).mockResolvedValue({
+      requestClient: authClient,
+      privilegedClient,
     } as never);
 
     render(await AdminMenuImportPage({ searchParams: {} }));

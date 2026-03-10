@@ -16,6 +16,7 @@ import {
   createBrowserClient,
   createPrivilegedClient,
   createRequestClient,
+  createRequestAndPrivilegedClients,
 } from "./app-clients";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
@@ -66,5 +67,19 @@ describe("app-clients boundary", () => {
     await expect(createRequestClient()).resolves.toBeNull();
     expect(createBrowserClient()).toBeNull();
     expect(createPrivilegedClient()).toBeNull();
+  });
+
+  it("can load request and privileged clients through the shared paired helper", async () => {
+    const requestClient = { auth: { getUser: vi.fn() } };
+    const privilegedClient = { from: vi.fn() };
+    vi.mocked(createSupabaseRequestClient).mockResolvedValue(requestClient as never);
+    vi.mocked(createServiceRoleClient).mockReturnValue(privilegedClient as never);
+
+    const result = await createRequestAndPrivilegedClients();
+
+    expect(result).toEqual({
+      requestClient,
+      privilegedClient,
+    });
   });
 });
