@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation for docs/briefs/tech-review-data-access-abstraction.md
+Scope: Stage 0 brief for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In a future doc cleanup pass, consider updating the `PROJECT.md` folder-structure `docs/` line to explicitly include `tech-review-data-access-abstraction.md` so the inventory example stays fully in sync with the delivered docs list above it.
+- During implementation, keep an eye on whether app-facing factory names need distinct semantics for auth-scoped versus service-role access so the new provider-agnostic naming does not become overly vague.
 
 ### Risks / Assumptions
-- The documentation correctly states that no new migration was introduced here, but it still assumes readers understand this feature depends on earlier admin/orders schema and status migrations already being applied.
-- The docs describe the first abstraction boundary accurately, but future contributors could still overgeneralize it into a repo-wide pattern unless later briefs keep repeating the “first slice only” constraint.
+- The brief intentionally allows `lib/**` to keep importing `lib/supabase/*`, so this feature will improve app-layer decoupling without fully removing provider naming from internal library code.
+- Because the locked migration set includes several different areas at once, implementation discipline still matters to avoid mixing inconsistent naming patterns across auth, service-role, and browser-client entrypoints.
 
 ## Acceptance Criteria
-- [ ] The dedicated feature doc remains aligned with the current `admin/orders` interface, adapter, and migrated call sites.
-- [ ] `PROJECT.md` and the employee dashboard docs continue to describe auth/session validation as remaining outside the data-access abstraction.
-- [ ] Later changes do not describe this feature as a repo-wide data layer rewrite unless a new brief explicitly expands the scope.
-- [ ] Documentation updates do not drift from the actual shipped admin/orders behavior.
+- [ ] The full locked app/component migration set is covered, not just a subset of obvious files.
+- [ ] App-layer files stop importing `@/lib/supabase/server`, `@/lib/supabase/client`, and `@/lib/supabase/service-role` directly for the migrated slice.
+- [ ] Provider-specific implementation remains allowed and contained inside `lib/**`.
+- [ ] Behavior remains unchanged and the test suite stays green.
