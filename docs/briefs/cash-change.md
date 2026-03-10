@@ -1,6 +1,6 @@
 # Feature Brief — Placeholder de Troco em Observações
 
-Status: Stage 0 — Brief Complete (pending Critic)
+Status: Stage 5 — Documentation Complete (Critic approved)
 Date: 2026-03-10
 Author: Orchestrator Agent
 Workflow: Full

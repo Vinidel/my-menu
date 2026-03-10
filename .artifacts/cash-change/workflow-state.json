@@ -1,8 +1,8 @@
 {
   "feature": "cash-change",
   "workflow": "full",
-  "current_stage": "hardener",
+  "current_stage": "documenter",
   "status": "approved",
   "critic_verdict": "APPROVE",
-  "handoff": ".artifacts/cash-change/hardener/handoff.md"
+  "handoff": ".artifacts/cash-change/documenter/handoff.md"
 }
