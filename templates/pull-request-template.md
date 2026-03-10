@@ -1,6 +1,11 @@
 ## Summary
 <!-- What does this PR do? 2-3 sentences max. -->
 
+## Workflow
+<!-- Record the workflow depth selected in Stage 0 -->
+- Type: Full | Light | Hotfix
+- Brief / Scope Note: [Link](../docs/briefs/feature-name.md)
+
 ## Feature Brief
 <!-- Link to the brief this PR implements -->
 [Brief](../docs/briefs/feature-name.md)
@@ -10,9 +15,11 @@
 - [ ] Stage 0 — Brief approved by Critic
 - [ ] Stage 1 — Implementation approved by Critic
 - [ ] Stage 2 — Tests approved by Critic
-- [ ] Stage 3 — Refactor approved by Critic
-- [ ] Stage 4 — Hardening approved by Critic
-- [ ] Stage 5 — Documentation approved by Critic
+- [ ] Stage 3 — Hardening and cleanup approved by Critic
+- [ ] Stage 4 — Documentation approved by Critic
+
+<!-- For Light workflow, Stage 3-4 may be intentionally skipped. -->
+<!-- For Hotfix workflow, use the hotfix scope note and post-fix catch-up instead. -->
 
 ## What Changed
 <!-- High-level summary of the changes made -->

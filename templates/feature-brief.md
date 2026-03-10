@@ -3,6 +3,20 @@
 Status: Stage 0 — Framing
 Date: YYYY-MM-DD
 Author: Orchestrator Agent
+Workflow: Full | Light
+
+---
+
+## Workflow Routing Decision
+Change type: <feature | bugfix | enhancement | refactor | spike>
+Workflow selected: <Full | Light>
+Reason:
+- Scope:
+- Risk:
+- Blast radius:
+- Urgency:
+- Required stages:
+- Skipped stages and why:
 
 ---
 
@@ -82,12 +96,21 @@ Author: Orchestrator Agent
 
 ---
 
+## Security / Operational Constraints
+<!-- Capture constraints that should shape implementation before Stage 3. -->
+<!-- Examples: auth boundaries, validation requirements, idempotency, observability, timeouts -->
+- ...
+
+---
+
 ## Stage 0 Exit Gate
+- [ ] Workflow routing decision is explicit and justified
 - [ ] Problem is clearly defined
 - [ ] Goals are concrete and testable
 - [ ] Non-goals are explicitly listed
 - [ ] Happy and unhappy paths are documented
 - [ ] Edge cases are surfaced
 - [ ] Key decisions are locked
+- [ ] Major security and operational constraints are surfaced when relevant
 - [ ] Approach is outlined at a high level (no code)
 - [ ] Critic has approved this brief

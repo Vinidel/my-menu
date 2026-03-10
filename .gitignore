@@ -42,3 +42,6 @@ yarn-error.log*
 supabase/.temp
 
 todos.md
+
+.ai-os-stage-loop.env
+scripts/ai-os-stage-loop.sh
