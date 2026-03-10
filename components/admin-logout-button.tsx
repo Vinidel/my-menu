@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createBrowserClient } from "@/lib/app-clients";
+import { createBrowserClient } from "@/lib/browser-client";
 import type { User } from "@supabase/supabase-js";
 
 export function AdminLogoutButton() {

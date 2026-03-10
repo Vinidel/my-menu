@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createRequestAndPrivilegedClients,
-  type RequestClient,
-} from "@/lib/app-clients";
+  type RequestAndPrivilegedClients,
+} from "@/lib/request-and-privileged-clients";
+import type { RequestClient } from "@/lib/request-client";
 import type { Json } from "@/lib/supabase/database.types";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 import { enqueueMenuImportJob } from "@/lib/menu-import/queue";

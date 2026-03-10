@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createBrowserClient } from "@/lib/app-clients";
+import { createBrowserClient } from "@/lib/browser-client";
 
 const AUTH_ERROR_MESSAGE = "E-mail ou senha incorretos.";
 const EMPTY_EMAIL_MESSAGE = "Informe o e-mail.";

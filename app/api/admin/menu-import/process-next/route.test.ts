@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/request-client", () => ({
   createRequestClient: vi.fn(),
+}));
+
+vi.mock("@/lib/privileged-client", () => ({
   createPrivilegedClient: vi.fn(),
 }));
 
@@ -14,7 +17,8 @@ vi.mock("@/lib/menu-import/processor", () => ({
   processMenuImportJob: vi.fn(),
 }));
 
-import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
+import { createPrivilegedClient } from "@/lib/privileged-client";
+import { createRequestClient } from "@/lib/request-client";
 import { readMenuImportQueueMessages, deleteMenuImportQueueMessage } from "@/lib/menu-import/queue";
 import { processMenuImportJob } from "@/lib/menu-import/processor";
 import { POST } from "./route";

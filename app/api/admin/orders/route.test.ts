@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/request-client", () => ({
   createRequestClient: vi.fn(),
 }));
 
@@ -9,7 +9,7 @@ vi.mock("@/lib/admin-orders-data-access", () => ({
 }));
 
 import { GET } from "./route";
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("GET /api/admin/orders", () => {

@@ -10,11 +10,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, refresh: mockRefresh }),
 }));
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/browser-client", () => ({
   createBrowserClient: vi.fn(),
 }));
 
-import { createBrowserClient } from "@/lib/app-clients";
+import { createBrowserClient } from "@/lib/browser-client";
 
 describe("Admin Login Page (Employee Auth)", () => {
   beforeEach(() => {

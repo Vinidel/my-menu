@@ -12,7 +12,7 @@ import {
   normalizePaymentMethod,
   type PaymentMethod,
 } from "@/lib/payment-methods";
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import type { Database } from "@/lib/supabase/database.types";
 
 const SETUP_ERROR_MESSAGE =

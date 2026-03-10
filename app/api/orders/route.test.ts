@@ -4,7 +4,7 @@ vi.mock("@/app/actions", () => ({
   submitCustomerOrderWithClient: vi.fn(),
 }));
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/privileged-client", () => ({
   createPrivilegedClient: vi.fn(),
 }));
 
@@ -20,7 +20,7 @@ vi.mock("@/lib/anti-abuse/rate-limit", async () => {
 
 import { POST } from "./route";
 import { submitCustomerOrderWithClient } from "@/app/actions";
-import { createPrivilegedClient } from "@/lib/app-clients";
+import { createPrivilegedClient } from "@/lib/privileged-client";
 import { consumeFixedWindowRateLimit } from "@/lib/anti-abuse/rate-limit";
 
 const BASE_ORDER_BODY = {

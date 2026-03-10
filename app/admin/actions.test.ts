@@ -4,12 +4,12 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/request-client", () => ({
   createRequestClient: vi.fn(),
 }));
 
 import { revalidatePath } from "next/cache";
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import { progressOrderStatus } from "./actions";
 
 type LookupResult = {

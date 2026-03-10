@@ -4,7 +4,7 @@ import {
   submitCustomerOrderWithClient,
   type SubmitCustomerOrderInput,
 } from "@/app/actions";
-import { createPrivilegedClient } from "@/lib/app-clients";
+import { createPrivilegedClient } from "@/lib/privileged-client";
 import { isOrdersCaptchaRequired } from "@/lib/anti-abuse/captcha-config";
 import { getRuntimeMenuItemMap } from "@/lib/menu-runtime";
 import {

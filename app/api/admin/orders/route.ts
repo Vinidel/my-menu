@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 const SETUP_ERROR_MESSAGE =

@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import AdminMenuImportPage from "./page";
 
-vi.mock("@/lib/app-clients", () => ({
-  createRequestClient: vi.fn(),
+vi.mock("@/lib/privileged-client", () => ({
   createPrivilegedClient: vi.fn(),
+}));
+
+vi.mock("@/lib/request-client", () => ({
+  createRequestClient: vi.fn(),
+}));
+
+vi.mock("@/lib/request-and-privileged-clients", () => ({
   createRequestAndPrivilegedClients: vi.fn(),
 }));
 
@@ -18,11 +24,9 @@ vi.mock("./processing-poller", () => ({
   ),
 }));
 
-import {
-  createPrivilegedClient,
-  createRequestAndPrivilegedClients,
-  createRequestClient,
-} from "@/lib/app-clients";
+import { createPrivilegedClient } from "@/lib/privileged-client";
+import { createRequestClient } from "@/lib/request-client";
+import { createRequestAndPrivilegedClients } from "@/lib/request-and-privileged-clients";
 
 describe("AdminMenuImportPage", () => {
   beforeEach(() => {

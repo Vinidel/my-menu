@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createPrivilegedClient, createRequestClient } from "@/lib/app-clients";
+import { createPrivilegedClient } from "@/lib/privileged-client";
+import { createRequestClient } from "@/lib/request-client";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 import { processMenuImportJob } from "@/lib/menu-import/processor";
 import { deleteMenuImportQueueMessage, readMenuImportQueueMessages } from "@/lib/menu-import/queue";

@@ -4,18 +4,22 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 
-vi.mock("@/lib/app-clients", () => ({
-  createRequestClient: vi.fn(),
+vi.mock("@/lib/privileged-client", () => ({
   createPrivilegedClient: vi.fn(),
+}));
+
+vi.mock("@/lib/request-client", () => ({
+  createRequestClient: vi.fn(),
+}));
+
+vi.mock("@/lib/request-and-privileged-clients", () => ({
   createRequestAndPrivilegedClients: vi.fn(),
 }));
 
 import { redirect } from "next/navigation";
-import {
-  createPrivilegedClient,
-  createRequestAndPrivilegedClients,
-  createRequestClient,
-} from "@/lib/app-clients";
+import { createPrivilegedClient } from "@/lib/privileged-client";
+import { createRequestClient } from "@/lib/request-client";
+import { createRequestAndPrivilegedClients } from "@/lib/request-and-privileged-clients";
 import { uploadMenuImageAction, publishMenuVersionAction } from "./actions";
 import { MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 

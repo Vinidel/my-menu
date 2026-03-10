@@ -1,7 +1,7 @@
 import { publishMenuVersionAction, discardMenuVersionAction } from "./actions";
 import { UploadMenuForm } from "./upload-form";
 import { ProcessingPoller } from "./processing-poller";
-import { createRequestAndPrivilegedClients } from "@/lib/app-clients";
+import { createRequestAndPrivilegedClients } from "@/lib/request-and-privileged-clients";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 
 export const dynamic = "force-dynamic";

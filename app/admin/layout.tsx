@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AdminLogoutButton } from "@/components/admin-logout-button";
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import { canUseMenuImport } from "@/lib/menu-import/access";
 
 export default async function AdminLayout({

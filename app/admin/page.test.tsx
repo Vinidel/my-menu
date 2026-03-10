@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import AdminPage from "./page";
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/request-client", () => ({
   createRequestClient: vi.fn(),
 }));
 
@@ -25,7 +25,7 @@ vi.mock("@/components/admin-orders-dashboard", () => ({
   ),
 }));
 
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("AdminPage (Employee Orders Dashboard)", () => {

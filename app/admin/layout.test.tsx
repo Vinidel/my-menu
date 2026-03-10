@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import AdminLayout from "./layout";
 
-vi.mock("@/lib/app-clients", () => ({
+vi.mock("@/lib/request-client", () => ({
   createRequestClient: vi.fn(),
 }));
 
@@ -10,7 +10,7 @@ vi.mock("@/components/admin-logout-button", () => ({
   AdminLogoutButton: () => <button type="button">Sair</button>,
 }));
 
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 
 describe("AdminLayout", () => {
   beforeEach(() => {

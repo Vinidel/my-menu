@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createRequestClient } from "@/lib/app-clients";
+import { createRequestClient } from "@/lib/request-client";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
