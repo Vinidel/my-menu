@@ -4,9 +4,9 @@ import {
   submitCustomerOrderWithClient,
   type SubmitCustomerOrderInput,
 } from "@/app/actions";
+import { createPrivilegedClient } from "@/lib/privileged-client";
 import { isOrdersCaptchaRequired } from "@/lib/anti-abuse/captcha-config";
 import { getRuntimeMenuItemMap } from "@/lib/menu-runtime";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
   consumeFixedWindowRateLimit,
   type FixedWindowRateLimitResult,
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const supabase = createServiceRoleClient();
+  const supabase = createPrivilegedClient();
   if (!supabase) {
     return setupError(SETUP_UNAVAILABLE_MESSAGE, 503);
   }

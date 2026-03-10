@@ -4,12 +4,12 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+vi.mock("@/lib/request-client", () => ({
+  createRequestClient: vi.fn(),
 }));
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient } from "@/lib/request-client";
 import { progressOrderStatus } from "./actions";
 
 type LookupResult = {
@@ -29,7 +29,7 @@ type UpdateResult = {
 
 describe("progressOrderStatus", () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockReset();
+    vi.mocked(createRequestClient).mockReset();
     vi.mocked(revalidatePath).mockReset();
   });
 
@@ -46,7 +46,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-1",
@@ -75,7 +75,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-2",
@@ -103,7 +103,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-legacy",
@@ -131,7 +131,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-pickup-done",
@@ -159,7 +159,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-invalid",
@@ -188,7 +188,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-stale",
@@ -222,7 +222,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-race",
@@ -251,7 +251,7 @@ describe("progressOrderStatus", () => {
         error: { message: "db down", code: "500" },
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-fail",
@@ -279,7 +279,7 @@ describe("progressOrderStatus", () => {
         error: null,
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
 
     const result = await progressOrderStatus({
       orderId: "order-hardening",

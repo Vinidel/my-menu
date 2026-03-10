@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+vi.mock("@/lib/request-client", () => ({
+  createRequestClient: vi.fn(),
 }));
 
 vi.mock("@/lib/admin-orders-data-access", () => ({
@@ -9,17 +9,17 @@ vi.mock("@/lib/admin-orders-data-access", () => ({
 }));
 
 import { GET } from "./route";
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient } from "@/lib/request-client";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
 
 describe("GET /api/admin/orders", () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockReset();
+    vi.mocked(createRequestClient).mockReset();
     vi.mocked(createAdminOrdersDataAccess).mockReset();
   });
 
   it("returns 503 when Supabase is not configured (brief: setup resilience)", async () => {
-    vi.mocked(createClient).mockResolvedValue(null);
+    vi.mocked(createRequestClient).mockResolvedValue(null);
 
     const response = await GET();
 
@@ -33,7 +33,7 @@ describe("GET /api/admin/orders", () => {
   });
 
   it("returns 401 when no authenticated user is available (brief: auth protection)", async () => {
-    vi.mocked(createClient).mockResolvedValue({
+    vi.mocked(createRequestClient).mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: null },
@@ -67,7 +67,7 @@ describe("GET /api/admin/orders", () => {
       },
     };
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
     vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);
@@ -100,7 +100,7 @@ describe("GET /api/admin/orders", () => {
       },
     };
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
     vi.mocked(createAdminOrdersDataAccess).mockReturnValue({
       listAdminOrders,
     } as never);

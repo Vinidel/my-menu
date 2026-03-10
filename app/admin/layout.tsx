@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AdminLogoutButton } from "@/components/admin-logout-button";
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient } from "@/lib/request-client";
 import { canUseMenuImport } from "@/lib/menu-import/access";
 
 export default async function AdminLayout({
@@ -8,7 +8,7 @@ export default async function AdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const authClient = await createClient();
+  const authClient = await createRequestClient();
   const {
     data: { user },
   } = authClient ? await authClient.auth.getUser() : { data: { user: null } };

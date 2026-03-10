@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@/lib/browser-client";
 import type { User } from "@supabase/supabase-js";
 
 export function AdminLogoutButton() {
@@ -11,7 +11,7 @@ export function AdminLogoutButton() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
   useEffect(() => {
-    const client = createClient();
+    const client = createBrowserClient();
     if (!client) {
       setUser(null);
       return;
@@ -29,7 +29,7 @@ export function AdminLogoutButton() {
   if (user === undefined || !user) return null;
 
   async function handleLogout() {
-    const client = createClient();
+    const client = createBrowserClient();
     if (client) await client.auth.signOut();
     router.refresh();
     router.push("/admin/login");

@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 Reviewed by: Critic Agent
-Scope: Stage 5 documentation for docs/briefs/tech-review-data-access-abstraction.md
+Scope: Stage 3 refactor for docs/briefs/provider-agnostic-data-access-and-client-naming-follow-up.md
 Verdict: APPROVE
 
 ## Findings
@@ -11,14 +11,14 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- In a future doc cleanup pass, consider updating the `PROJECT.md` folder-structure `docs/` line to explicitly include `tech-review-data-access-abstraction.md` so the inventory example stays fully in sync with the delivered docs list above it.
+- If more slices start using paired request+privileged access, consider documenting when `createRequestAndPrivilegedClients()` is preferred over the individual helpers so the boundary stays consistent instead of becoming a grab bag of convenience functions.
 
 ### Risks / Assumptions
-- The documentation correctly states that no new migration was introduced here, but it still assumes readers understand this feature depends on earlier admin/orders schema and status migrations already being applied.
-- The docs describe the first abstraction boundary accurately, but future contributors could still overgeneralize it into a repo-wide pattern unless later briefs keep repeating the “first slice only” constraint.
+- The new paired helper improves clarity for the menu-import slice, but future use should stay disciplined so it does not encourage unrelated callers to take privileged access when they only need request-scoped auth.
+- The exported client type aliases are convenient, but they still derive from provider-specific return types under the hood, so this remains an app-layer naming refactor rather than a provider-neutral type boundary.
 
 ## Acceptance Criteria
-- [ ] The dedicated feature doc remains aligned with the current `admin/orders` interface, adapter, and migrated call sites.
-- [ ] `PROJECT.md` and the employee dashboard docs continue to describe auth/session validation as remaining outside the data-access abstraction.
-- [ ] Later changes do not describe this feature as a repo-wide data layer rewrite unless a new brief explicitly expands the scope.
-- [ ] Documentation updates do not drift from the actual shipped admin/orders behavior.
+- [ ] Stage 4 changes, if any, keep the app-client boundary focused and do not broaden privileged access usage unnecessarily.
+- [ ] `lib/app-clients.test.ts` continues to cover the paired helper as well as the individual request/browser/privileged helpers.
+- [ ] The locked app/component set remains free of direct provider-specific client imports.
+- [ ] The full test suite remains green after later stages.

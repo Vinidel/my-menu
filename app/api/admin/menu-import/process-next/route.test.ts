@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+vi.mock("@/lib/request-client", () => ({
+  createRequestClient: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/service-role", () => ({
-  createServiceRoleClient: vi.fn(),
+vi.mock("@/lib/privileged-client", () => ({
+  createPrivilegedClient: vi.fn(),
 }));
 
 vi.mock("@/lib/menu-import/queue", () => ({
@@ -17,8 +17,8 @@ vi.mock("@/lib/menu-import/processor", () => ({
   processMenuImportJob: vi.fn(),
 }));
 
-import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createPrivilegedClient } from "@/lib/privileged-client";
+import { createRequestClient } from "@/lib/request-client";
 import { readMenuImportQueueMessages, deleteMenuImportQueueMessage } from "@/lib/menu-import/queue";
 import { processMenuImportJob } from "@/lib/menu-import/processor";
 import { POST } from "./route";
@@ -26,13 +26,13 @@ import { MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 
 describe("POST /api/admin/menu-import/process-next", () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockReset();
-    vi.mocked(createServiceRoleClient).mockReset();
+    vi.mocked(createRequestClient).mockReset();
+    vi.mocked(createPrivilegedClient).mockReset();
     vi.mocked(readMenuImportQueueMessages).mockReset();
     vi.mocked(deleteMenuImportQueueMessage).mockReset();
     vi.mocked(processMenuImportJob).mockReset();
 
-    vi.mocked(createServiceRoleClient).mockReturnValue({} as never);
+    vi.mocked(createPrivilegedClient).mockReturnValue({} as never);
     vi.mocked(readMenuImportQueueMessages).mockResolvedValue([]);
     vi.mocked(deleteMenuImportQueueMessage).mockResolvedValue(true);
     vi.mocked(processMenuImportJob).mockResolvedValue({ status: "ready" });
@@ -40,14 +40,14 @@ describe("POST /api/admin/menu-import/process-next", () => {
   });
 
   it("returns 403 for non-allowlisted user when worker secret auth is not used", async () => {
-    vi.mocked(createClient).mockResolvedValue({
+    vi.mocked(createRequestClient).mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { id: "u-1", email: "employee@example.com" } },
           error: null,
         }),
       },
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    } as unknown as Awaited<ReturnType<typeof createRequestClient>>);
 
     const response = await POST(
       new Request("http://localhost/api/admin/menu-import/process-next", {
@@ -79,7 +79,7 @@ describe("POST /api/admin/menu-import/process-next", () => {
       ok: true,
       processed: false,
     });
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createRequestClient).not.toHaveBeenCalled();
   });
 
   it("denies when Authorization header is present but worker token is invalid", async () => {
@@ -99,7 +99,7 @@ describe("POST /api/admin/menu-import/process-next", () => {
       ok: false,
       message: "Acesso não autorizado.",
     });
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createRequestClient).not.toHaveBeenCalled();
   });
 
   it("acks queue message when processor returns ready", async () => {

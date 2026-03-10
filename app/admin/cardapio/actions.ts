@@ -2,8 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import {
+  createRequestAndPrivilegedClients,
+  type RequestAndPrivilegedClients,
+} from "@/lib/request-and-privileged-clients";
+import type { RequestClient } from "@/lib/request-client";
 import type { Json } from "@/lib/supabase/database.types";
 import { canUseMenuImport, MENU_IMPORT_FORBIDDEN_MESSAGE } from "@/lib/menu-import/access";
 import { enqueueMenuImportJob } from "@/lib/menu-import/queue";
@@ -21,8 +24,8 @@ type MenuImportAuthResult =
   | { ok: false; message: string };
 
 export async function uploadMenuImageAction(formData: FormData) {
-  const authClient = await createClient();
-  const serviceClient = createServiceRoleClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
 
   if (!authClient || !serviceClient) {
     return redirectWithError("Configuração do Supabase indisponível.");
@@ -227,8 +230,8 @@ export async function uploadMenuImageAction(formData: FormData) {
 }
 
 export async function publishMenuVersionAction(formData: FormData) {
-  const authClient = await createClient();
-  const serviceClient = createServiceRoleClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
   if (!authClient || !serviceClient) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
@@ -299,8 +302,8 @@ export async function publishMenuVersionAction(formData: FormData) {
 }
 
 export async function discardMenuVersionAction(formData: FormData) {
-  const authClient = await createClient();
-  const serviceClient = createServiceRoleClient();
+  const { requestClient: authClient, privilegedClient: serviceClient } =
+    await createRequestAndPrivilegedClients();
   if (!authClient || !serviceClient) {
     return redirectWithError("Configuração do Supabase indisponível.");
   }
@@ -369,7 +372,7 @@ function redirectWithError(error: string) {
 }
 
 async function requireMenuImportUser(
-  authClient: NonNullable<Awaited<ReturnType<typeof createClient>>>
+  authClient: RequestClient
 ): Promise<MenuImportAuthResult> {
   const {
     data: { user },

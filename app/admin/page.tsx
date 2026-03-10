@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { createRequestClient } from "@/lib/request-client";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
-import { createClient } from "@/lib/supabase/server";
 
 const SETUP_MESSAGE =
   "Configure as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para visualizar os pedidos.";
@@ -10,7 +10,7 @@ const LOAD_ERROR_MESSAGE =
   "Não foi possível carregar os pedidos agora. Tente novamente em instantes.";
 
 export default async function AdminPage() {
-  const supabase = await createClient();
+  const supabase = await createRequestClient();
 
   if (!supabase) {
     return (

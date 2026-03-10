@@ -12,6 +12,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      "client-only": path.resolve(__dirname, "./test/shims/client-only.ts"),
+      "server-only": path.resolve(__dirname, "./test/shims/server-only.ts"),
     },
   },
 });
