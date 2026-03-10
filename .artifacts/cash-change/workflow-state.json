@@ -1,8 +1,8 @@
 {
   "feature": "cash-change",
   "workflow": "full",
-  "current_stage": "tester",
-  "status": "gatekeeper_synced",
+  "current_stage": "hardener",
+  "status": "approved",
   "critic_verdict": "APPROVE",
-  "handoff": ".artifacts/cash-change/tester/handoff.md"
+  "handoff": ".artifacts/cash-change/hardener/handoff.md"
 }

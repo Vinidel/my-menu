@@ -910,3 +910,44 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Import-time assertions only |
 | Observability | Gap       | No dedicated boundary telemetry yet |
 | Resilience    | Improved  | Added explicit `server-only` / `client-only` fences |
+
+---
+
+## Cash Change Placeholder (Stage 3 Hardening)
+
+### Structure
+
+- **No structural cleanup required:** The feature is a single placeholder-copy update in `components/customer-order-page.tsx`, and the current implementation is already the minimal, clearest form. Any further refactor here would add churn without readability or safety gain. **No change applied.**
+
+### Security
+
+- **No new input surface or trust boundary:** The change only updates placeholder text for an existing optional textarea. It does not add a new field, structured `troco` payload, or new server-side parsing path. **No change.**
+- **No leak of sensitive details:** The placeholder remains ordinary pt-BR example copy and does not expose internal behavior or implementation details. **No change.**
+
+### Dependencies
+
+- **No dependency change:** No packages, framework features, or third-party integrations were added or altered. **No change.**
+
+### Performance
+
+- **No runtime cost:** The feature is static placeholder text in an already-rendered textarea and has no measurable impact on render, network, or persistence paths. **No change.**
+
+### Observability
+
+- **No new telemetry needed for this scope:** Because behavior is unchanged and the feature is presentational only, existing logs and submission-path diagnostics remain sufficient. A future real `troco` workflow would likely need stronger observability, but this placeholder-only change does not. **No change.**
+
+### Resilience
+
+- **Fail-safe scope preserved:** Even if customers ignore or misunderstand the placeholder, the system still falls back to the pre-existing free-text notes behavior. There is no new conditional logic or server dependency that could fail. **No change.**
+- **Future-feature boundary remains important:** If the product later wants structured `troco para quanto` support, that must be a separate feature so this copy-only change does not silently evolve into implicit backend behavior. **Documented constraint.**
+
+### Summary
+
+| Area          | Status | Action |
+|---------------|--------|--------|
+| Structure     | OK     | No cleanup needed beyond current minimal implementation |
+| Security      | OK     | Placeholder-only change; no new trust boundary |
+| Dependencies  | OK     | No dependency changes |
+| Performance   | OK     | Static copy only |
+| Observability | OK     | Existing diagnostics sufficient for presentational scope |
+| Resilience    | OK     | Existing free-text fallback behavior preserved |
