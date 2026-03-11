@@ -951,3 +951,44 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK     | Static copy only |
 | Observability | OK     | Existing diagnostics sufficient for presentational scope |
 | Resilience    | OK     | Existing free-text fallback behavior preserved |
+
+---
+
+## Recurring Deletion of Delivered Orders (delete-orders) — Stage 3
+
+### Security
+
+- **No user input:** The function is invoked by pg_cron only; no HTTP-exposed RPC. No anon/authenticated GRANT on the function.
+- **SECURITY DEFINER with search_path:** Function runs with definer privileges for DELETE; `search_path = public` limits schema injection risk. **No change.**
+- **Irreversible deletion:** Brief explicitly accepts this; no soft-delete. Operator can disable cron without redeploy. **Documented.**
+
+### Dependencies
+
+- **pg_cron required:** Cron schedule must be configured manually after migration. Depends on Supabase pg_cron extension (already in use for menu-import). **Documented in docs/delete-orders.md.**
+- **No new npm packages:** Migration-only feature. **No change.**
+
+### Performance
+
+- **Single transactional DELETE:** Bounded to one day's worth of `entregue` orders. For small-scale single-tenant scope, volume is low. **Acceptable.**
+- **Index usage:** `orders` has `orders_status_idx` and `orders_status_created_at_idx`; status + updated_at filter should use these. **No change needed.**
+
+### Observability
+
+- **RAISE NOTICE added:** Function now emits `delete_entregue_orders_from_previous_day: N rows deleted` so Supabase/postgres logs capture the count when pg_cron runs. **Improved in Stage 3.**
+- **Return value:** Function returns count; manual invocation can inspect it. pg_cron does not log return values by default; RAISE NOTICE fills that gap. **Improved.**
+
+### Resilience
+
+- **Timezone robustness:** Cutoff logic now uses `(now() at time zone 'America/Sao_Paulo')::date` instead of `current_date`, making the previous-day computation independent of session/connection timezone. **Improved in Stage 3.**
+- **Atomic delete:** Single DELETE in a CTE; no partial deletes on failure. **No change.**
+- **Cron failure:** If pg_cron misses a run or the function throws, orders accumulate until the next successful run. No retry logic; acceptable for daily cadence. **Documented.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Security      | OK        | No HTTP exposure; SECURITY DEFINER with bounded search_path |
+| Dependencies  | OK        | pg_cron dependency documented |
+| Performance   | OK        | Single bounded DELETE; acceptable at scale |
+| Observability | Improved  | Added RAISE NOTICE for deleted count |
+| Resilience    | Improved  | Timezone robustness via now() at time zone |

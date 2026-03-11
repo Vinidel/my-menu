@@ -14,8 +14,9 @@ declare
   v_deleted integer;
 begin
   -- Previous calendar day in America/Sao_Paulo (half-open interval [start, end))
+  -- Use now() to derive date in Brazil timezone; avoids session-timezone dependence.
   v_start := (
-    (current_date at time zone 'America/Sao_Paulo' - interval '1 day')::date
+    ((now() at time zone 'America/Sao_Paulo')::date - interval '1 day')::date
     at time zone 'America/Sao_Paulo'
   );
   v_end := v_start + interval '1 day';
@@ -29,6 +30,7 @@ begin
   )
   select count(*)::integer from deleted into v_deleted;
 
+  raise notice 'delete_entregue_orders_from_previous_day: % rows deleted', v_deleted;
   return v_deleted;
 end;
 $$;
