@@ -1,0 +1,1 @@
+Add recurrent function to delete orders with status Entregue, it should once a day and delete the order from the previous day

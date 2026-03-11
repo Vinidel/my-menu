@@ -1,0 +1,8 @@
+{
+  "feature": "delete-orders",
+  "workflow": "full",
+  "current_stage": "documenter",
+  "status": "approved",
+  "critic_verdict": "APPROVE",
+  "handoff": ".artifacts/delete-orders/documenter/handoff.md"
+}
