@@ -1,7 +1,7 @@
 {
   "feature": "delete-orders",
   "workflow": "full",
-  "current_stage": "implementer",
-  "status": "implemented",
-  "handoff": ".artifacts/delete-orders/implementer/handoff.md"
+  "current_stage": "tester",
+  "status": "tested",
+  "handoff": ".artifacts/delete-orders/tester/handoff.md"
 }
