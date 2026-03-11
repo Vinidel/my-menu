@@ -1,0 +1,7 @@
+{
+  "feature": "delete-orders",
+  "workflow": "full",
+  "current_stage": "documenter",
+  "status": "documented",
+  "handoff": ".artifacts/delete-orders/documenter/handoff.md"
+}

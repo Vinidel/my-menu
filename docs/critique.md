@@ -1,24 +1,31 @@
+---
 # Critique
 
-Date: 2026-03-10
+Date: 2026-03-11
 Reviewed by: Critic Agent
-Scope: Stage 4 documentation for `cash-change`
+Scope: delete-orders Stage 4 — Documenter (docs/delete-orders.md, retrospectives, documenter handoff)
 Verdict: APPROVE
 
 ## Findings
 
 ### Required Changes
-1. None.
+
+None.
 
 ### Suggested Improvements
-- None.
+
+- None. Documentation accurately reflects what was delivered, hardening additions, and operational reality.
 
 ### Risks / Assumptions
-- The final documentation assumes the feature remains placeholder-only; any future structured `troco` workflow still needs a separate brief, implementation, and documentation pass.
-- The retrospective correctly records that `Full` was an operator-forced workflow for a change that would normally fit `Light`.
+
+- **Rollback clarity:** docs/delete-orders.md states rollback/disabling in both "Disable / Re-enable / Rollback" and "Operational Notes". Slight duplication but improves visibility for ops — acceptable.
+- **Retrospective scope:** Retrospective correctly attributes timezone fix to Critic → Hardener flow; no overclaim.
 
 ## Acceptance Criteria
-- [x] `docs/cash-change.md` documents the delivered placeholder change, locked scope, and deferred work.
-- [x] `PROJECT.md` reflects the delivered feature and final doc inventory.
-- [x] `.artifacts/cash-change/documenter/handoff.md` identifies the final PR-ready documentation package for Gatekeeper.
-- [x] The documentation keeps `troco` explicitly framed as free-text guidance rather than structured order data.
+
+- [x] Key decisions from brief and implementation are documented.
+- [x] Deferred items and known gaps are captured (cron verification, retry logic, legacy orders, audit log).
+- [x] Operational notes added (RAISE NOTICE for logs, rollback reminder).
+- [x] Retrospective added with useful workflow learning (timezone robustness, full workflow fit).
+- [x] "For the Next Engineer" references hardening-notes and timezone-robust date derivation.
+- [x] Documenter handoff accurately summarizes changes.
