@@ -1,10 +1,26 @@
-# Recurring Deletion of Delivered Orders — Scoping (Stage 0)
+# Recurring Deletion of Delivered Orders — Feature Documentation
 
-Summary for the next engineer: what was scoped, what was decided, and what to watch for during implementation.
+Summary for the next engineer: what was built, where it lives, and how to operate it.
 
 **Brief:** [docs/briefs/delete-orders.md](briefs/delete-orders.md)
 
 **Request source:** [docs/requests/delete-orders.md](requests/delete-orders.md)
+
+---
+
+## What Was Delivered
+
+- **Postgres function:** `public.delete_entregue_orders_from_previous_day()` — SECURITY DEFINER, deletes orders with `status = 'entregue'` and `updated_at` in the previous calendar day (`America/Sao_Paulo`). Returns count of deleted rows. Single transactional `DELETE`.
+- **Cron schedule:** Configure manually via Supabase SQL editor (see Setup below). Default: daily at 03:05 UTC (00:05 BRT).
+
+---
+
+## Where It Lives
+
+| Area | Path |
+|------|------|
+| Migration (function) | `supabase/migrations/20260311000000_add_delete_entregue_orders_function.sql` |
+| Cron setup (manual) | See Setup below |
 
 ---
 
@@ -46,11 +62,44 @@ Summary for the next engineer: what was scoped, what was decided, and what to wa
 
 ---
 
-## Operational Notes (Post-Implementation)
+## Setup
 
-- **Disable/re-enable:** Operator must be able to disable the cron schedule without redeploying code (Supabase cron config).
-- **Rollback:** Disable the cron job; no data recovery possible (deletion is irreversible).
-- **Dependencies:** pg_cron, pg_net (if Edge Function path); see menu-import delivery notes for Supabase extension setup.
+### 1) Run migration
+
+Apply the migration so the function exists:
+
+```bash
+supabase db push
+```
+
+Or apply via Supabase Dashboard → SQL Editor if using hosted Supabase.
+
+### 2) Enable pg_cron (if not already enabled)
+
+In Supabase Dashboard → Database → Extensions, enable `pg_cron`. (Already enabled if menu-import worker is in use.)
+
+### 3) Schedule the cron job
+
+Run in Supabase SQL Editor:
+
+```sql
+SELECT cron.schedule(
+  'delete-entregue-orders-daily',
+  '5 3 * * *',
+  'SELECT public.delete_entregue_orders_from_previous_day()'
+);
+```
+
+- Schedule: `5 3 * * *` = 03:05 UTC daily (= 00:05 BRT, Brazil).
+- To use 01:00 BRT instead: `0 4 * * *` (04:00 UTC).
+
+---
+
+## Disable / Re-enable / Rollback
+
+- **Disable:** `SELECT cron.unschedule('delete-entregue-orders-daily');`
+- **Re-enable:** Re-run the `cron.schedule` above.
+- **Rollback:** Disable the cron job. No data recovery possible (deletion is irreversible).
 
 ---
 
