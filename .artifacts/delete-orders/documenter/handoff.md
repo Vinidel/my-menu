@@ -8,37 +8,42 @@ Workflow: full
 
 ## Files Changed
 
-- `docs/delete-orders.md` (created)
-- `.artifacts/delete-orders/documenter/handoff.md` (this file)
+- `docs/delete-orders.md` (updated with Stage 4 additions)
+- `docs/retrospectives/2026-03-11-delete-orders.md` (created)
 
 ---
 
 ## What Changed
 
-Documented Stage 0 scoping for the delete-orders feature:
-- Created `docs/delete-orders.md` — scoping summary, locked decisions, known gaps, and what the Implementer needs to know
-- Captured operational notes for post-implementation (cron disable/re-enable, rollback)
-- No implementation yet; this is pre-Stage 1 documentation
+### Documentation
+
+1. **docs/delete-orders.md**
+   - "What Was Delivered": Added timezone robustness (`(now() at time zone 'America/Sao_Paulo')::date`) and `RAISE NOTICE` for log visibility.
+   - "Known Gaps & Deferred Work": Added cron verification gap and retry logic note from hardening sweep.
+   - "Operational Notes": Added deletion count in logs and rollback reminder.
+   - "For the Next Engineer": Added reference to hardening-notes; added explicit guidance to use timezone-robust date derivation.
+
+2. **docs/retrospectives/2026-03-11-delete-orders.md**
+   - Lightweight retrospective: Critic caught session-timezone dependence; Hardener implemented fix. Full workflow fit for irreversible deletion risk.
 
 ---
 
 ## Known Gaps
 
-- Exact cron schedule (00:05 vs 01:00 BRT) deferred to Implementer
-- Legacy `entregue` orders from older days remain; not in scope
+- None introduced by Stage 4. Documenter only updates documentation; all gaps are captured in docs/delete-orders.md and docs/hardening-notes.md.
 
 ---
 
 ## Evidence
 
-- Brief: `docs/briefs/delete-orders.md` (Stage 0 complete, Critic approved)
-- Orchestrator handoff: `.artifacts/delete-orders/orchestrator/handoff.md`
-- Feature doc: `docs/delete-orders.md`
+- Key decisions from brief and implementation are documented.
+- Deferred items and known gaps are captured in docs/delete-orders.md.
+- Operational notes (RAISE NOTICE, rollback) added.
+- Retrospective added for workflow learning (timezone catch, full workflow fit).
 
 ---
 
 ## Next Review Focus
 
-1. Implementer: proceed to Stage 1 using brief + feature doc
-2. Critic: review this documentation if desired (Stage 0 doc is lightweight)
-3. Gate Keeper: no PR/commit needed yet — Stage 0 only; implementer will open PR when Stage 1 starts
+1. Critic: review Stage 4 documentation changes.
+2. Gate Keeper: package as `stage-4-documentation`, update PR.

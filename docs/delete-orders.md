@@ -10,7 +10,7 @@ Summary for the next engineer: what was built, where it lives, and how to operat
 
 ## What Was Delivered
 
-- **Postgres function:** `public.delete_entregue_orders_from_previous_day()` — SECURITY DEFINER, deletes orders with `status = 'entregue'` and `updated_at` in the previous calendar day (`America/Sao_Paulo`). Returns count of deleted rows. Single transactional `DELETE`.
+- **Postgres function:** `public.delete_entregue_orders_from_previous_day()` — SECURITY DEFINER, deletes orders with `status = 'entregue'` and `updated_at` in the previous calendar day (`America/Sao_Paulo`). Returns count of deleted rows. Single transactional `DELETE`. Cutoff uses `(now() at time zone 'America/Sao_Paulo')::date` so the previous-day window is independent of session/connection timezone. Emits `RAISE NOTICE` with deleted count for postgres/Supabase logs.
 - **Cron schedule:** Configure manually via Supabase SQL editor (see Setup below). Default: daily at 03:05 UTC (00:05 BRT).
 
 ---
@@ -59,6 +59,8 @@ Summary for the next engineer: what was built, where it lives, and how to operat
 - **Exact cron schedule:** 00:05 vs 01:00 BRT left to implementer; convert to UTC when configuring.
 - **Legacy orders:** Old `entregue` orders from weeks/months ago are not deleted by this job. Broader retention policy would require a separate feature.
 - **Audit log:** Deletion is silent; no audit table in scope.
+- **Cron verification:** No automated check that pg_cron is configured after migration; manual setup step in docs. See hardening-notes for full sweep.
+- **Retry logic:** If the function throws, pg_cron logs the error; no retry. Acceptable for daily cadence — orders accumulate until next run.
 
 ---
 
@@ -103,8 +105,14 @@ SELECT cron.schedule(
 
 ---
 
+## Operational Notes
+
+- **Deletion count in logs:** The function emits `RAISE NOTICE 'delete_entregue_orders_from_previous_day: N rows deleted'`. Check Supabase logs (or postgres logs) after pg_cron runs to verify expected volume.
+- **Rollback:** Disabling the cron removes future deletes but does not recover already-deleted rows. Deletion is irreversible.
+
 ## For the Next Engineer
 
 - Read `docs/briefs/delete-orders.md` before implementing — it contains the full acceptance scenarios and edge cases.
-- The Critic flagged: ensure cutoff logic explicitly uses `America/Sao_Paulo`; do not rely on server/DB default timezone.
-- If choosing the Postgres function path, add a migration for the function and a separate migration or SQL block for the cron schedule (or document the manual cron setup steps).
+- Read `docs/hardening-notes.md` (Recurring Deletion of Delivered Orders section) for security, dependencies, performance, observability, and resilience.
+- Cutoff logic must explicitly use `America/Sao_Paulo`; do not rely on `current_date` or session/connection timezone.
+- If adding a Postgres function, use `(now() at time zone 'America/Sao_Paulo')::date` for timezone-robust date derivation.

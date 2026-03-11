@@ -1,7 +1,7 @@
 {
   "feature": "delete-orders",
   "workflow": "full",
-  "current_stage": "hardener",
-  "status": "hardened",
-  "handoff": ".artifacts/delete-orders/hardener/handoff.md"
+  "current_stage": "documenter",
+  "status": "documented",
+  "handoff": ".artifacts/delete-orders/documenter/handoff.md"
 }
