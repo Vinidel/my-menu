@@ -2,7 +2,7 @@
 
 Date: 2026-03-16
 Reviewed by: Critic Agent
-Scope: Stage 1 implementation for `soft-delete-orders-history`
+Scope: Stage 2 tests for `soft-delete-orders-history`
 Verdict: APPROVE
 
 ## Findings
@@ -11,18 +11,15 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Stage 2 should add explicit regression coverage for `is_deleted`-based active filtering, metadata consistency expectations, and the non-operational mutation rejection path.
+- If a DB-backed test harness becomes practical later, add one focused integration check for the migration/function so `is_deleted` / `soft_deleted_at` consistency and catch-up soft deletion are proven against real SQL execution, not only mocked app-layer behavior.
 
 ### Risks / Assumptions
-- `docs/delete-orders.md` still documents the superseded hard-delete behavior and should be corrected in later stages before final PR packaging.
-- This approval assumes `supabase/migrations/20260316090000_soft_delete_delivered_orders_for_history.sql` is applied before relying on the new active-row filtering and cron behavior.
-- The legacy cron function name is intentionally preserved for compatibility; later documentation should make the semantic change explicit so operators do not infer hard deletion from the old name.
+- Stage 2 intentionally locks the app-layer operational contract with mocked boundary tests; it does not prove the SQL migration/function behavior in a real Postgres environment yet.
+- `docs/delete-orders.md` still documents the superseded hard-delete behavior and remains a documentation risk for later stages, though not a Stage 2 behavioral test blocker.
 
 ## Acceptance Criteria
-- [x] Soft-deleted rows are explicitly represented with `is_deleted = true` and a non-null `soft_deleted_at`.
-- [x] Active rows remain `is_deleted = false` and `soft_deleted_at = null` through the migration constraint.
-- [x] Delivered-order cleanup now soft-deletes eligible old rows instead of hard-deleting them.
-- [x] The cleanup function catches up older eligible delivered rows, not just the immediately previous day.
-- [x] Operational admin order reads exclude rows where `is_deleted = true` through the shared admin/orders data-access boundary.
-- [x] Operational status progression no longer mutates soft-deleted or otherwise non-operational rows through the normal admin flow.
-- [x] Stage 1 stays within scope and does not add history UI, restore flow, or unrelated refactors.
+- [x] Stage 2 adds regression coverage for active-row filtering with `is_deleted = false` at the shared admin/orders data-access boundary.
+- [x] Stage 2 adds regression coverage for rejecting progression of missing/non-operational rows in the admin status action.
+- [x] Targeted Vitest suites pass for the new coverage.
+- [x] No production code was modified during this Stage 2 pass.
+- [x] Remaining DB-level verification gaps are explicitly documented in the tester handoff.
