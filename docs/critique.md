@@ -1,31 +1,23 @@
----
 # Critique
 
-Date: 2026-03-11
+Date: 2026-03-16
 Reviewed by: Critic Agent
-Scope: delete-orders Stage 4 — Documenter (docs/delete-orders.md, retrospectives, documenter handoff)
+Scope: Stage 0 brief for `soft-delete-orders-history`
 Verdict: APPROVE
 
 ## Findings
 
 ### Required Changes
-
-None.
+1. None.
 
 ### Suggested Improvements
-
-- None. Documentation accurately reflects what was delivered, hardening additions, and operational reality.
+- Consider capturing, during implementation, whether the chosen soft-delete metadata should always include the deletion timestamp even if the exact schema remains flexible at Stage 0.
 
 ### Risks / Assumptions
-
-- **Rollback clarity:** docs/delete-orders.md states rollback/disabling in both "Disable / Re-enable / Rollback" and "Operational Notes". Slight duplication but improves visibility for ops — acceptable.
-- **Retrospective scope:** Retrospective correctly attributes timezone fix to Critic → Hardener flow; no overclaim.
+- The old hard-delete scheduler/function still exists and must be cleanly replaced or retired during implementation so both retention mechanisms do not run in parallel.
+- Existing rows already physically deleted by the superseded feature are not recoverable; this feature only changes retention behavior going forward.
 
 ## Acceptance Criteria
-
-- [x] Key decisions from brief and implementation are documented.
-- [x] Deferred items and known gaps are captured (cron verification, retry logic, legacy orders, audit log).
-- [x] Operational notes added (RAISE NOTICE for logs, rollback reminder).
-- [x] Retrospective added with useful workflow learning (timezone robustness, full workflow fit).
-- [x] "For the Next Engineer" references hardening-notes and timezone-robust date derivation.
-- [x] Documenter handoff accurately summarizes changes.
+- [x] The brief explicitly defines catch-up behavior for missed scheduler runs.
+- [x] The brief explicitly defines that soft-deleted orders are non-operational and not mutable through normal admin/server flows.
+- [x] The brief keeps history UI/reporting out of scope while making retention semantics unambiguous.
