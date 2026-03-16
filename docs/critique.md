@@ -2,7 +2,7 @@
 
 Date: 2026-03-16
 Reviewed by: Critic Agent
-Scope: Stage 2 tests for `soft-delete-orders-history`
+Scope: Stage 3 hardening for `soft-delete-orders-history`
 Verdict: APPROVE
 
 ## Findings
@@ -11,15 +11,15 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- If a DB-backed test harness becomes practical later, add one focused integration check for the migration/function so `is_deleted` / `soft_deleted_at` consistency and catch-up soft deletion are proven against real SQL execution, not only mocked app-layer behavior.
+- If a later stage gets access to a real Supabase/Postgres environment, add one manual or scripted verification pass for the migration/function so the documented DB-level resilience gap can be closed with evidence.
 
 ### Risks / Assumptions
-- Stage 2 intentionally locks the app-layer operational contract with mocked boundary tests; it does not prove the SQL migration/function behavior in a real Postgres environment yet.
-- `docs/delete-orders.md` still documents the superseded hard-delete behavior and remains a documentation risk for later stages, though not a Stage 2 behavioral test blocker.
+- The main unresolved risk remains DB-level verification of the SQL migration/function in a real environment; the hardening pass correctly documents that rather than pretending it was validated.
+- `docs/delete-orders.md` still describes the superseded hard-delete behavior and remains an operator-facing documentation risk for later stages.
+- Preserving the legacy cron/function name is acceptable for compatibility, but the final documentation must make its new soft-delete semantics explicit.
 
 ## Acceptance Criteria
-- [x] Stage 2 adds regression coverage for active-row filtering with `is_deleted = false` at the shared admin/orders data-access boundary.
-- [x] Stage 2 adds regression coverage for rejecting progression of missing/non-operational rows in the admin status action.
-- [x] Targeted Vitest suites pass for the new coverage.
-- [x] No production code was modified during this Stage 2 pass.
-- [x] Remaining DB-level verification gaps are explicitly documented in the tester handoff.
+- [x] Stage 3 documents the security, dependency, performance, observability, and resilience profile of the soft-delete implementation.
+- [x] Stage 3 preserves the minimal production slice and does not introduce unnecessary behavior changes.
+- [x] Targeted regression suites were re-run and still pass after the hardening review.
+- [x] Remaining operational/documentation risks are explicitly documented instead of hidden.
