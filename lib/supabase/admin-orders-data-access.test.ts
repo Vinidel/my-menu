@@ -12,12 +12,13 @@ describe("createSupabaseAdminOrdersDataAccess", () => {
     vi.mocked(parseAdminOrders).mockClear();
   });
 
-  it("lists admin orders with the shared select columns and oldest-first ordering", async () => {
+  it("lists only active admin orders with the shared select columns and oldest-first ordering", async () => {
     const order = vi.fn().mockResolvedValue({
       data: [{ id: "1", reference: "PED-1" }],
       error: null,
     });
-    const select = vi.fn().mockReturnValue({ order });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq });
     const from = vi.fn().mockReturnValue({ select });
     const dataAccess = createSupabaseAdminOrdersDataAccess({ from });
 
@@ -27,6 +28,7 @@ describe("createSupabaseAdminOrdersDataAccess", () => {
     expect(select).toHaveBeenCalledWith(
       "id, reference, customer_name, customer_email, customer_phone, payment_method, fulfillment_type, delivery_fee_cents, items, status, notes, created_at"
     );
+    expect(eq).toHaveBeenCalledWith("is_deleted", false);
     expect(order).toHaveBeenCalledWith("created_at", { ascending: true });
     expect(parseAdminOrders).toHaveBeenCalledWith([{ id: "1", reference: "PED-1" }]);
     expect(result).toEqual({
@@ -40,8 +42,9 @@ describe("createSupabaseAdminOrdersDataAccess", () => {
       data: { status: "em_preparo", fulfillment_type: "entrega" },
       error: null,
     });
-    const eq = vi.fn().mockReturnValue({ maybeSingle });
-    const select = vi.fn().mockReturnValue({ eq });
+    const eqId = vi.fn().mockReturnValue({ maybeSingle });
+    const eqActive = vi.fn().mockReturnValue({ eq: eqId });
+    const select = vi.fn().mockReturnValue({ eq: eqActive });
     const from = vi.fn().mockReturnValue({ select });
     const dataAccess = createSupabaseAdminOrdersDataAccess({ from });
 
@@ -49,20 +52,22 @@ describe("createSupabaseAdminOrdersDataAccess", () => {
 
     expect(from).toHaveBeenCalledWith("orders");
     expect(select).toHaveBeenCalledWith("status, fulfillment_type");
-    expect(eq).toHaveBeenCalledWith("id", "order-1");
+    expect(eqActive).toHaveBeenCalledWith("is_deleted", false);
+    expect(eqId).toHaveBeenCalledWith("id", "order-1");
     expect(result).toEqual({
       data: { status: "em_preparo", fulfillmentType: "entrega" },
       error: null,
     });
   });
 
-  it("performs conditional status progression using the expected optimistic write shape", async () => {
+  it("performs conditional status progression only for active rows using the expected optimistic write shape", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: { id: "order-1", status: "pronto_para_retirada" },
       error: null,
     });
     const select = vi.fn().mockReturnValue({ maybeSingle });
-    const eqStatus = vi.fn().mockReturnValue({ select });
+    const eqActive = vi.fn().mockReturnValue({ select });
+    const eqStatus = vi.fn().mockReturnValue({ eq: eqActive });
     const eqId = vi.fn().mockReturnValue({ eq: eqStatus });
     const update = vi.fn().mockReturnValue({ eq: eqId });
     const from = vi.fn().mockReturnValue({ update });
@@ -78,6 +83,7 @@ describe("createSupabaseAdminOrdersDataAccess", () => {
     expect(update).toHaveBeenCalledWith({ status: "pronto_para_retirada" });
     expect(eqId).toHaveBeenCalledWith("id", "order-1");
     expect(eqStatus).toHaveBeenCalledWith("status", "em_preparo");
+    expect(eqActive).toHaveBeenCalledWith("is_deleted", false);
     expect(select).toHaveBeenCalledWith("id, status");
     expect(result).toEqual({
       data: { id: "order-1", status: "pronto_para_retirada" },
@@ -90,7 +96,8 @@ describe("createSupabaseAdminOrdersDataAccess", () => {
       data: null,
       error: { message: "boom", code: "500" },
     });
-    const select = vi.fn().mockReturnValue({ order });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq });
     const from = vi.fn().mockReturnValue({ select });
     const dataAccess = createSupabaseAdminOrdersDataAccess({ from });
 

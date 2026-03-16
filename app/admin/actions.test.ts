@@ -238,6 +238,35 @@ describe("progressOrderStatus", () => {
     });
   });
 
+  it("rejects soft-deleted or otherwise non-operational rows before attempting status progression (brief: stale admin tab or direct request)", async () => {
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: null,
+          error: null,
+        },
+      ],
+      updateResult: {
+        data: { id: "order-hidden", status: "saiu_para_entrega" },
+        error: null,
+      },
+    });
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
+
+    const result = await progressOrderStatus({
+      orderId: "order-hidden",
+      currentStatus: "em_preparo",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "validation",
+      message: "Pedido inválido para atualização.",
+    });
+    expect(supabase.state.updateCalls).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("returns a generic error when the status update write fails (brief: status update fails)", async () => {
     const supabase = makeSupabase({
       lookupResults: [
@@ -313,19 +342,23 @@ function makeSupabase(input: {
     },
     from: vi.fn().mockImplementation((_table: string) => ({
       select: vi.fn().mockImplementation((_columns: string) => ({
-        eq: vi.fn().mockImplementation((_column: string, _value: string) => ({
-          maybeSingle: vi.fn().mockResolvedValue(
-            state.lookupResults.shift() ?? { data: null, error: null }
-          ),
+        eq: vi.fn().mockImplementation((_column: string, _value: string | boolean) => ({
+          eq: vi.fn().mockImplementation((_column2: string, _value2: string | boolean) => ({
+            maybeSingle: vi.fn().mockResolvedValue(
+              state.lookupResults.shift() ?? { data: null, error: null }
+            ),
+          })),
         })),
       })),
       update: vi.fn().mockImplementation((values: { status?: string }) => {
         state.updateCalls.push(values);
         return {
           eq: vi.fn().mockImplementation((_column: string, _value: string) => ({
-            eq: vi.fn().mockImplementation((_column2: string, _value2: string) => ({
-              select: vi.fn().mockImplementation((_columns: string) => ({
-                maybeSingle: vi.fn().mockResolvedValue(input.updateResult),
+            eq: vi.fn().mockImplementation((_column2: string, _value2: string | boolean) => ({
+              eq: vi.fn().mockImplementation((_column3: string, _value3: string | boolean) => ({
+                select: vi.fn().mockImplementation((_columns: string) => ({
+                  maybeSingle: vi.fn().mockResolvedValue(input.updateResult),
+                })),
               })),
             })),
           })),

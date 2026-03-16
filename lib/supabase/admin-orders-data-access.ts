@@ -13,34 +13,18 @@ import type { Database } from "@/lib/supabase/database.types";
 const ADMIN_ORDER_STATUS_SNAPSHOT_COLUMNS = "status, fulfillment_type";
 const ADMIN_ORDER_STATUS_UPDATE_COLUMNS = "id, status";
 const ORDERS_TABLE_NAME = "orders";
+const ACTIVE_ORDER_FILTER_COLUMN = "is_deleted";
 
 type OrdersRow = Database["public"]["Tables"]["orders"]["Row"];
 
 type OrdersListChain = {
   select: (columns: string) => {
-    order: (
-      column: "created_at",
-      options: { ascending: true }
-    ) => Promise<{
-      data: OrdersRow[] | null;
-      error?: {
-        message?: string;
-        code?: string;
-      } | null;
-    }>;
-  };
-};
-
-type OrdersStatusLookupChain = {
-  select: (columns: "status, fulfillment_type") => {
-    eq: (column: "id", value: string) => {
-      maybeSingle: () => Promise<{
-        data:
-          | {
-              status: string | null;
-              fulfillment_type?: string | null;
-            }
-          | null;
+    eq: (column: "is_deleted", value: false) => {
+      order: (
+        column: "created_at",
+        options: { ascending: true }
+      ) => Promise<{
+        data: OrdersRow[] | null;
         error?: {
           message?: string;
           code?: string;
@@ -50,18 +34,41 @@ type OrdersStatusLookupChain = {
   };
 };
 
+type OrdersStatusLookupChain = {
+  select: (columns: "status, fulfillment_type") => {
+    eq: (column: "is_deleted", value: false) => {
+      eq: (column: "id", value: string) => {
+        maybeSingle: () => Promise<{
+          data:
+            | {
+                status: string | null;
+                fulfillment_type?: string | null;
+              }
+            | null;
+          error?: {
+            message?: string;
+            code?: string;
+          } | null;
+        }>;
+      };
+    };
+  };
+};
+
 type OrdersStatusUpdateChain = {
   update: (values: Database["public"]["Tables"]["orders"]["Update"]) => {
     eq: (column: "id", value: string) => {
       eq: (column: "status", value: string) => {
-        select: (columns: "id, status") => {
-          maybeSingle: () => Promise<{
-            data: AdminOrderStatusUpdateRecord | null;
-            error?: {
-              message?: string;
-              code?: string;
-            } | null;
-          }>;
+        eq: (column: "is_deleted", value: false) => {
+          select: (columns: "id, status") => {
+            maybeSingle: () => Promise<{
+              data: AdminOrderStatusUpdateRecord | null;
+              error?: {
+                message?: string;
+                code?: string;
+              } | null;
+            }>;
+          };
         };
       };
     };
@@ -76,6 +83,7 @@ export function createSupabaseAdminOrdersDataAccess(supabase: {
       const ordersTable = getOrdersListTable(supabase);
       const { data, error } = await ordersTable
         .select(ADMIN_ORDERS_SELECT_COLUMNS)
+        .eq(ACTIVE_ORDER_FILTER_COLUMN, false)
         .order("created_at", { ascending: true });
 
       if (error) {
@@ -89,6 +97,7 @@ export function createSupabaseAdminOrdersDataAccess(supabase: {
       const ordersTable = getOrdersStatusLookupTable(supabase);
       const { data, error } = await ordersTable
         .select(ADMIN_ORDER_STATUS_SNAPSHOT_COLUMNS)
+        .eq(ACTIVE_ORDER_FILTER_COLUMN, false)
         .eq("id", orderId)
         .maybeSingle();
 
@@ -112,6 +121,7 @@ export function createSupabaseAdminOrdersDataAccess(supabase: {
         .update({ status: input.nextStatus })
         .eq("id", input.orderId)
         .eq("status", input.currentStatus)
+        .eq(ACTIVE_ORDER_FILTER_COLUMN, false)
         .select(ADMIN_ORDER_STATUS_UPDATE_COLUMNS)
         .maybeSingle();
 

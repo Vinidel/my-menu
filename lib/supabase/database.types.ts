@@ -205,6 +205,8 @@ export type Database = {
             | "pronto_para_retirada"
             | "saiu_para_entrega"
             | "entregue";
+          is_deleted: boolean;
+          soft_deleted_at: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -226,6 +228,8 @@ export type Database = {
             | "pronto_para_retirada"
             | "saiu_para_entrega"
             | "entregue";
+          is_deleted?: boolean;
+          soft_deleted_at?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -247,6 +251,8 @@ export type Database = {
             | "pronto_para_retirada"
             | "saiu_para_entrega"
             | "entregue";
+          is_deleted?: boolean;
+          soft_deleted_at?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;

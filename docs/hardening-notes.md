@@ -992,3 +992,50 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Single bounded DELETE; acceptable at scale |
 | Observability | Improved  | Added RAISE NOTICE for deleted count |
 | Resilience    | Improved  | Timezone robustness via now() at time zone |
+
+---
+
+## Soft Delete Delivered Orders for History (soft-delete-orders-history) — Stage 3
+
+### Structure
+
+- **Shared boundary remains the right filter point:** The active-order rule stays centralized in the existing `admin/orders` data-access boundary instead of being reimplemented separately in the page, route, and action layers. That keeps the new `is_deleted = false` operational contract consistent across the migrated admin slice. **No structural change needed.**
+- **Explicit metadata is clearer than timestamp-only filtering:** The implementation now uses `is_deleted` as the primary active-row filter while keeping `soft_deleted_at` for history timing. This matches the revised brief and is easier to reason about during operational debugging. **No change.**
+
+### Security
+
+- **No new public write/read surface:** Soft deletion remains internal to the DB cron/function path and the protected admin order slice. No new RPC, HTTP endpoint, or public mutation path was introduced. **No change.**
+- **Metadata consistency is DB-enforced:** The `orders_soft_delete_consistency_check` constraint prevents normal writes from producing ambiguous states where `is_deleted` and `soft_deleted_at` disagree. **Improved in Stage 3.**
+- **Operational stale actions fail closed:** Admin status progression now treats missing/non-operational rows as invalid, preventing hidden historical rows from being updated through stale tabs or direct requests. **Implemented and revalidated.**
+
+### Dependencies
+
+- **No new package risk:** The feature remains migration + existing app boundary work only; no new runtime dependency or external service was introduced. **No change.**
+- **Supabase migration dependency remains critical:** The app-side `is_deleted` filtering assumes the migration has already run. Deploying code before the migration would break operational order queries. **Documented deployment dependency.**
+
+### Performance
+
+- **Filter cost remains small at current scale:** `is_deleted = false` adds one simple predicate to the existing admin/orders query chain, which is acceptable for the repo’s small-scale single-tenant constraint. **No change needed.**
+- **Potential future index gap accepted for now:** There is no dedicated index tuned for `is_deleted` + operational sorting/filtering yet. That is acceptable at current scale, but if history grows materially, a later performance pass should consider an index supporting the active-order slice. **Deferred.**
+
+### Observability
+
+- **Cron logs remain minimally diagnosable:** The updated function still emits a `RAISE NOTICE` count, now describing soft-deleted rows instead of deleted rows. That gives operators at least one visible signal in Supabase/Postgres logs. **Adequate for current scope.**
+- **App-side rejection paths log enough context:** The admin action already logs missing/non-operational progression attempts and unexpected update failures with order/status context and no customer PII. **No change needed.**
+
+### Resilience
+
+- **Missed-run catch-up is now safer than the old behavior:** Because the cron function soft-deletes any still-active eligible delivered row older than the current Brazil day, a missed scheduler run no longer creates a permanent retention gap. **Improved in Stage 3.**
+- **Real SQL behavior still needs environment verification:** Stage 2 locked the app-layer contract, but the actual migration/function behavior has not yet been exercised in a real Supabase/Postgres environment from this workflow run. That remains the main unresolved resilience gap. **Documented; not fixed here.**
+- **Legacy operator naming remains a confusion risk:** Keeping the old function name preserves scheduler compatibility, but it also risks implying hard deletion to operators until Stage 4/5 docs replace the old guidance. **Documented.**
+
+### Summary
+
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Structure     | OK        | Shared admin/orders boundary remains the single active-row filter point |
+| Security      | Improved  | DB consistency constraint + non-operational mutation rejection |
+| Dependencies  | OK        | No new packages; migration ordering still matters |
+| Performance   | OK        | Predicate cost acceptable now; future index may help if history grows |
+| Observability | OK        | Cron NOTICE + action logs provide minimal diagnostics |
+| Resilience    | Improved  | Catch-up retention safer; real DB verification still deferred |

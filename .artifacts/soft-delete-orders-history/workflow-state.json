@@ -1,0 +1,8 @@
+{
+  "feature": "soft-delete-orders-history",
+  "workflow": "full",
+  "current_stage": "documenter",
+  "status": "gatekeeper_synced",
+  "critic_verdict": "APPROVE",
+  "handoff": ".artifacts/soft-delete-orders-history/documenter/handoff.md"
+}

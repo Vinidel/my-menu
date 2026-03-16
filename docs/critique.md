@@ -1,31 +1,25 @@
 ---
 # Critique
 
-Date: 2026-03-11
+Date: 2026-03-16
 Reviewed by: Critic Agent
-Scope: delete-orders Stage 4 — Documenter (docs/delete-orders.md, retrospectives, documenter handoff)
+Scope: Documenter review for soft-delete-orders-history
 Verdict: APPROVE
 
 ## Findings
 
 ### Required Changes
-
-None.
+- None.
 
 ### Suggested Improvements
-
-- None. Documentation accurately reflects what was delivered, hardening additions, and operational reality.
+- [`docs/soft-delete-orders-history.md`] Consider adding one explicit note that the cron schedule itself is unchanged if that operational assumption is expected to carry over from the prior feature.
 
 ### Risks / Assumptions
-
-- **Rollback clarity:** docs/delete-orders.md states rollback/disabling in both "Disable / Re-enable / Rollback" and "Operational Notes". Slight duplication but improves visibility for ops — acceptable.
-- **Retrospective scope:** Retrospective correctly attributes timezone fix to Critic → Hardener flow; no overclaim.
+- Real Supabase/Postgres verification of the migration/function is still outside this workflow run and remains a documented gap.
+- The legacy cleanup function name is still semantically misleading, but the documentation now makes the compatibility behavior explicit.
 
 ## Acceptance Criteria
-
-- [x] Key decisions from brief and implementation are documented.
-- [x] Deferred items and known gaps are captured (cron verification, retry logic, legacy orders, audit log).
-- [x] Operational notes added (RAISE NOTICE for logs, rollback reminder).
-- [x] Retrospective added with useful workflow learning (timezone robustness, full workflow fit).
-- [x] "For the Next Engineer" references hardening-notes and timezone-robust date derivation.
-- [x] Documenter handoff accurately summarizes changes.
+- [x] Documenter artifacts refer to Stage 4, not Stage 5
+- [x] Brief status text matches the current workflow stage model
+- [x] Documenter package is ready for Gatekeeper to use `docs/soft-delete-orders-history.md` as the PR body
+---
