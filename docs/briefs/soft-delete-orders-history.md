@@ -1,6 +1,6 @@
 # Feature Brief — Soft Delete Delivered Orders for History
 
-Status: Stage 0 — Brief Complete (pending Critic)
+Status: Stage 4 — Documented
 Date: 2026-03-16
 Author: Orchestrator Agent
 Workflow: Full

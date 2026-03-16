@@ -1,25 +1,25 @@
+---
 # Critique
 
 Date: 2026-03-16
 Reviewed by: Critic Agent
-Scope: Stage 3 hardening for `soft-delete-orders-history`
+Scope: Documenter review for soft-delete-orders-history
 Verdict: APPROVE
 
 ## Findings
 
 ### Required Changes
-1. None.
+- None.
 
 ### Suggested Improvements
-- If a later stage gets access to a real Supabase/Postgres environment, add one manual or scripted verification pass for the migration/function so the documented DB-level resilience gap can be closed with evidence.
+- [`docs/soft-delete-orders-history.md`] Consider adding one explicit note that the cron schedule itself is unchanged if that operational assumption is expected to carry over from the prior feature.
 
 ### Risks / Assumptions
-- The main unresolved risk remains DB-level verification of the SQL migration/function in a real environment; the hardening pass correctly documents that rather than pretending it was validated.
-- `docs/delete-orders.md` still describes the superseded hard-delete behavior and remains an operator-facing documentation risk for later stages.
-- Preserving the legacy cron/function name is acceptable for compatibility, but the final documentation must make its new soft-delete semantics explicit.
+- Real Supabase/Postgres verification of the migration/function is still outside this workflow run and remains a documented gap.
+- The legacy cleanup function name is still semantically misleading, but the documentation now makes the compatibility behavior explicit.
 
 ## Acceptance Criteria
-- [x] Stage 3 documents the security, dependency, performance, observability, and resilience profile of the soft-delete implementation.
-- [x] Stage 3 preserves the minimal production slice and does not introduce unnecessary behavior changes.
-- [x] Targeted regression suites were re-run and still pass after the hardening review.
-- [x] Remaining operational/documentation risks are explicitly documented instead of hidden.
+- [x] Documenter artifacts refer to Stage 4, not Stage 5
+- [x] Brief status text matches the current workflow stage model
+- [x] Documenter package is ready for Gatekeeper to use `docs/soft-delete-orders-history.md` as the PR body
+---
