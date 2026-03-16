@@ -12,7 +12,7 @@ Workflow: Full
 Change type: feature
 Workflow selected: Full
 Reason:
-- Scope: Replace hard deletion with soft deletion, add retention metadata to `orders`, update recurring cleanup behavior, and make all operational order reads exclude soft-deleted rows.
+- Scope: Replace hard deletion with soft deletion, add explicit retention metadata to `orders`, update recurring cleanup behavior, and make all operational order reads exclude soft-deleted rows.
 - Risk: Moderate to high — touches data lifecycle, schema, scheduler behavior, admin visibility, and historical retention semantics.
 - Blast radius: `public.orders`, scheduled cleanup job, admin dashboard list/counts/details/polling, and any app-side order read path that should remain operational-only.
 - Urgency: Normal.
@@ -58,7 +58,10 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 
 ## What We Capture / Change
 
-- **`orders` retention state:** Add soft-delete metadata to `public.orders` so a row can be retained but excluded from operational reads.
+- **`orders` retention state:** Add explicit soft-delete metadata to `public.orders` so a row can be retained but excluded from operational reads.
+- **Locked metadata fields:** `public.orders` must track soft deletion with both:
+  - `is_deleted` (`boolean`) for explicit active vs deleted filtering
+  - `soft_deleted_at` (`timestamptz`) for deletion timing/history context
 - **Daily cleanup behavior:** The recurring cleanup job still runs once per day, but it updates matching rows into a soft-deleted state instead of physically deleting them.
 - **Catch-up retention behavior:** If the scheduler misses one or more days, the next successful run must soft-delete all still-active eligible `entregue` rows older than the current Brazil calendar day, not only the immediately previous day.
 - **Operational read filtering:** `/admin` list/detail/count/polling and any app-layer operational order fetches must exclude soft-deleted rows by default.
@@ -71,6 +74,8 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 ## Success Criteria
 
 - [ ] `public.orders` supports a soft-deleted state without removing rows from the table.
+- [ ] Soft-deleted rows are explicitly marked with `is_deleted = true` and a non-null `soft_deleted_at`.
+- [ ] Active rows remain `is_deleted = false` and `soft_deleted_at = null`.
 - [ ] The daily cleanup job marks eligible delivered orders older than the current `America/Sao_Paulo` calendar day as soft deleted, including catch-up rows from missed prior runs.
 - [ ] The daily cleanup job does not hard-delete any orders.
 - [ ] `/admin` operational views exclude soft-deleted orders by default.
@@ -104,6 +109,7 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 3. **Operational dashboard stays clean.** Employees open `/admin` and do not see soft-deleted rows in list views, detail selections, polling results, or summary counts.
 4. **Historical rows remain stored.** After cleanup, matching rows still exist in `public.orders` with soft-delete metadata instead of being removed.
 5. **Missed-run catch-up.** If the job did not run for one or more prior days, the next successful run soft-deletes all still-active eligible `entregue` rows older than the current Brazil calendar day so historical delivered rows do not accumulate indefinitely.
+6. **Explicit deleted flag stays aligned.** After cleanup, affected rows show `is_deleted = true` and `soft_deleted_at` populated together rather than relying on timestamp alone.
 
 ### Unhappy Paths
 
@@ -112,6 +118,7 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 3. **Timezone drift.** Cleanup logic must still target the previous Brazil calendar day regardless of session/database timezone.
 4. **Legacy hard-delete assumptions remain in docs/code.** This feature must replace the old assumption that delivered-order cleanup physically removes rows.
 5. **Stale admin tab or direct request.** An operational action aimed at a soft-deleted order must fail safely instead of mutating a hidden historical row.
+6. **Flag/timestamp drift.** The feature must not allow `is_deleted` and `soft_deleted_at` to disagree in normal operation.
 
 ---
 
@@ -121,6 +128,7 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 - **Missed scheduler days:** Eligibility is cumulative for still-active delivered rows older than the current Brazil calendar day; a later successful run catches up older rows instead of leaving permanent gaps.
 - **Final-update semantics:** The cutoff continues to use `updated_at`, not “timestamp when first became entregue”; if a delivered row is touched later, the cleanup window follows the last update.
 - **Legacy rows:** Existing historical rows deleted by the old hard-delete job cannot be recovered by this feature; only rows that still exist can be retained going forward.
+- **Metadata consistency:** Active rows must remain `is_deleted = false` with `soft_deleted_at = null`; soft-deleted rows must become `is_deleted = true` with `soft_deleted_at` populated.
 - **Manual querying:** Future direct SQL queries against `public.orders` can still see soft-deleted rows unless they explicitly filter them out; only app operational paths are locked in this feature.
 - **Operational stale references:** A client holding an old order id after cleanup must not be able to keep progressing that soft-deleted order through standard admin/server actions.
 
@@ -129,20 +137,23 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 ## Approach (High-Level Rationale)
 
 1. **Retain rows instead of deleting them.** Introduce explicit soft-delete state on `public.orders` rather than relying on absence of rows.
-2. **Keep the existing cleanup trigger model.** Reuse the scheduled daily cleanup pattern already established for delivered-order retention logic.
-3. **Move operational filtering into the canonical order read paths.** All app/admin code paths that fetch operational orders should exclude soft-deleted rows by default so the dashboard remains focused on active work.
-4. **Preserve timezone semantics while allowing catch-up.** Eligibility continues to be determined in `America/Sao_Paulo`, but missed scheduler runs must catch up all still-eligible historical delivered rows rather than processing only one day forever.
-5. **Document the policy change explicitly.** Existing hard-delete docs and assumptions must be updated so future work builds on retained history, not irreversible deletion.
+2. **Use both explicit and timestamped metadata.** Track soft deletion with both `is_deleted` and `soft_deleted_at` so operational filtering is easy to read while history retains timing context.
+3. **Keep the existing cleanup trigger model.** Reuse the scheduled daily cleanup pattern already established for delivered-order retention logic.
+4. **Move operational filtering into the canonical order read paths.** All app/admin code paths that fetch operational orders should exclude soft-deleted rows by default so the dashboard remains focused on active work.
+5. **Preserve timezone semantics while allowing catch-up.** Eligibility continues to be determined in `America/Sao_Paulo`, but missed scheduler runs must catch up all still-eligible historical delivered rows rather than processing only one day forever.
+6. **Document the policy change explicitly.** Existing hard-delete docs and assumptions must be updated so future work builds on retained history, not irreversible deletion.
 
 ---
 
 ## Decisions (Locked)
 
 - **Retention mechanism:** Soft delete, not hard delete.
+- **Soft-delete fields (locked):** `is_deleted boolean` plus `soft_deleted_at timestamptz`.
+- **Consistency rule:** Active rows are `is_deleted = false` and `soft_deleted_at is null`; soft-deleted rows are `is_deleted = true` and `soft_deleted_at is not null`.
 - **Cutoff timestamp:** Continue using `updated_at`.
 - **Eligibility window:** Any still-active `entregue` row with `updated_at` earlier than the start of the current calendar day in `America/Sao_Paulo` is eligible for soft deletion; this includes catch-up rows from missed prior runs.
 - **Status filter:** Only `status = 'entregue'`.
-- **Operational visibility policy:** Soft-deleted orders are excluded from `/admin` and other operational reads by default.
+- **Operational visibility policy:** Soft-deleted orders are excluded from `/admin` and other operational reads by default, with `is_deleted = false` as the primary active-row filter.
 - **Operational mutation policy:** Soft-deleted orders are treated as non-operational and must not be updated through standard admin/server order actions.
 - **Historical availability:** Soft-deleted orders remain stored in `public.orders` for future history/reporting features.
 - **No history UI yet:** Retaining rows is a data-policy change only in this feature; browsing history is a separate feature.
@@ -153,6 +164,7 @@ Success = the daily cleanup job marks old delivered orders as soft deleted inste
 ## Security / Operational Constraints
 
 - The scheduled cleanup must only mutate the intended delivered rows in the intended time window; accidental broader updates would hide live operational orders.
+- The implementation must keep `is_deleted` and `soft_deleted_at` synchronized; inconsistent metadata would create ambiguous operational vs historical semantics.
 - The scheduler path must remain non-public; no arbitrary user should be able to trigger bulk soft deletion.
 - Operational queries must have one clear default for soft-delete filtering; inconsistent filtering across list/detail/count/polling would create confusing admin behavior.
 - Operational mutation paths must defend against stale references to soft-deleted rows; hidden history must not remain writable through normal admin actions.

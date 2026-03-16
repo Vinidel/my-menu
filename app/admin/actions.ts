@@ -89,6 +89,14 @@ export async function progressOrderStatus(
     return errorResult("unknown", UPDATE_STATUS_ERROR_MESSAGE);
   }
 
+  if (!persistedOrder) {
+    console.warn("[admin/orders] attempted to progress missing or non-operational order", {
+      orderId,
+      currentStatus,
+    });
+    return errorResult("validation", INVALID_ORDER_MESSAGE);
+  }
+
   const persisted = getStatusLabelFromUnknown(persistedOrder?.status);
   if (persisted.status !== currentStatus) {
     return staleResult(orderId, currentStatus, persisted);
@@ -137,6 +145,7 @@ export async function progressOrderStatus(
         orderId,
         expectedStatus: currentStatus,
       });
+      return errorResult("validation", INVALID_ORDER_MESSAGE);
     }
 
     const current = getStatusLabelFromUnknown(currentOrder?.status);

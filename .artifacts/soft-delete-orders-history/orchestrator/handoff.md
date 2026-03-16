@@ -18,6 +18,7 @@ Workflow: full
 
 Created the Stage 0 brief for replacing delivered-order hard deletion with soft deletion:
 - retain delivered rows in `public.orders` for future history
+- lock explicit soft-delete fields: `is_deleted` plus `soft_deleted_at`
 - hide soft-deleted rows from operational order reads by default
 - change the daily cleanup job to soft delete eligible older delivered orders instead of removing them
 - explicitly supersede the existing hard-delete `delete-orders` behavior
@@ -26,6 +27,10 @@ Created the Stage 0 brief for replacing delivered-order hard deletion with soft 
 **Critic feedback addressed (2026-03-16):**
 - Missed-run behavior is now explicit: the next successful run soft-deletes all still-eligible older `entregue` rows, not only the immediately previous day
 - Operational mutation behavior is now explicit: soft-deleted rows must not be mutable through normal active-order flows
+
+**Brief update (2026-03-16):**
+- Soft-delete metadata is now explicitly locked to two fields: `is_deleted boolean` and `soft_deleted_at timestamptz`
+- Active/deleted consistency is now explicit so downstream stages must keep both fields synchronized
 
 ---
 
@@ -48,6 +53,6 @@ Created the Stage 0 brief for replacing delivered-order hard deletion with soft 
 ## Next Review Focus
 
 1. Confirm the implementation fully replaces the old hard-delete cron/function instead of layering soft delete on top of it.
-2. Verify every operational order read path excludes soft-deleted rows consistently.
+2. Verify every operational order read path excludes soft-deleted rows consistently, using the locked explicit metadata.
 3. Verify stale admin actions cannot mutate soft-deleted rows after cleanup.
-4. Ensure the retention metadata is future-safe for history/reporting without overbuilding a history feature now.
+4. Ensure `is_deleted` and `soft_deleted_at` remain synchronized for active vs deleted rows.

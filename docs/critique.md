@@ -2,7 +2,7 @@
 
 Date: 2026-03-16
 Reviewed by: Critic Agent
-Scope: Stage 0 brief for `soft-delete-orders-history`
+Scope: Stage 1 implementation for `soft-delete-orders-history`
 Verdict: APPROVE
 
 ## Findings
@@ -11,13 +11,18 @@ Verdict: APPROVE
 1. None.
 
 ### Suggested Improvements
-- Consider capturing, during implementation, whether the chosen soft-delete metadata should always include the deletion timestamp even if the exact schema remains flexible at Stage 0.
+- Stage 2 should add explicit regression coverage for `is_deleted`-based active filtering, metadata consistency expectations, and the non-operational mutation rejection path.
 
 ### Risks / Assumptions
-- The old hard-delete scheduler/function still exists and must be cleanly replaced or retired during implementation so both retention mechanisms do not run in parallel.
-- Existing rows already physically deleted by the superseded feature are not recoverable; this feature only changes retention behavior going forward.
+- `docs/delete-orders.md` still documents the superseded hard-delete behavior and should be corrected in later stages before final PR packaging.
+- This approval assumes `supabase/migrations/20260316090000_soft_delete_delivered_orders_for_history.sql` is applied before relying on the new active-row filtering and cron behavior.
+- The legacy cron function name is intentionally preserved for compatibility; later documentation should make the semantic change explicit so operators do not infer hard deletion from the old name.
 
 ## Acceptance Criteria
-- [x] The brief explicitly defines catch-up behavior for missed scheduler runs.
-- [x] The brief explicitly defines that soft-deleted orders are non-operational and not mutable through normal admin/server flows.
-- [x] The brief keeps history UI/reporting out of scope while making retention semantics unambiguous.
+- [x] Soft-deleted rows are explicitly represented with `is_deleted = true` and a non-null `soft_deleted_at`.
+- [x] Active rows remain `is_deleted = false` and `soft_deleted_at = null` through the migration constraint.
+- [x] Delivered-order cleanup now soft-deletes eligible old rows instead of hard-deleting them.
+- [x] The cleanup function catches up older eligible delivered rows, not just the immediately previous day.
+- [x] Operational admin order reads exclude rows where `is_deleted = true` through the shared admin/orders data-access boundary.
+- [x] Operational status progression no longer mutates soft-deleted or otherwise non-operational rows through the normal admin flow.
+- [x] Stage 1 stays within scope and does not add history UI, restore flow, or unrelated refactors.
