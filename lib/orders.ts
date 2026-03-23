@@ -34,6 +34,7 @@ const ORDER_STATUS_SET = new Set<OrderStatus>(ORDER_STATUS_SEQUENCE);
 export type AdminOrderItem = {
   name: string;
   quantity: number;
+  menuItemId?: string;
   unitPriceCents?: number;
   lineTotalCents?: number;
   extras?: Array<{
@@ -330,9 +331,11 @@ function parseOrderItemsWithTotal(
         }
       }
 
+      const menuItemId = stringFrom(row.menuItemId ?? row.menu_item_id);
       return {
         name,
         quantity: normalizedQuantity,
+        ...(menuItemId ? { menuItemId } : {}),
         ...(parsedUnitPriceCents !== null ? { unitPriceCents: parsedUnitPriceCents } : {}),
         ...(parsedLineTotalCents !== null ? { lineTotalCents: parsedLineTotalCents } : {}),
         ...(extras.length > 0 ? { extras } : {}),

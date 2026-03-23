@@ -1039,3 +1039,31 @@ Risks, assumptions, and deferred items from the hardening sweep. Updated per fea
 | Performance   | OK        | Predicate cost acceptable now; future index may help if history grows |
 | Observability | OK        | Cron NOTICE + action logs provide minimal diagnostics |
 | Resilience    | Improved  | Catch-up retention safer; real DB verification still deferred |
+---
+## Admin Order Editing — Stage 3 (hardener sweep)
+
+### Structure / Alignment
+- **Removed name-based menu resolution in `AdminOrderEditSheet`:** `initialLines` no longer tries to “re-resolve” legacy/unknown lines by matching item `name` to the current menu. Per brief Decisions, legacy-only lines (no `menuItemId`) are excluded from the editable list, and items whose `menuItemId` no longer exists must remain unknown and require explicit removal/replacement. This restores strict ID-based behavior and prevents the UI from accidentally turning unknown snapshot IDs into valid IDs by name.
+
+### Security
+- **Validation authority stays server-side:** Because the UI now preserves the snapshot `menuItemId` (or excludes legacy without it), server-side `validateAndBuildOrderPayload` remains the single source of truth for whether an item/extra/removal is valid in the active menu.
+
+### Performance
+- **No meaningful cost change:** The removed `nameMatchId` lookup eliminates an extra `.find()` across `menuItems` per line; `initialLines` is now a direct snapshot-id filter.
+
+### Observability
+- **No new logging added:** Existing action logs cover validation failures and unexpected DB write errors with contextual order ids.
+
+### Resilience
+- **Menu drift handling is now deterministic:** When menu changes since order creation:
+  - Legacy lines: excluded from editable list.
+  - Unknown `menuItemId`: displayed as “Item fora do cardápio atual” and must be removed before save.
+
+### Summary
+| Area          | Status    | Action |
+|---------------|-----------|--------|
+| Structure     | Improved  | Removed name-based fallback; strict id-based behavior |
+| Security      | Improved  | Prevents UI from bypassing server validation authority |
+| Performance   | Improved  | Avoid extra per-line menu lookup |
+| Observability | OK        | No new logs required |
+| Resilience    | Improved  | Deterministic handling for legacy/unknown items |

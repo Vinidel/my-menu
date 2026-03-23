@@ -5,6 +5,8 @@ import type {
   AdminOrdersDataAccessResult,
   AdminOrderStatusUpdateRecord,
   ProgressAdminOrderStatusInput,
+  UpdateAdminOrderInput,
+  UpdateAdminOrderRecord,
 } from "@/lib/admin-orders-data-access";
 import { ADMIN_ORDERS_SELECT_COLUMNS } from "@/lib/admin-orders-query";
 import { parseAdminOrders } from "@/lib/orders";
@@ -75,6 +77,24 @@ type OrdersStatusUpdateChain = {
   };
 };
 
+type OrdersEditUpdateChain = {
+  update: (values: Record<string, unknown>) => {
+    eq: (column: "id", value: string) => {
+      eq: (column: "is_deleted", value: false) => {
+        select: (columns: "id") => {
+          maybeSingle: () => Promise<{
+            data: UpdateAdminOrderRecord | null;
+            error?: {
+              message?: string;
+              code?: string;
+            } | null;
+          }>;
+        };
+      };
+    };
+  };
+};
+
 export function createSupabaseAdminOrdersDataAccess(supabase: {
   from: (table: string) => unknown;
 }): AdminOrdersDataAccess {
@@ -131,6 +151,31 @@ export function createSupabaseAdminOrdersDataAccess(supabase: {
 
       return successResult(data);
     },
+
+    async updateAdminOrder(input: UpdateAdminOrderInput) {
+      const ordersTable = getOrdersEditUpdateTable(supabase);
+      const { data, error } = await ordersTable
+        .update({
+          customer_name: input.payload.customer_name,
+          customer_email: input.payload.customer_email,
+          customer_phone: input.payload.customer_phone,
+          payment_method: input.payload.payment_method,
+          fulfillment_type: input.payload.fulfillment_type,
+          delivery_fee_cents: input.payload.delivery_fee_cents,
+          notes: input.payload.notes,
+          items: input.payload.items,
+        })
+        .eq("id", input.orderId)
+        .eq(ACTIVE_ORDER_FILTER_COLUMN, false)
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        return errorResult(error);
+      }
+
+      return successResult(data);
+    },
   };
 }
 
@@ -144,6 +189,14 @@ function getOrdersStatusLookupTable(supabase: { from: (table: string) => unknown
 
 function getOrdersStatusUpdateTable(supabase: { from: (table: string) => unknown }) {
   return asOrdersStatusUpdateChain(supabase.from(ORDERS_TABLE_NAME));
+}
+
+function getOrdersEditUpdateTable(supabase: { from: (table: string) => unknown }) {
+  return asOrdersEditUpdateChain(supabase.from(ORDERS_TABLE_NAME));
+}
+
+function asOrdersEditUpdateChain(value: unknown): OrdersEditUpdateChain {
+  return value as OrdersEditUpdateChain;
 }
 
 function successResult<T>(data: T): AdminOrdersDataAccessResult<T> {
