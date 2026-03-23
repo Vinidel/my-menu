@@ -8,9 +8,14 @@ vi.mock("@/lib/request-client", () => ({
   createRequestClient: vi.fn(),
 }));
 
+vi.mock("@/lib/menu-runtime", () => ({
+  getRuntimeMenuItemMap: vi.fn(),
+}));
+
 import { revalidatePath } from "next/cache";
 import { createRequestClient } from "@/lib/request-client";
-import { progressOrderStatus } from "./actions";
+import { progressOrderStatus, updateOrder } from "./actions";
+import { getRuntimeMenuItemMap } from "@/lib/menu-runtime";
 
 type LookupResult = {
   data:
@@ -23,7 +28,7 @@ type LookupResult = {
 };
 
 type UpdateResult = {
-  data: { id: string; status: string } | null;
+  data: Record<string, unknown> | null;
   error: { message?: string; code?: string } | null;
 };
 
@@ -324,13 +329,243 @@ describe("progressOrderStatus", () => {
   });
 });
 
+describe("updateOrder (admin edit flow)", () => {
+  beforeEach(() => {
+    vi.mocked(createRequestClient).mockReset();
+    vi.mocked(revalidatePath).mockReset();
+    vi.mocked(getRuntimeMenuItemMap as never).mockReset();
+  });
+
+  const menuMap = new Map([
+    [
+      "x-burger",
+      {
+        id: "x-burger",
+        name: "X-Burger",
+        priceCents: 2890,
+        extras: [],
+        removableIngredients: [],
+      },
+    ],
+  ]);
+
+  it("updates order when payload is valid (brief: admin corrects items/contact/payment/fulfillment)", async () => {
+    vi.mocked(getRuntimeMenuItemMap as never).mockResolvedValue(menuMap as never);
+
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "aguardando_confirmacao", fulfillment_type: "retirada" },
+          error: null,
+        },
+      ],
+      updateResult: {
+        data: { id: "order-1" },
+        error: null,
+      },
+    });
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
+
+    const result = await updateOrder({
+      orderId: "order-1",
+      orderPayload: {
+        customerName: "João",
+        customerEmail: "",
+        customerPhone: "11987654321",
+        paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
+        notes: "sem cebola",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(revalidatePath).toHaveBeenCalledWith("/admin");
+    expect(supabase.state.updateCalls).toHaveLength(1);
+
+    const updatePayload = supabase.state.updateCalls[0];
+    expect(updatePayload).toMatchObject({
+      customer_name: "João",
+      customer_phone: expect.any(String),
+      payment_method: "dinheiro",
+      fulfillment_type: "retirada",
+      items: expect.any(Array),
+    });
+
+    expect((updatePayload.items as any[])[0]).toMatchObject({
+      menuItemId: "x-burger",
+      quantity: 1,
+      unitPriceCents: 2890,
+      lineTotalCents: 2890,
+    });
+  });
+
+  it("rejects invalid phone (brief: invalid phone in edit)", async () => {
+    vi.mocked(getRuntimeMenuItemMap as never).mockResolvedValue(menuMap as never);
+
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "aguardando_confirmacao", fulfillment_type: "retirada" },
+          error: null,
+        },
+      ],
+      updateResult: { data: { id: "unused" }, error: null },
+    });
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
+
+    const result = await updateOrder({
+      orderId: "order-1",
+      orderPayload: {
+        customerName: "João",
+        customerEmail: "",
+        customerPhone: "123",
+        paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("validation");
+      expect(result.message).toMatch(/Telefone inválido/i);
+    }
+    expect(supabase.state.updateCalls).toEqual([]);
+  });
+
+  it("rejects empty items (brief: remove all items)", async () => {
+    vi.mocked(getRuntimeMenuItemMap as never).mockResolvedValue(menuMap as never);
+
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "aguardando_confirmacao", fulfillment_type: "retirada" },
+          error: null,
+        },
+      ],
+      updateResult: { data: { id: "unused" }, error: null },
+    });
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
+
+    const result = await updateOrder({
+      orderId: "order-1",
+      orderPayload: {
+        customerName: "João",
+        customerEmail: "",
+        customerPhone: "11987654321",
+        paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
+        items: [],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("validation");
+      expect(result.message).toMatch(/Selecione itens válidos/i);
+    }
+    expect(supabase.state.updateCalls).toEqual([]);
+  });
+
+  it("rejects fulfillment-type conflicts with status (brief: fulfillment vs status constraint)", async () => {
+    vi.mocked(getRuntimeMenuItemMap as never).mockResolvedValue(menuMap as never);
+
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "saiu_para_entrega", fulfillment_type: "entrega" },
+          error: null,
+        },
+      ],
+      updateResult: { data: { id: "unused" }, error: null },
+    });
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
+
+    const result = await updateOrder({
+      orderId: "order-1",
+      orderPayload: {
+        customerName: "João",
+        customerEmail: "",
+        customerPhone: "11987654321",
+        paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("validation");
+      expect(result.message).toMatch(/tipo de entrega/i);
+    }
+    expect(supabase.state.updateCalls).toEqual([]);
+  });
+
+  it("rejects unauthenticated sessions (brief: unauthenticated request)", async () => {
+    vi.mocked(getRuntimeMenuItemMap as never).mockResolvedValue(menuMap as never);
+
+    const supabase = makeSupabase({
+      lookupResults: [
+        {
+          data: { status: "aguardando_confirmacao", fulfillment_type: "retirada" },
+          error: null,
+        },
+      ],
+      updateResult: { data: { id: "unused" }, error: null },
+    });
+    // Force unauthenticated
+    supabase.auth.getUser = vi.fn().mockResolvedValue({ data: { user: null }, error: null });
+    vi.mocked(createRequestClient).mockResolvedValue(supabase as never);
+
+    const result = await updateOrder({
+      orderId: "order-1",
+      orderPayload: {
+        customerName: "João",
+        customerEmail: "",
+        customerPhone: "11987654321",
+        paymentMethod: "dinheiro",
+        fulfillmentType: "retirada",
+        items: [
+          {
+            menuItemId: "x-burger",
+            quantity: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("auth");
+      expect(result.message).toMatch(/Sessão inválida/i);
+    }
+    expect(supabase.state.updateCalls).toEqual([]);
+  });
+});
+
 function makeSupabase(input: {
   lookupResults: LookupResult[];
   updateResult: UpdateResult;
 }) {
   const state = {
     lookupResults: [...input.lookupResults],
-    updateCalls: [] as Array<{ status?: string }>,
+    updateCalls: [] as Array<Record<string, unknown>>,
   };
 
   return {
@@ -350,19 +585,15 @@ function makeSupabase(input: {
           })),
         })),
       })),
-      update: vi.fn().mockImplementation((values: { status?: string }) => {
-        state.updateCalls.push(values);
-        return {
-          eq: vi.fn().mockImplementation((_column: string, _value: string) => ({
-            eq: vi.fn().mockImplementation((_column2: string, _value2: string | boolean) => ({
-              eq: vi.fn().mockImplementation((_column3: string, _value3: string | boolean) => ({
-                select: vi.fn().mockImplementation((_columns: string) => ({
-                  maybeSingle: vi.fn().mockResolvedValue(input.updateResult),
-                })),
-              })),
-            })),
+      update: vi.fn().mockImplementation((values: Record<string, unknown>) => {
+        state.updateCalls.push(values as never);
+        const builder: any = {
+          eq: vi.fn().mockImplementation((_column: string, _value: string | boolean) => builder),
+          select: vi.fn().mockImplementation((_columns: string) => ({
+            maybeSingle: vi.fn().mockResolvedValue(input.updateResult),
           })),
         };
+        return builder;
       }),
     })),
     state,
