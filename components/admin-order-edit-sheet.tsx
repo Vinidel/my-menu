@@ -61,14 +61,13 @@ export function AdminOrderEditSheet({
     for (const item of order.items) {
       const raw = (item as AdminOrderItem & { menuItemId?: string }).menuItemId;
       const rawId = typeof raw === "string" && raw.trim() ? raw.trim() : null;
-      const nameMatchId =
-        menuItems.find(
-          (m) => m.name.trim().toLowerCase() === (item.name ?? "").trim().toLowerCase()
-        )?.id ?? null;
-      /** Prefer menu-backed id; keep raw id so admin can see/remove lines no longer on the menu. */
-      const menuItemId =
-        (rawId && menuMap.has(rawId) ? rawId : null) ?? nameMatchId ?? rawId ?? null;
-      if (!menuItemId) continue;
+      // Legacy orders may have no `menuItemId`. Per brief, legacy-only lines are excluded from
+      // the editable list (admin can re-add equivalents from the menu).
+      if (!rawId) continue;
+
+      // Keep the snapshot `menuItemId` even if it no longer exists in the current menu.
+      // This lets the admin remove it; saving will be rejected server-side if it remains.
+      const menuItemId = rawId;
 
       const extraIds = (item.extras ?? []).map((e) => e.id ?? e.name).filter(Boolean);
       const removedIngredientIds = (item.removedIngredients ?? [])
@@ -84,7 +83,7 @@ export function AdminOrderEditSheet({
       });
     }
     return lines;
-  }, [order.items, menuMap, menuItems]);
+  }, [order.items, menuMap]);
 
   const [lines, setLines] = useState<EditLine[]>(initialLines);
   const [customerName, setCustomerName] = useState(order.customerName);
