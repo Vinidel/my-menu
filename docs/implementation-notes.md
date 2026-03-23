@@ -95,3 +95,9 @@ Issues or observations spotted during implementation that are **out of scope** f
 ## Admin Delivery Status Step (Stage 1)
 
 - **Repository-wide test typing debt remains out of scope:** `npm exec tsc --noEmit` still fails on existing test-only TypeScript issues in files such as `app/admin/cardapio/page.test.tsx`, `app/admin/login/page.test.tsx`, `app/api/orders/route.test.ts`, and `lib/anti-abuse/captcha-config.test.ts`. The production build for this feature passes; Stage 1 did not fix unrelated test typing debt.
+
+---
+
+## Admin Order Editing (Stage 1)
+
+- **Unrelated lint warning remains out of scope:** `npm run lint` reports an existing hook dependency warning in `components/customer-order-page.tsx` (`react-hooks/exhaustive-deps` for `handleTurnstileSuccess`). This feature did not modify customer order page behavior.

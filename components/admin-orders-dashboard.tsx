@@ -1,8 +1,10 @@
 "use client";
 
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { PAYMENT_METHOD_OPTIONS, type PaymentMethod } from "@/lib/payment-methods";
+import type { MenuItem } from "@/lib/menu";
 import {
   countOrdersByStatus,
   getNextOrderStatus,
@@ -14,10 +16,13 @@ import {
 import {
   progressOrderStatus,
   type ProgressOrderResult,
+  updateOrderDetails,
+  type UpdateOrderDetailsResult,
 } from "@/app/admin/actions";
 
 type AdminOrdersDashboardProps = {
   initialOrders: AdminOrder[];
+  menuItems?: MenuItem[];
   initialLoadError?: string | null;
   enablePolling?: boolean;
 };
@@ -27,6 +32,31 @@ type FeedbackState = {
   message: string;
 };
 
+type OrderEditDraft = {
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  notes: string;
+  paymentMethod: PaymentMethod | "";
+  items: Array<{
+    id: string;
+    menuItemId: string;
+    name: string;
+    quantity: number;
+    unitPriceCents?: number;
+    lineTotalCents?: number;
+    extras?: Array<{
+      id?: string;
+      name: string;
+      priceCents?: number;
+    }>;
+    removedIngredients?: Array<{
+      id?: string;
+      name: string;
+    }>;
+  }>;
+};
+
 const ORDER_LIST_SORT_DESCRIPTION =
   "Ordenados por status e depois do mais antigo para o mais recente";
 const POLLING_QUERY_KEY = ["admin", "orders", "dashboard"] as const;
@@ -34,6 +64,10 @@ const POLLING_INTERVAL_MS = 10_000;
 const MOBILE_VIEWPORT_MEDIA_QUERY = "(max-width: 767px)";
 const POLLING_REFRESH_ERROR_MESSAGE =
   "Não foi possível atualizar os pedidos automaticamente. Exibindo os últimos dados carregados.";
+const EDIT_ORDER_NON_OPERATIONAL_MESSAGE =
+  "Este pedido não está mais disponível para edição.";
+const EDIT_ORDER_LEGACY_ITEMS_MESSAGE =
+  "Não foi possível editar este pedido porque alguns itens não possuem identificação do cardápio.";
 const ORDER_LIST_BUTTON_BASE_CLASS =
   "w-full px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 const STATUS_VISUAL_STYLES: Record<
@@ -79,12 +113,14 @@ const STATUS_VISUAL_STYLES: Record<
 
 export function AdminOrdersDashboard({
   initialOrders,
+  menuItems = [],
   initialLoadError = null,
   enablePolling = false,
 }: AdminOrdersDashboardProps) {
   return (
     <AdminOrdersDashboardPolling
       initialOrders={initialOrders}
+      menuItems={menuItems}
       initialLoadError={initialLoadError}
       enablePolling={enablePolling}
     />
@@ -93,6 +129,7 @@ export function AdminOrdersDashboard({
 
 function AdminOrdersDashboardPolling({
   initialOrders,
+  menuItems,
   initialLoadError,
   enablePolling = false,
 }: AdminOrdersDashboardProps) {
@@ -111,6 +148,7 @@ function AdminOrdersDashboardPolling({
     <QueryClientProvider client={queryClient}>
       <AdminOrdersDashboardContent
         initialOrders={initialOrders}
+        menuItems={menuItems}
         initialLoadError={initialLoadError}
         enablePolling={enablePolling}
       />
@@ -120,10 +158,14 @@ function AdminOrdersDashboardPolling({
 
 function AdminOrdersDashboardContent({
   initialOrders,
+  menuItems = [],
   initialLoadError = null,
   enablePolling = false,
 }: AdminOrdersDashboardProps) {
   const [orders, setOrders] = useState(initialOrders);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<OrderEditDraft | null>(null);
+  const [pendingSaveOrderId, setPendingSaveOrderId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
     initialOrders[0]?.id ?? null
   );
@@ -134,6 +176,14 @@ function AdminOrdersDashboardContent({
     initialLoadError ? { type: "error", message: initialLoadError } : null
   );
   const [isPending, startTransition] = useTransition();
+  const menuItemsById = useMemo(
+    () => new Map(menuItems.map((item) => [item.id, item])),
+    [menuItems]
+  );
+  const menuItemIdByName = useMemo(
+    () => buildMenuItemIdByNameIndex(menuItems),
+    [menuItems]
+  );
   const isMobileViewport = useIsMobileViewport();
   const isPageVisible = useDocumentVisible();
   const pollingQuery = useQuery({
@@ -158,6 +208,14 @@ function AdminOrdersDashboardContent({
 
   const counts = countOrdersByStatus(orders);
   const selectedOrder = findOrderById(sortedOrders, selectedOrderId) ?? sortedOrders[0] ?? null;
+  const isEditingSelectedOrder = Boolean(selectedOrder && editingOrderId === selectedOrder.id);
+  const hasUnsavedEditChanges =
+    isEditingSelectedOrder && selectedOrder && editDraft
+      ? !isOrderEditDraftEqual(
+          editDraft,
+          createOrderEditDraft(selectedOrder, menuItemsById, menuItemIdByName)
+        )
+      : false;
 
   const nextStatus = selectedOrder
     ? getNextOrderStatus(selectedOrder.status, selectedOrder.fulfillmentType)
@@ -170,9 +228,14 @@ function AdminOrdersDashboardContent({
     if (!Array.isArray(nextOrders)) return;
 
     setOrders((currentOrders) =>
-      mergePolledOrdersIntoLocalState(currentOrders, nextOrders, pendingProgressOrderId)
+      mergePolledOrdersIntoLocalState(
+        currentOrders,
+        nextOrders,
+        pendingProgressOrderId,
+        editingOrderId
+      )
     );
-  }, [enablePolling, pendingProgressOrderId, pollingQuery.data]);
+  }, [editingOrderId, enablePolling, pendingProgressOrderId, pollingQuery.data]);
 
   useEffect(() => {
     if (!enablePolling) return;
@@ -199,11 +262,195 @@ function AdminOrdersDashboardContent({
   }, [selectedOrder, sortedOrders]);
 
   function handleSelectOrder(orderId: string) {
+    if (editingOrderId && editingOrderId !== orderId) {
+      setEditingOrderId(null);
+      setEditDraft(null);
+    }
     setSelectedOrderId(orderId);
     if (isMobileViewport) {
       setMobileExpandedOrderId((current) => (current === orderId ? null : orderId));
     }
     setFeedback(null);
+  }
+
+  function handleStartEdit(order: AdminOrder) {
+    setEditingOrderId(order.id);
+    setEditDraft(createOrderEditDraft(order, menuItemsById, menuItemIdByName));
+    setFeedback(null);
+  }
+
+  function handleCancelEdit() {
+    setEditingOrderId(null);
+    setEditDraft(null);
+    setFeedback(null);
+  }
+
+  function handleEditDraftField(
+    field: keyof OrderEditDraft,
+    value: string
+  ) {
+    if (field === "items") return;
+    setEditDraft((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        [field]:
+          field === "paymentMethod"
+            ? (value as OrderEditDraft["paymentMethod"])
+            : value,
+      };
+    });
+  }
+
+  function handleEditItemQuantity(itemId: string, quantityValue: string) {
+    setEditDraft((current) => {
+      if (!current) return current;
+      const parsedQuantity = Number.parseInt(quantityValue, 10);
+      if (!Number.isFinite(parsedQuantity)) return current;
+      const quantity = Math.max(1, parsedQuantity);
+      return {
+        ...current,
+        items: current.items.map((item) =>
+          item.id === itemId ? { ...item, quantity } : item
+        ),
+      };
+    });
+  }
+
+  function handleRemoveItem(itemId: string) {
+    setEditDraft((current) => {
+      if (!current) return current;
+      if (current.items.length <= 1) return current;
+      return {
+        ...current,
+        items: current.items.filter((item) => item.id !== itemId),
+      };
+    });
+  }
+
+  function handleToggleItemExtra(itemId: string, extraId: string) {
+    setEditDraft((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        items: current.items.map((item) => {
+          if (item.id !== itemId) return item;
+          const menuItem = menuItemsById.get(item.menuItemId);
+          const currentIds = (item.extras ?? [])
+            .map((extra) => extra.id)
+            .filter((id): id is string => typeof id === "string" && id.length > 0);
+          const nextIds = currentIds.includes(extraId)
+            ? currentIds.filter((id) => id !== extraId)
+            : [...currentIds, extraId];
+          const extrasById = new Map((menuItem?.extras ?? []).map((extra) => [extra.id, extra]));
+          return {
+            ...item,
+            extras: normalizeCustomizationIds(nextIds).map((id) => {
+              const extra = extrasById.get(id);
+              return {
+                id,
+                name: extra?.name ?? id,
+                ...(typeof extra?.priceCents === "number" ? { priceCents: extra.priceCents } : {}),
+              };
+            }),
+          };
+        }),
+      };
+    });
+  }
+
+  function handleToggleItemRemovedIngredient(itemId: string, ingredientId: string) {
+    setEditDraft((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        items: current.items.map((item) => {
+          if (item.id !== itemId) return item;
+          const menuItem = menuItemsById.get(item.menuItemId);
+          const currentIds = (item.removedIngredients ?? [])
+            .map((ingredient) => ingredient.id)
+            .filter((id): id is string => typeof id === "string" && id.length > 0);
+          const nextIds = currentIds.includes(ingredientId)
+            ? currentIds.filter((id) => id !== ingredientId)
+            : [...currentIds, ingredientId];
+          const ingredientsById = new Map(
+            (menuItem?.removableIngredients ?? []).map((ingredient) => [ingredient.id, ingredient])
+          );
+          return {
+            ...item,
+            removedIngredients: normalizeCustomizationIds(nextIds).map((id) => {
+              const ingredient = ingredientsById.get(id);
+              return { id, name: ingredient?.name ?? id };
+            }),
+          };
+        }),
+      };
+    });
+  }
+
+  function handleSaveOrderDetails(order: AdminOrder) {
+    if (!editDraft || pendingSaveOrderId || isPending) return;
+    const draftToSave = editDraft;
+    const expectedUpdatedAt = order.updatedAtIso;
+    if (!expectedUpdatedAt) {
+      setFeedback(errorFeedback(EDIT_ORDER_NON_OPERATIONAL_MESSAGE));
+      return;
+    }
+    if (draftToSave.items.some((item) => !item.menuItemId)) {
+      setFeedback(errorFeedback(EDIT_ORDER_LEGACY_ITEMS_MESSAGE));
+      return;
+    }
+
+    startTransition(async () => {
+      setPendingSaveOrderId(order.id);
+      try {
+        const result = await updateOrderDetails({
+          orderId: order.id,
+          expectedUpdatedAt,
+          customerName: draftToSave.customerName,
+          customerPhone: draftToSave.customerPhone,
+          customerEmail: toOptionalString(draftToSave.customerEmail),
+          notes: toOptionalString(draftToSave.notes),
+          paymentMethod: toOptionalString(draftToSave.paymentMethod),
+          items: draftToSave.items.map((item) => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            ...(item.extras
+              ? {
+                  extraIds: item.extras
+                    .map((extra) => extra.id)
+                    .filter((id): id is string => typeof id === "string" && id.length > 0),
+                }
+              : {}),
+            ...(item.removedIngredients
+              ? {
+                  removedIngredientIds: item.removedIngredients
+                    .map((ingredient) => ingredient.id)
+                    .filter(
+                      (id): id is string => typeof id === "string" && id.length > 0
+                    ),
+                }
+              : {}),
+          })),
+        });
+
+        if (!result.ok) {
+          handleFailedOrderDetailsUpdate(result, order.id);
+          return;
+        }
+
+        setOrders((previousOrders) =>
+          previousOrders.map((existing) =>
+            existing.id === order.id ? result.order : existing
+          )
+        );
+        setEditingOrderId(null);
+        setEditDraft(null);
+        setFeedback(successFeedback("Dados do pedido atualizados com sucesso."));
+      } finally {
+        setPendingSaveOrderId(null);
+      }
+    });
   }
 
   function handleProgressOrder(targetOrder: AdminOrder) {
@@ -239,6 +486,29 @@ function AdminOrdersDashboardContent({
         setPendingProgressOrderId(null);
       }
     });
+  }
+
+  function handleFailedOrderDetailsUpdate(
+    result: Extract<UpdateOrderDetailsResult, { ok: false }>,
+    orderId: string
+  ) {
+    if (result.code === "stale") {
+      if (result.currentOrder) {
+        setOrders((previousOrders) =>
+          previousOrders.map((existing) =>
+            existing.id === orderId ? result.currentOrder : existing
+          )
+        );
+        setEditDraft(
+          createOrderEditDraft(result.currentOrder, menuItemsById, menuItemIdByName)
+        );
+      } else {
+        setEditingOrderId(null);
+        setEditDraft(null);
+      }
+    }
+
+    setFeedback(errorFeedback(result.message));
   }
 
   function handleFailedProgress(
@@ -370,7 +640,27 @@ function AdminOrdersDashboardContent({
                         order={order}
                         nextStatus={orderNextStatus}
                         isPending={isPending}
+                        isSavingDetails={pendingSaveOrderId === order.id}
+                        isEditing={editingOrderId === order.id}
+                        hasUnsavedChanges={
+                          editingOrderId === order.id && editDraft
+                            ? !isOrderEditDraftEqual(
+                                editDraft,
+                                createOrderEditDraft(order, menuItemsById, menuItemIdByName)
+                              )
+                            : false
+                        }
+                        editDraft={editingOrderId === order.id ? editDraft : null}
+                        onEditFieldChange={handleEditDraftField}
+                        onEditItemQuantity={handleEditItemQuantity}
+                        onRemoveItem={handleRemoveItem}
+                        onToggleItemExtra={handleToggleItemExtra}
+                        onToggleItemRemovedIngredient={handleToggleItemRemovedIngredient}
+                        onStartEdit={() => handleStartEdit(order)}
+                        onCancelEdit={handleCancelEdit}
+                        onSaveDetails={() => handleSaveOrderDetails(order)}
                         onProgress={() => handleProgressOrder(order)}
+                        menuItemsById={menuItemsById}
                         compact
                       />
                     </div>
@@ -413,7 +703,20 @@ function AdminOrdersDashboardContent({
                 order={selectedOrder}
                 nextStatus={nextStatus}
                 isPending={isPending}
+                isSavingDetails={pendingSaveOrderId === selectedOrder.id}
+                isEditing={isEditingSelectedOrder}
+                hasUnsavedChanges={Boolean(hasUnsavedEditChanges)}
+                editDraft={isEditingSelectedOrder ? editDraft : null}
+                onEditFieldChange={handleEditDraftField}
+                onEditItemQuantity={handleEditItemQuantity}
+                onRemoveItem={handleRemoveItem}
+                onToggleItemExtra={handleToggleItemExtra}
+                onToggleItemRemovedIngredient={handleToggleItemRemovedIngredient}
+                onStartEdit={() => handleStartEdit(selectedOrder)}
+                onCancelEdit={handleCancelEdit}
+                onSaveDetails={() => handleSaveOrderDetails(selectedOrder)}
                 onProgress={() => handleProgressOrder(selectedOrder)}
+                menuItemsById={menuItemsById}
               />
             </div>
           ) : (
@@ -463,15 +766,56 @@ function OrderDetailsContent({
   order,
   nextStatus,
   isPending,
+  isSavingDetails,
+  isEditing,
+  hasUnsavedChanges,
+  editDraft,
+  onEditFieldChange,
+  onEditItemQuantity,
+  onRemoveItem,
+  onToggleItemExtra,
+  onToggleItemRemovedIngredient,
+  onStartEdit,
+  onCancelEdit,
+  onSaveDetails,
   onProgress,
+  menuItemsById,
   compact = false,
 }: {
   order: AdminOrder;
   nextStatus: OrderStatus | null;
   isPending: boolean;
+  isSavingDetails: boolean;
+  isEditing: boolean;
+  hasUnsavedChanges: boolean;
+  editDraft: OrderEditDraft | null;
+  onEditFieldChange: (field: keyof OrderEditDraft, value: string) => void;
+  onEditItemQuantity: (itemId: string, quantityValue: string) => void;
+  onRemoveItem: (itemId: string) => void;
+  onToggleItemExtra: (itemId: string, extraId: string) => void;
+  onToggleItemRemovedIngredient: (itemId: string, ingredientId: string) => void;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSaveDetails: () => void;
   onProgress: () => void;
+  menuItemsById: Map<string, MenuItem>;
   compact?: boolean;
 }) {
+  const isBusy = isPending || isSavingDetails;
+  const customerNameValue = isEditing ? editDraft?.customerName ?? "" : order.customerName;
+  const customerPhoneValue = isEditing ? editDraft?.customerPhone ?? "" : order.customerPhone;
+  const customerEmailValue = isEditing ? editDraft?.customerEmail ?? "" : order.customerEmail;
+  const paymentMethodValue = isEditing
+    ? editDraft?.paymentMethod ?? ""
+    : order.paymentMethod ?? "";
+  const notesValue = isEditing ? editDraft?.notes ?? "" : order.notes ?? "";
+  const itemRows = isEditing
+    ? editDraft?.items ?? []
+    : order.items.map((item, index) => ({
+        ...item,
+        id: `${order.id}-${index}`,
+      }));
+
   return (
     <>
       <div className={compact ? "grid gap-4" : "grid gap-6 p-5 md:grid-cols-2"}>
@@ -480,11 +824,69 @@ function OrderDetailsContent({
             Cliente
           </h3>
           <dl className="space-y-2">
-            <DetailRow label="Nome" value={order.customerName} />
-            <DetailRow label="Telefone" value={order.customerPhone} />
-            <DetailRow label="E-mail" value={order.customerEmail} />
+            {isEditing ? (
+              <EditField label="Nome">
+                <input
+                  type="text"
+                  aria-label="Nome"
+                  value={customerNameValue}
+                  onChange={(event) => onEditFieldChange("customerName", event.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={isBusy}
+                />
+              </EditField>
+            ) : (
+              <DetailRow label="Nome" value={order.customerName} />
+            )}
+            {isEditing ? (
+              <EditField label="Telefone">
+                <input
+                  type="tel"
+                  aria-label="Telefone"
+                  value={customerPhoneValue}
+                  onChange={(event) => onEditFieldChange("customerPhone", event.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={isBusy}
+                />
+              </EditField>
+            ) : (
+              <DetailRow label="Telefone" value={order.customerPhone} />
+            )}
+            {isEditing ? (
+              <EditField label="E-mail">
+                <input
+                  type="email"
+                  aria-label="E-mail"
+                  value={customerEmailValue}
+                  onChange={(event) => onEditFieldChange("customerEmail", event.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={isBusy}
+                />
+              </EditField>
+            ) : (
+              <DetailRow label="E-mail" value={order.customerEmail} />
+            )}
             <DetailRow label="Tipo de entrega" value={order.fulfillmentTypeLabel} />
-            <DetailRow label="Forma de pagamento" value={order.paymentMethodLabel} />
+            {isEditing ? (
+              <EditField label="Forma de pagamento">
+                <select
+                  aria-label="Forma de pagamento"
+                  value={paymentMethodValue}
+                  onChange={(event) => onEditFieldChange("paymentMethod", event.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={isBusy}
+                >
+                  <option value="">Não informado</option>
+                  {PAYMENT_METHOD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </EditField>
+            ) : (
+              <DetailRow label="Forma de pagamento" value={order.paymentMethodLabel} />
+            )}
             <DetailRow label="Total do pedido" value={order.totalAmountLabel ?? "Indisponível"} />
           </dl>
         </section>
@@ -493,16 +895,43 @@ function OrderDetailsContent({
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Itens do pedido
           </h3>
-          {order.items.length > 0 ? (
+          {itemRows.length > 0 ? (
             <ul className="space-y-2">
-              {order.items.map((item, index) => (
+              {itemRows.map((item, index) => (
                 <li
                   key={`${order.id}-${item.name}-${index}`}
                   className="rounded-md border border-border px-3 py-2 text-sm"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-foreground">{item.name}</span>
-                    <span className="text-muted-foreground">{item.quantity}x</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(event) =>
+                            onEditItemQuantity(
+                              item.id,
+                              event.target.value
+                            )
+                          }
+                          className="h-8 w-20 rounded-md border border-input bg-background px-2 text-right text-sm"
+                          disabled={isBusy}
+                          aria-label={`Quantidade de ${item.name}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => onRemoveItem(item.id)}
+                          disabled={isBusy || itemRows.length <= 1}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">{item.quantity}x</span>
+                    )}
                   </div>
                   {item.extras && item.extras.length > 0 ? (
                     <div className="mt-2 text-xs text-muted-foreground">
@@ -516,6 +945,17 @@ function OrderDetailsContent({
                       {item.removedIngredients.map((ingredient) => ingredient.name).join(", ")}
                     </div>
                   ) : null}
+                  {isEditing ? (
+                    <OrderLineCustomizationEditor
+                      item={item}
+                      menuItem={menuItemsById.get(item.menuItemId)}
+                      onToggleExtra={(extraId) => onToggleItemExtra(item.id, extraId)}
+                      onToggleRemovedIngredient={(ingredientId) =>
+                        onToggleItemRemovedIngredient(item.id, ingredientId)
+                      }
+                      isBusy={isBusy}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -527,14 +967,24 @@ function OrderDetailsContent({
         </section>
       </div>
 
-      {order.notes && (
+      {(order.notes || isEditing) && (
         <section className={compact ? "mt-4" : "px-5 pb-5"}>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Observações
           </h3>
-          <p className="rounded-md border border-border px-3 py-2 text-sm text-foreground">
-            {order.notes}
-          </p>
+          {isEditing ? (
+            <textarea
+              aria-label="Observações"
+              value={notesValue}
+              onChange={(event) => onEditFieldChange("notes", event.target.value)}
+              className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              disabled={isBusy}
+            />
+          ) : (
+            <p className="rounded-md border border-border px-3 py-2 text-sm text-foreground">
+              {order.notes}
+            </p>
+          )}
         </section>
       )}
 
@@ -546,25 +996,162 @@ function OrderDetailsContent({
         }
       >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {nextStatus
-              ? `Próximo status: ${getOrderStatusLabel(nextStatus)}`
-              : "Este pedido não pode avançar mais."}
-          </p>
-          <Button
-            type="button"
-            onClick={onProgress}
-            disabled={!nextStatus || !order.status || isPending}
-          >
-            {isPending
-              ? "Atualizando..."
-              : nextStatus
-                ? "Avançar status"
-                : "Sem próxima etapa"}
-          </Button>
+          {isEditing ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Revise os dados antes de salvar.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancelEdit}
+                  disabled={isBusy}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={onSaveDetails}
+                  disabled={isBusy || !hasUnsavedChanges}
+                >
+                  {isSavingDetails ? "Salvando..." : "Salvar alterações"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {nextStatus
+                  ? `Próximo status: ${getOrderStatusLabel(nextStatus)}`
+                  : "Este pedido não pode avançar mais."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={onStartEdit} disabled={isBusy}>
+                  Editar pedido
+                </Button>
+                <Button
+                  type="button"
+                  onClick={onProgress}
+                  disabled={!nextStatus || !order.status || isBusy}
+                >
+                  {isPending
+                    ? "Atualizando..."
+                    : nextStatus
+                      ? "Avançar status"
+                      : "Sem próxima etapa"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </footer>
     </>
+  );
+}
+
+function EditField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid gap-1 text-sm">
+      <label className="text-muted-foreground">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function OrderLineCustomizationEditor({
+  item,
+  menuItem,
+  onToggleExtra,
+  onToggleRemovedIngredient,
+  isBusy,
+}: {
+  item: OrderEditDraft["items"][number];
+  menuItem: MenuItem | undefined;
+  onToggleExtra: (extraId: string) => void;
+  onToggleRemovedIngredient: (ingredientId: string) => void;
+  isBusy: boolean;
+}) {
+  if (!menuItem) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        Personalização indisponível para este item.
+      </p>
+    );
+  }
+
+  const extras = menuItem.extras ?? [];
+  const removableIngredients = menuItem.removableIngredients ?? [];
+  const selectedExtraIds = new Set(
+    (item.extras ?? [])
+      .map((extra) => extra.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+  );
+  const selectedRemovedIngredientIds = new Set(
+    (item.removedIngredients ?? [])
+      .map((ingredient) => ingredient.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+  );
+
+  if (extras.length === 0 && removableIngredients.length === 0) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        Este item não possui opções de personalização.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-md border border-dashed border-border p-3">
+      {extras.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Adicionar extras</p>
+          <div className="flex flex-wrap gap-2">
+            {extras.map((extra) => (
+              <label key={extra.id} className="inline-flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selectedExtraIds.has(extra.id)}
+                  onChange={() => onToggleExtra(extra.id)}
+                  disabled={isBusy}
+                />
+                <span>
+                  {extra.name}
+                  {typeof extra.priceCents === "number"
+                    ? ` (+${formatCurrency(extra.priceCents)})`
+                    : ""}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {removableIngredients.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Remover ingredientes</p>
+          <div className="flex flex-wrap gap-2">
+            {removableIngredients.map((ingredient) => (
+              <label key={ingredient.id} className="inline-flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selectedRemovedIngredientIds.has(ingredient.id)}
+                  onChange={() => onToggleRemovedIngredient(ingredient.id)}
+                  disabled={isBusy}
+                />
+                <span>Sem {ingredient.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -628,27 +1215,136 @@ function updateOrderStatusLocally(
   };
 }
 
+function createOrderEditDraft(
+  order: AdminOrder,
+  menuItemsById: Map<string, MenuItem>,
+  menuItemIdByName: Map<string, string | null>
+): OrderEditDraft {
+  return {
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    customerEmail: order.customerEmail === "Não informado" ? "" : order.customerEmail,
+    notes: order.notes ?? "",
+    paymentMethod: order.paymentMethod ?? "",
+    items: order.items.map((item, index) => ({
+      id: `${order.id}-${index}`,
+      menuItemId: resolveMenuItemId(
+        item.menuItemId,
+        item.name,
+        menuItemsById,
+        menuItemIdByName
+      ),
+      name: item.name,
+      quantity: item.quantity,
+      ...(typeof item.unitPriceCents === "number" ? { unitPriceCents: item.unitPriceCents } : {}),
+      ...(typeof item.lineTotalCents === "number" ? { lineTotalCents: item.lineTotalCents } : {}),
+      ...(item.extras ? { extras: item.extras } : {}),
+      ...(item.removedIngredients ? { removedIngredients: item.removedIngredients } : {}),
+    })),
+  };
+}
+
+function isOrderEditDraftEqual(a: OrderEditDraft, b: OrderEditDraft) {
+  return (
+    a.customerName === b.customerName &&
+    a.customerPhone === b.customerPhone &&
+    a.customerEmail === b.customerEmail &&
+    a.notes === b.notes &&
+    a.paymentMethod === b.paymentMethod &&
+    JSON.stringify(a.items) === JSON.stringify(b.items)
+  );
+}
+
+function toOptionalString(value: string | null | undefined) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeCustomizationIds(ids: string[]) {
+  return Array.from(
+    new Set(
+      ids
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function buildMenuItemIdByNameIndex(menuItems: MenuItem[]) {
+  const index = new Map<string, string | null>();
+  for (const item of menuItems) {
+    const key = normalizeMenuName(item.name);
+    if (!key) continue;
+    const existing = index.get(key);
+    if (!existing) {
+      index.set(key, item.id);
+      continue;
+    }
+    if (existing !== item.id) {
+      index.set(key, null);
+    }
+  }
+  return index;
+}
+
+function normalizeMenuName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function resolveMenuItemId(
+  menuItemId: string | undefined,
+  itemName: string,
+  menuItemsById: Map<string, MenuItem>,
+  menuItemIdByName: Map<string, string | null>
+) {
+  if (menuItemId) {
+    return menuItemId;
+  }
+
+  const byName = menuItemIdByName.get(normalizeMenuName(itemName));
+  if (byName && menuItemsById.has(byName)) {
+    return byName;
+  }
+
+  return "";
+}
+
 function mergePolledOrdersIntoLocalState(
   currentOrders: AdminOrder[],
   polledOrders: AdminOrder[],
-  pendingProgressOrderId: string | null
+  pendingProgressOrderId: string | null,
+  editingOrderId: string | null
 ) {
-  if (!pendingProgressOrderId) {
+  if (!pendingProgressOrderId && !editingOrderId) {
     return polledOrders;
   }
 
-  const currentPendingOrder = findOrderById(currentOrders, pendingProgressOrderId);
-  if (!currentPendingOrder) {
-    return polledOrders;
-  }
-
-  const nextOrders = polledOrders.map((order) =>
-    order.id === pendingProgressOrderId ? currentPendingOrder : order
+  const protectedOrderIds = [pendingProgressOrderId, editingOrderId].filter(
+    (value): value is string => Boolean(value)
   );
+  if (protectedOrderIds.length === 0) return polledOrders;
 
-  if (!hasOrderWithId(polledOrders, pendingProgressOrderId)) {
-    return [...nextOrders, currentPendingOrder];
+  const currentProtectedOrders = protectedOrderIds
+    .map((id) => findOrderById(currentOrders, id))
+    .filter((order): order is AdminOrder => Boolean(order));
+
+  if (currentProtectedOrders.length === 0) {
+    return polledOrders;
   }
+
+  const currentProtectedById = new Map(currentProtectedOrders.map((order) => [order.id, order]));
+
+  const nextOrders = polledOrders.map((order) => currentProtectedById.get(order.id) ?? order);
+
+  const missingProtected = currentProtectedOrders.filter(
+    (order) => !hasOrderWithId(polledOrders, order.id)
+  );
+  if (missingProtected.length > 0) return [...nextOrders, ...missingProtected];
 
   return nextOrders;
 }
@@ -764,4 +1460,11 @@ function mobileOrderPanelId(orderId: string) {
 
 function mobileOrderTriggerId(orderId: string) {
   return `admin-order-mobile-trigger-${orderId}`;
+}
+
+function formatCurrency(valueCents: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(valueCents / 100);
 }

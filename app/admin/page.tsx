@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createRequestClient } from "@/lib/request-client";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
+import { getMenuItems } from "@/lib/menu";
 
 const SETUP_MESSAGE =
   "Configure as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para visualizar os pedidos.";
@@ -10,6 +11,7 @@ const LOAD_ERROR_MESSAGE =
   "Não foi possível carregar os pedidos agora. Tente novamente em instantes.";
 
 export default async function AdminPage() {
+  const menuItems = getMenuItems();
   const supabase = await createRequestClient();
 
   if (!supabase) {
@@ -40,5 +42,5 @@ export default async function AdminPage() {
     );
   }
 
-  return <AdminOrdersDashboard initialOrders={orders ?? []} enablePolling />;
+  return <AdminOrdersDashboard initialOrders={orders ?? []} menuItems={menuItems} enablePolling />;
 }

@@ -5,20 +5,22 @@ import type { AdminOrder } from "@/lib/orders";
 
 vi.mock("@/app/admin/actions", () => ({
   progressOrderStatus: vi.fn(),
+  updateOrderDetails: vi.fn(),
 }));
 
-import { progressOrderStatus } from "@/app/admin/actions";
+import { progressOrderStatus, updateOrderDetails } from "@/app/admin/actions";
 
 function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
   return {
     id: "1",
     reference: "PED-0001",
     createdAtIso: "2026-02-23T10:00:00.000Z",
+    updatedAtIso: "2026-02-23T10:00:00.000Z",
     createdAtLabel: "23/02/2026, 07:00",
     customerName: "Cliente Teste",
     customerEmail: "cliente@example.com",
     customerPhone: "+55 11 99999-9999",
-    items: [{ name: "X-Burger", quantity: 1 }],
+    items: [{ menuItemId: "x-burger", name: "X-Burger", quantity: 1 }],
     status: "aguardando_confirmacao",
     statusLabel: "Esperando confirmação",
     rawStatus: "aguardando_confirmacao",
@@ -35,6 +37,7 @@ function makeOrder(overrides: Partial<AdminOrder>): AdminOrder {
 describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
   beforeEach(() => {
     vi.mocked(progressOrderStatus).mockReset();
+    vi.mocked(updateOrderDetails).mockReset();
     vi.unstubAllGlobals();
   });
 
@@ -1345,6 +1348,253 @@ describe("AdminOrdersDashboard (Employee Orders Dashboard)", () => {
       await flushAsyncWork();
 
       expect(screen.getAllByText("Em preparo").length).toBeGreaterThan(0);
+    } finally {
+      restoreVisibility();
+      vi.useRealTimers();
+    }
+  });
+
+  it("saves edited order details and updates the rendered customer/payment fields", async () => {
+    vi.mocked(updateOrderDetails).mockResolvedValue({
+      ok: true,
+      order: makeOrder({
+        id: "1",
+        customerName: "Ana Editada",
+        customerPhone: "11977776666",
+        customerEmail: "ana@editada.com",
+        paymentMethod: "pix",
+        paymentMethodLabel: "Pix",
+        notes: "Sem maionese",
+        updatedAtIso: "2026-02-23T10:05:00.000Z",
+      }),
+    });
+
+    render(<AdminOrdersDashboard initialOrders={[makeOrder({ id: "1" })]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar pedido" }));
+    fireEvent.change(screen.getByLabelText("Nome"), {
+      target: { value: "Ana Editada" },
+    });
+    fireEvent.change(screen.getByLabelText("Telefone"), {
+      target: { value: "(11) 97777-6666" },
+    });
+    fireEvent.change(screen.getByLabelText("E-mail"), {
+      target: { value: "ana@editada.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Forma de pagamento"), {
+      target: { value: "pix" },
+    });
+    fireEvent.change(screen.getByLabelText("Observações"), {
+      target: { value: "Sem maionese" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => {
+      expect(updateOrderDetails).toHaveBeenCalledWith({
+        orderId: "1",
+        expectedUpdatedAt: "2026-02-23T10:00:00.000Z",
+        customerName: "Ana Editada",
+        customerPhone: "(11) 97777-6666",
+        customerEmail: "ana@editada.com",
+        notes: "Sem maionese",
+        paymentMethod: "pix",
+        items: [{ menuItemId: "x-burger", quantity: 1 }],
+      });
+    });
+
+    expect(screen.getByText("Dados do pedido atualizados com sucesso.")).toBeInTheDocument();
+    expect(screen.getAllByText("Ana Editada").length).toBeGreaterThan(0);
+    expect(screen.getByText("Pix")).toBeInTheDocument();
+  });
+
+  it("allows removing an item line during edit mode and saves remaining items", async () => {
+    vi.mocked(updateOrderDetails).mockResolvedValue({
+      ok: true,
+      order: makeOrder({
+        id: "1",
+        items: [{ name: "X-Salada", quantity: 1 }],
+        updatedAtIso: "2026-02-23T10:05:00.000Z",
+      }),
+    });
+
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            items: [
+              { menuItemId: "x-burger", name: "X-Burger", quantity: 1 },
+              { menuItemId: "x-salada", name: "X-Salada", quantity: 1 },
+            ],
+          }),
+        ]}
+        menuItems={[
+          { id: "x-burger", name: "X-Burger", priceCents: 2000 },
+          { id: "x-salada", name: "X-Salada", priceCents: 2200 },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar pedido" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Remover" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => {
+      expect(updateOrderDetails).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "1",
+          items: [{ menuItemId: "x-salada", quantity: 1 }],
+        })
+      );
+    });
+  });
+
+  it("allows toggling extras and removable ingredients like customer customization", async () => {
+    vi.mocked(updateOrderDetails).mockResolvedValue({
+      ok: true,
+      order: makeOrder({
+        id: "1",
+        items: [
+          {
+            menuItemId: "x-burger",
+            name: "X-Burger",
+            quantity: 1,
+            extras: [{ id: "extra-bacon", name: "Bacon", priceCents: 300 }],
+            removedIngredients: [{ id: "ingred-cheese", name: "Queijo" }],
+          },
+        ],
+        updatedAtIso: "2026-02-23T10:05:00.000Z",
+      }),
+    });
+
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            items: [{ menuItemId: "x-burger", name: "X-Burger", quantity: 1 }],
+          }),
+        ]}
+        menuItems={[
+          {
+            id: "x-burger",
+            name: "X-Burger",
+            priceCents: 2000,
+            extras: [{ id: "extra-bacon", name: "Bacon", priceCents: 300 }],
+            removableIngredients: [{ id: "ingred-cheese", name: "Queijo" }],
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar pedido" }));
+    fireEvent.click(screen.getByLabelText(/Bacon/));
+    fireEvent.click(screen.getByLabelText(/Sem Queijo/));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => {
+      expect(updateOrderDetails).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [
+            {
+              menuItemId: "x-burger",
+              quantity: 1,
+              extraIds: ["extra-bacon"],
+              removedIngredientIds: ["ingred-cheese"],
+            },
+          ],
+        })
+      );
+    });
+  });
+
+  it("resolves missing menuItemId by item name so customization stays available", async () => {
+    vi.mocked(updateOrderDetails).mockResolvedValue({
+      ok: true,
+      order: makeOrder({
+        id: "1",
+        notes: "Atualizado",
+        updatedAtIso: "2026-02-23T10:05:00.000Z",
+      }),
+    });
+
+    render(
+      <AdminOrdersDashboard
+        initialOrders={[
+          makeOrder({
+            id: "1",
+            items: [{ name: "X-Burger", quantity: 1 }],
+          }),
+        ]}
+        menuItems={[{ id: "x-burger", name: "X-Burger", priceCents: 2000 }]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar pedido" }));
+    expect(
+      screen.queryByText("Personalização indisponível para este item.")
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Observações"), {
+      target: { value: "Atualizado" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => {
+      expect(updateOrderDetails).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [{ menuItemId: "x-burger", quantity: 1 }],
+        })
+      );
+    });
+  });
+
+  it("keeps local draft values while editing even when polling receives newer server data", async () => {
+    vi.useFakeTimers();
+    const restoreVisibility = mockDocumentVisibility("visible");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeJsonResponse({
+          ok: true,
+          orders: [
+            makeOrder({
+              id: "1",
+              customerName: "Nome Servidor",
+              customerPhone: "11999999999",
+            }),
+          ],
+        })
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      render(
+        <AdminOrdersDashboard
+          initialOrders={[
+            makeOrder({
+              id: "1",
+              customerName: "Nome Inicial",
+              customerPhone: "11999999999",
+            }),
+          ]}
+          enablePolling
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Editar pedido" }));
+      fireEvent.change(screen.getByLabelText("Nome"), {
+        target: { value: "Nome Local Rascunho" },
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await flushAsyncWork();
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(screen.getByLabelText("Nome")).toHaveValue("Nome Local Rascunho");
     } finally {
       restoreVisibility();
       vi.useRealTimers();
