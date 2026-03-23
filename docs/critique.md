@@ -1,25 +1,39 @@
 ---
 # Critique
 
-Date: 2026-03-16
+Date: 2026-03-23
 Reviewed by: Critic Agent
-Scope: Documenter review for soft-delete-orders-history
+Scope: docs/briefs/admin-order-editing.md (Stage 0 — Admin Order Editing, re-review after Orchestrator fixes)
 Verdict: APPROVE
 
 ## Findings
 
 ### Required Changes
-- None.
+None. Previous critique items have been addressed:
+
+- **Fulfillment-type vs. status constraints:** Decisions section now locks server rejection of fulfillment changes that conflict with status (`saiu_para_entrega`↔retirada, `pronto_para_retirada`↔entrega). Success Criteria and Unhappy Path #6 cover this.
+- **Legacy items without `menuItemId`:** Decisions section now locks handling: exclude from editable list when loading, omit from save payload, drop on save if not re-added; admin can re-add from menu.
+
+---
 
 ### Suggested Improvements
-- [`docs/soft-delete-orders-history.md`] Consider adding one explicit note that the cron schedule itself is unchanged if that operational assumption is expected to carry over from the prior feature.
+- **Edge Cases — "Editing delivered orders":** The bullet still says "Product decision: allow or disallow... implementation can restrict if preferred," but Decisions locks "Allowed." Consider aligning the Edge Case text to match Decisions (e.g. "Allowed; implementation may restrict in a future change if needed").
+
+---
 
 ### Risks / Assumptions
-- Real Supabase/Postgres verification of the migration/function is still outside this workflow run and remains a documented gap.
-- The legacy cleanup function name is still semantically misleading, but the documentation now makes the compatibility behavior explicit.
+- **Concurrent edits:** Last write wins remains acceptable for small scale (PROJECT.md).
+- **`customer_id` on edit:** Implementation choice; snapshot is display source of truth.
+- **Legacy item UX:** Dropping legacy-only items on save may surprise admins editing old orders; consider a brief in-form notice when legacy items are excluded (non-blocking, implementation detail).
+- **Admin update path:** Ensure `createRequestClient` (or equivalent) is used so RLS applies; do not use privileged/service-role client.
+
+---
 
 ## Acceptance Criteria
-- [x] Documenter artifacts refer to Stage 4, not Stage 5
-- [x] Brief status text matches the current workflow stage model
-- [x] Documenter package is ready for Gatekeeper to use `docs/soft-delete-orders-history.md` as the PR body
----
+
+Before advancing to Implementer:
+- [x] Decisions lock fulfillment-type vs. status validation
+- [x] Decisions lock legacy item handling
+- [x] Success Criteria includes fulfillment-type rejection
+- [x] Unhappy Paths include fulfillment+status conflict
+- [x] Brief is sufficiently clear for Implementer to begin Stage 1
