@@ -32,6 +32,7 @@ export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
 const ORDER_STATUS_SET = new Set<OrderStatus>(ORDER_STATUS_SEQUENCE);
 
 export type AdminOrderItem = {
+  menuItemId?: string;
   name: string;
   quantity: number;
   unitPriceCents?: number;
@@ -51,6 +52,7 @@ export type AdminOrder = {
   id: string;
   reference: string;
   createdAtIso: string | null;
+  updatedAtIso?: string | null;
   createdAtLabel: string;
   customerName: string;
   customerEmail: string;
@@ -162,6 +164,7 @@ export function parseAdminOrder(
   }
 
   const createdAtRaw = stringFrom(record.created_at) ?? stringFrom(record.createdAt);
+  const updatedAtRaw = stringFrom(record.updated_at) ?? stringFrom(record.updatedAt);
 
   const { status, label: statusLabel, raw: rawStatus } = getStatusLabelFromUnknown(
     record.status
@@ -209,6 +212,7 @@ export function parseAdminOrder(
       stringFrom(record.reference) ??
       `Pedido #${fallbackIndex + 1}`,
     createdAtIso: toIsoString(createdAtRaw),
+    updatedAtIso: toIsoString(updatedAtRaw),
     createdAtLabel: formatDateTimePtBr(createdAtRaw),
     customerName,
     customerEmail,
@@ -331,6 +335,9 @@ function parseOrderItemsWithTotal(
       }
 
       return {
+        ...(stringFrom(row.menuItemId ?? row.menu_item_id)
+          ? { menuItemId: stringFrom(row.menuItemId ?? row.menu_item_id)! }
+          : {}),
         name,
         quantity: normalizedQuantity,
         ...(parsedUnitPriceCents !== null ? { unitPriceCents: parsedUnitPriceCents } : {}),

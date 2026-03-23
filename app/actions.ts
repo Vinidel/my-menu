@@ -2,6 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  isBasicEmail,
+  normalizeOptionalEmail,
+  sanitizeOptionalText,
+  sanitizeText,
+} from "@/lib/customer-contact";
+import {
   getDeliveryFeeCentsForFulfillmentType,
   normalizeFulfillmentType,
   type FulfillmentType,
@@ -606,25 +612,6 @@ function assertValidPriceCents(
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new MissingPriceSnapshotError(message);
   }
-}
-
-function sanitizeText(value: string): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function sanitizeOptionalText(value: string | undefined): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-function normalizeOptionalEmail(value: string | null): string | null {
-  if (!value) return null;
-  return value.trim().toLowerCase();
-}
-
-function isBasicEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function toPositiveInt(value: unknown): number | null {
