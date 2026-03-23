@@ -26,6 +26,26 @@ export type ProgressAdminOrderStatusInput = {
   nextStatus: OrderStatus;
 };
 
+export type UpdateAdminOrderPayload = {
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string;
+  payment_method: string;
+  fulfillment_type: string;
+  delivery_fee_cents: number;
+  notes: string | null;
+  items: unknown;
+};
+
+export type UpdateAdminOrderInput = {
+  orderId: string;
+  payload: UpdateAdminOrderPayload;
+};
+
+export type UpdateAdminOrderRecord = {
+  id: string;
+};
+
 export interface AdminOrdersDataAccess {
   listAdminOrders(): Promise<AdminOrdersDataAccessResult<AdminOrder[]>>;
   getAdminOrderStatusSnapshot(
@@ -34,6 +54,9 @@ export interface AdminOrdersDataAccess {
   progressAdminOrderStatusConditionally(
     input: ProgressAdminOrderStatusInput
   ): Promise<AdminOrdersDataAccessResult<AdminOrderStatusUpdateRecord | null>>;
+  updateAdminOrder(
+    input: UpdateAdminOrderInput
+  ): Promise<AdminOrdersDataAccessResult<UpdateAdminOrderRecord | null>>;
 }
 
 export function createAdminOrdersDataAccess(client: {

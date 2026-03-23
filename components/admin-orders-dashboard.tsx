@@ -15,9 +15,12 @@ import {
   progressOrderStatus,
   type ProgressOrderResult,
 } from "@/app/admin/actions";
+import { AdminOrderEditSheet } from "@/components/admin-order-edit-sheet";
+import type { MenuItem } from "@/lib/menu";
 
 type AdminOrdersDashboardProps = {
   initialOrders: AdminOrder[];
+  menuItems: MenuItem[];
   initialLoadError?: string | null;
   enablePolling?: boolean;
 };
@@ -79,12 +82,14 @@ const STATUS_VISUAL_STYLES: Record<
 
 export function AdminOrdersDashboard({
   initialOrders,
+  menuItems = [],
   initialLoadError = null,
   enablePolling = false,
 }: AdminOrdersDashboardProps) {
   return (
     <AdminOrdersDashboardPolling
       initialOrders={initialOrders}
+      menuItems={menuItems}
       initialLoadError={initialLoadError}
       enablePolling={enablePolling}
     />
@@ -93,6 +98,7 @@ export function AdminOrdersDashboard({
 
 function AdminOrdersDashboardPolling({
   initialOrders,
+  menuItems,
   initialLoadError,
   enablePolling = false,
 }: AdminOrdersDashboardProps) {
@@ -111,6 +117,7 @@ function AdminOrdersDashboardPolling({
     <QueryClientProvider client={queryClient}>
       <AdminOrdersDashboardContent
         initialOrders={initialOrders}
+        menuItems={menuItems}
         initialLoadError={initialLoadError}
         enablePolling={enablePolling}
       />
@@ -120,10 +127,12 @@ function AdminOrdersDashboardPolling({
 
 function AdminOrdersDashboardContent({
   initialOrders,
+  menuItems,
   initialLoadError = null,
   enablePolling = false,
 }: AdminOrdersDashboardProps) {
   const [orders, setOrders] = useState(initialOrders);
+  const [editingOrder, setEditingOrder] = useState<AdminOrder | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
     initialOrders[0]?.id ?? null
   );
@@ -300,6 +309,16 @@ function AdminOrdersDashboardContent({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6 md:p-8">
+      {editingOrder ? (
+        <AdminOrderEditSheet
+          order={editingOrder}
+          menuItems={menuItems}
+          onClose={() => setEditingOrder(null)}
+          onSuccess={() => {
+            void pollingQuery.refetch();
+          }}
+        />
+      ) : null}
       <SummaryCards counts={counts} />
       {feedback && <FeedbackBanner {...feedback} />}
       {showPollingErrorBanner ? (
@@ -371,6 +390,8 @@ function AdminOrdersDashboardContent({
                         nextStatus={orderNextStatus}
                         isPending={isPending}
                         onProgress={() => handleProgressOrder(order)}
+                        onEdit={() => setEditingOrder(order)}
+                        menuItems={menuItems}
                         compact
                       />
                     </div>
@@ -414,6 +435,8 @@ function AdminOrdersDashboardContent({
                 nextStatus={nextStatus}
                 isPending={isPending}
                 onProgress={() => handleProgressOrder(selectedOrder)}
+                onEdit={() => setEditingOrder(selectedOrder)}
+                menuItems={menuItems}
               />
             </div>
           ) : (
@@ -464,12 +487,16 @@ function OrderDetailsContent({
   nextStatus,
   isPending,
   onProgress,
+  onEdit,
+  menuItems,
   compact = false,
 }: {
   order: AdminOrder;
   nextStatus: OrderStatus | null;
   isPending: boolean;
   onProgress: () => void;
+  onEdit: () => void;
+  menuItems: MenuItem[];
   compact?: boolean;
 }) {
   return (
@@ -551,17 +578,29 @@ function OrderDetailsContent({
               ? `Próximo status: ${getOrderStatusLabel(nextStatus)}`
               : "Este pedido não pode avançar mais."}
           </p>
-          <Button
-            type="button"
-            onClick={onProgress}
-            disabled={!nextStatus || !order.status || isPending}
-          >
-            {isPending
-              ? "Atualizando..."
-              : nextStatus
-                ? "Avançar status"
-                : "Sem próxima etapa"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {menuItems.length > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onEdit}
+                disabled={isPending}
+              >
+                Editar pedido
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              onClick={onProgress}
+              disabled={!nextStatus || !order.status || isPending}
+            >
+              {isPending
+                ? "Atualizando..."
+                : nextStatus
+                  ? "Avançar status"
+                  : "Sem próxima etapa"}
+            </Button>
+          </div>
         </div>
       </footer>
     </>

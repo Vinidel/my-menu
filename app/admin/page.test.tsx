@@ -10,6 +10,10 @@ vi.mock("@/lib/admin-orders-data-access", () => ({
   createAdminOrdersDataAccess: vi.fn(),
 }));
 
+vi.mock("@/lib/menu-runtime", () => ({
+  getRuntimeMenuItems: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/components/admin-orders-dashboard", () => ({
   AdminOrdersDashboard: ({
     initialOrders,

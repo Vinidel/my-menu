@@ -95,3 +95,10 @@ Issues or observations spotted during implementation that are **out of scope** f
 ## Admin Delivery Status Step (Stage 1)
 
 - **Repository-wide test typing debt remains out of scope:** `npm exec tsc --noEmit` still fails on existing test-only TypeScript issues in files such as `app/admin/cardapio/page.test.tsx`, `app/admin/login/page.test.tsx`, `app/api/orders/route.test.ts`, and `lib/anti-abuse/captcha-config.test.ts`. The production build for this feature passes; Stage 1 did not fix unrelated test typing debt.
+
+---
+
+## Admin Order Editing (Stage 1)
+
+- **Shared validation extraction:** Order validation and snapshot building moved to `lib/order-submit-validation.ts` for reuse by customer submit and admin edit. `app/actions.ts` now calls `validateAndBuildOrderPayload` instead of duplicating logic.
+- **Phone-only customer upgrade:** When upgrading a phone-only customer with email, the `email` column is now stored in normalized (lowercase) form to match dedupe convention; test was asserting this behavior.

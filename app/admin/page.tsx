@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createRequestClient } from "@/lib/request-client";
 import { AdminOrdersDashboard } from "@/components/admin-orders-dashboard";
 import { createAdminOrdersDataAccess } from "@/lib/admin-orders-data-access";
+import { getRuntimeMenuItems } from "@/lib/menu-runtime";
 
 const SETUP_MESSAGE =
   "Configure as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para visualizar os pedidos.";
@@ -36,9 +37,22 @@ export default async function AdminPage() {
       code: error.code,
     });
     return (
-      <AdminOrdersDashboard initialOrders={[]} initialLoadError={LOAD_ERROR_MESSAGE} />
+      <AdminOrdersDashboard
+      initialOrders={[]}
+      menuItems={[]}
+      initialLoadError={LOAD_ERROR_MESSAGE}
+    />
     );
   }
 
-  return <AdminOrdersDashboard initialOrders={orders ?? []} enablePolling />;
+  /** Same source as `/` (customer orders) so `menuItemId` in orders resolves in the edit sheet. */
+  const menuItems = await getRuntimeMenuItems();
+
+  return (
+    <AdminOrdersDashboard
+      initialOrders={orders ?? []}
+      menuItems={menuItems}
+      enablePolling
+    />
+  );
 }
